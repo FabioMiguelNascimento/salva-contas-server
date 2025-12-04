@@ -1,0 +1,13 @@
+import 'dotenv/config';
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { GlobalExceptionHandler } from './common/execptions/global-exception-handler';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  app.useGlobalFilters(new GlobalExceptionHandler());
+
+  await app.listen(process.env.PORT ?? 3000);
+}
+bootstrap();

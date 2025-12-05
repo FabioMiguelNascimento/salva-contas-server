@@ -28,13 +28,12 @@ export interface ValidationError {
 
 export type ApiResponse<T = any> = SuccessResponse<T> | ErrorResponse;
 
-export interface PaginationMeta {
-  page: number;
-  limit: number;
+export interface CursorPaginationMeta {
+  nextCursor: string | null;
+  hasNextPage: boolean;
   total: number;
-  totalPages: number;
 }
 
 export interface PaginatedResponse<T> extends SuccessResponse<T[]> {
-  meta: PaginationMeta;
+  meta: CursorPaginationMeta;
 }

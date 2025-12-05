@@ -1,5 +1,5 @@
 import { ValidationError } from "@nestjs/common";
-import { ErrorResponse, ErrorType, PaginatedResponse, PaginationMeta, SuccessResponse } from "src/types/api-response.type";
+import { ErrorResponse, ErrorType, PaginatedResponse, CursorPaginationMeta, SuccessResponse } from "src/types/api-response.type";
 
 export class ApiResponseHelper {
   private static createTimestamp(): string {
@@ -22,7 +22,7 @@ export class ApiResponseHelper {
 
   static successWithPagination<T>(
     data: T[],
-    meta: PaginationMeta,
+    meta: CursorPaginationMeta,
     message: string = 'Dados recuperados com sucesso',
     statusCode: number = 200
   ): PaginatedResponse<T> {

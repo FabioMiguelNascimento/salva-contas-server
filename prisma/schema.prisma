@@ -36,6 +36,7 @@ model Category {
   icon      String?
   transactions Transaction[]
   subscriptions Subscription[]
+  budgets   Budget[]
 
   @@unique([userId, name])
   @@map("categories")
@@ -77,4 +78,19 @@ model Subscription {
   createdAt   DateTime             @default(now()) @map("created_at")
 
   @@map("subscriptions")
+}
+
+model Budget {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  categoryId String   @map("category_id")
+  category   Category @relation(fields: [categoryId], references: [id])
+  amount     Decimal  @db.Decimal(10, 2)
+  month      Int      // 1-12
+  year       Int      // Ano
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, categoryId, month, year])
+  @@map("budgets")
 }

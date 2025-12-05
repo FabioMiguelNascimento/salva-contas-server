@@ -32,6 +32,17 @@ export const GetTransactionsSchema = z.object({
   year: z.coerce.number().min(1900).max(2100).optional(),
 });
 
+export const UpdateTransactionSchema = z.object({
+  amount: z.number().positive().optional(),
+  description: z.string().min(1).optional(),
+  categoryId: z.string().uuid().optional(),
+  type: z.enum(['expense', 'income']).optional(),
+  status: z.enum(['paid', 'pending']).optional(),
+  dueDate: z.coerce.date().nullable().optional(),
+  paymentDate: z.coerce.date().nullable().optional(),
+});
+
 export type AIReceiptData = z.infer<typeof AIReceiptSchema>;
 export type CreateTransactionInput = z.infer<typeof CreateTransactionSchema>;
 export type GetTransactionsInput = z.infer<typeof GetTransactionsSchema>;
+export type UpdateTransactionInput = z.infer<typeof UpdateTransactionSchema>;

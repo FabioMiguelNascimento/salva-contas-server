@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Transaction } from "generated/prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
-import { AIReceiptData, CreateTransactionInput, GetTransactionsInput } from "src/schemas/transactions.schema";
+import { AIReceiptData, CreateTransactionInput, GetTransactionsInput, UpdateTransactionInput } from "src/schemas/transactions.schema";
 import { TransactionsRepositoryInterface } from "./transactions.interface";
 
 @Injectable()
@@ -107,5 +107,31 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
                 totalPages: Math.ceil(total / limit),
             }
         };
-    }        
+    }
+
+    async updateTransaction(id: string, data: UpdateTransactionInput): Promise<Transaction> {
+        const updateData: any = { ...data };
+
+        if (data.categoryId) {
+            const category = await this.prisma.category.findUnique({
+                where: { id: data.categoryId },
+            });
+            if (category) {
+                updateData.category = category.name;
+                updateData.categoryName = category.name;
+                updateData.categoryRel = { connect: { id: data.categoryId } };
+            }
+        }
+
+        return this.prisma.transaction.update({
+            where: { id },
+            data: updateData,
+        });
+    }
+
+    async deleteTransaction(id: string): Promise<void> {
+        await this.prisma.transaction.delete({
+            where: { id },
+        });
+    }
 }

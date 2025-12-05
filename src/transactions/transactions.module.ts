@@ -4,8 +4,10 @@ import { TransactionsController } from './transactions.controller';
 import { TransactionsRepositoryInterface } from './transactions.interface';
 import TransactionsRepository from './transactions.repository';
 import CreateManualTransactionUseCase from './use-cases/create-manual-transaction.use-case';
+import { DeleteTransactionUseCase } from './use-cases/delete-transaction.use-case';
 import GetTransactionsUseCase from './use-cases/get-transactions.use-case';
 import ProcessTransactionUseCase from './use-cases/process-transaction.use-case';
+import { UpdateTransactionUseCase } from './use-cases/update-transaction.use-case';
 
 @Module({
   imports: [PrismaModule],
@@ -14,6 +16,8 @@ import ProcessTransactionUseCase from './use-cases/process-transaction.use-case'
     ProcessTransactionUseCase,
     CreateManualTransactionUseCase,
     GetTransactionsUseCase,
+    UpdateTransactionUseCase,
+    DeleteTransactionUseCase,
     {
       provide: TransactionsRepositoryInterface,
       useClass: TransactionsRepository

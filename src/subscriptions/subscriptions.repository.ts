@@ -19,11 +19,14 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
     }
 
     async createSubscription(data: CreateSubscriptionInput): Promise<any> {
-        const { creditCardId, ...restData } = data;
+        const { creditCardId, categoryId, ...restData } = data;
         
         const createData: any = {
             ...restData,
             userId: this.userId,
+            category: {
+                connect: { id: categoryId }
+            }
         };
 
         if (creditCardId) {

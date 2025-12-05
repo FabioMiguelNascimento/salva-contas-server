@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
-import { GetAllCategoriesInput, GetAllCategoriesSchema } from 'src/schemas/categories.schema';
+import { GetAllCategoriesInput, GetAllCategoriesSchema, UpdateCategorySchema } from 'src/schemas/categories.schema';
 import { BaseCategoryUpdateInput } from 'src/types/categories.type';
 import { success, successWithPagination } from 'src/utils/api-response-helper';
 import GetAllCategoriesUseCase from './use-cases/get-all-categories.use-cases';
@@ -25,7 +25,7 @@ export class CategoriesController {
     }
 
     @Patch(':id')
-    async updateCategory(@Body() data: BaseCategoryUpdateInput, @Param('id') id: string) {
+    async updateCategory(@Body(new ZodValidationPipe(UpdateCategorySchema)) data: BaseCategoryUpdateInput, @Param('id') id: string) {
         const updatedCategory = await this.updateCategoryUseCase.execute(data, id);
 
         return success(

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { Subscription } from 'generated/prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateSubscriptionInput, GetAllSubscriptionsInput } from 'src/schemas/subscriptions.schema';
+import { CreateSubscriptionInput, GetAllSubscriptionsInput, UpdateSubscriptionInput } from 'src/schemas/subscriptions.schema';
 import { SubscriptionsRepositoryInterface } from './subscriptions.interface';
 
 @Injectable()
@@ -100,5 +101,36 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
         }
 
         console.log(`Criadas ${subscriptions.length} transações recorrentes para hoje.`);
+    }
+
+    async updateSubscription(id: string, data: UpdateSubscriptionInput): Promise<Subscription> {
+        const updateData: any = { ...data };
+
+        if (data.categoryId) {
+            const category = await this.prisma.category.findUnique({
+                where: { id: data.categoryId },
+            });
+            if (!category) {
+                throw new Error('Category not found');
+            }
+        }
+
+        return this.prisma.subscription.update({
+            where: { id },
+            data: updateData,
+            include: {
+                category: true,
+            },
+        });
+    }
+
+    async cancelSubscription(id: string): Promise<Subscription> {
+        return this.prisma.subscription.update({
+            where: { id },
+            data: { isActive: false },
+            include: {
+                category: true,
+            },
+        });
     }
 }

@@ -13,13 +13,22 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
     }
 
     async createSubscription(data: CreateSubscriptionInput): Promise<any> {
+        const { creditCardId, ...restData } = data;
+        
+        const createData: any = {
+            ...restData,
+            userId: this.DEV_USER_ID,
+        };
+
+        if (creditCardId) {
+            createData.creditCard = { connect: { id: creditCardId } };
+        }
+
         return this.prisma.subscription.create({
-            data: {
-                ...data,
-                userId: this.DEV_USER_ID,
-            },
+            data: createData,
             include: {
                 category: true,
+                creditCard: true,
             }
         });
     }
@@ -46,6 +55,7 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
             where,
             include: {
                 category: true,
+                creditCard: true,
             },
             orderBy: {
                 createdAt: 'desc',
@@ -81,22 +91,30 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
             },
             include: {
                 category: true,
+                creditCard: true,
             },
         });
 
         for (const sub of subscriptions) {
+            const transactionData: any = {
+                userId: this.DEV_USER_ID,
+                amount: sub.amount,
+                description: sub.description,
+                category: sub.category.name,
+                categoryName: sub.category.name,
+                categoryId: sub.categoryId,
+                type: 'expense',
+                status: 'pending', // ou 'paid' se débito automático
+                dueDate: today,
+            };
+
+            // Se a assinatura tem cartão de crédito, vincular à transação
+            if (sub.creditCardId) {
+                transactionData.creditCardId = sub.creditCardId;
+            }
+
             await this.prisma.transaction.create({
-                data: {
-                    userId: this.DEV_USER_ID,
-                    amount: sub.amount,
-                    description: sub.description,
-                    category: sub.category.name,
-                    categoryName: sub.category.name,
-                    categoryId: sub.categoryId,
-                    type: 'expense',
-                    status: 'pending', // ou 'paid' se débito automático
-                    dueDate: today,
-                },
+                data: transactionData,
             });
         }
 
@@ -104,7 +122,8 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
     }
 
     async updateSubscription(id: string, data: UpdateSubscriptionInput): Promise<Subscription> {
-        const updateData: any = { ...data };
+        const { creditCardId, ...restData } = data;
+        const updateData: any = { ...restData };
 
         if (data.categoryId) {
             const category = await this.prisma.category.findUnique({
@@ -115,11 +134,19 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
             }
         }
 
+        // Tratar creditCardId: conectar, desconectar ou manter
+        if (creditCardId === null) {
+            updateData.creditCard = { disconnect: true };
+        } else if (creditCardId) {
+            updateData.creditCard = { connect: { id: creditCardId } };
+        }
+
         return this.prisma.subscription.update({
             where: { id },
             data: updateData,
             include: {
                 category: true,
+                creditCard: true,
             },
         });
     }
@@ -130,6 +157,7 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
             data: { isActive: false },
             include: {
                 category: true,
+                creditCard: true,
             },
         });
     }

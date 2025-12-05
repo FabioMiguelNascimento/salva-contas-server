@@ -80,6 +80,9 @@ model Subscription {
   isActive    Boolean              @default(true)
   createdAt   DateTime             @default(now()) @map("created_at")
 
+  creditCardId String?       @map("credit_card_id")
+  creditCard   CreditCard?   @relation(fields: [creditCardId], references: [id])
+
   @@map("subscriptions")
 }
 
@@ -156,6 +159,7 @@ model CreditCard {
   updatedAt       DateTime         @updatedAt @map("updated_at")
 
   transactions    Transaction[]
+  subscriptions   Subscription[]
 
   @@map("credit_cards")
 }

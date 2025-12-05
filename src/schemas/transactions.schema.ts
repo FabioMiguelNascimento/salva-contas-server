@@ -8,6 +8,7 @@ export const AIReceiptSchema = z.object({
   status: z.enum(['paid', 'pending']),
   dueDate: z.coerce.date().nullable(), 
   paymentDate: z.coerce.date().nullable(),
+  creditCardId: z.string().nullable().optional(),
 });
 
 export const CreateTransactionSchema = z.object({

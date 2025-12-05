@@ -14,32 +14,40 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
 
     async createTransaction(data: AIReceiptData): Promise<Transaction> {
         const normalizedCategory = data.category.charAt(0).toUpperCase() + data.category.slice(1).toLowerCase();
-        const { category, ...transactionData } = data;
+        const { category, creditCardId, ...transactionData } = data;
 
-        return this.prisma.transaction.create({
-            data: {
-                ...transactionData,
-                userId: this.DEV_USER_ID,
-                category: normalizedCategory,
-                categoryName: normalizedCategory,
-                categoryRel: {
-                    connectOrCreate: {
-                        where: {
-                            userId_name: {
-                                userId: this.DEV_USER_ID,
-                                name: normalizedCategory
-                            }
-                        },
-                        create: {
+        const createData: any = {
+            ...transactionData,
+            userId: this.DEV_USER_ID,
+            category: normalizedCategory,
+            categoryName: normalizedCategory,
+            categoryRel: {
+                connectOrCreate: {
+                    where: {
+                        userId_name: {
                             userId: this.DEV_USER_ID,
-                            name: normalizedCategory,
-                            icon: 'tag'
+                            name: normalizedCategory
                         }
+                    },
+                    create: {
+                        userId: this.DEV_USER_ID,
+                        name: normalizedCategory,
+                        icon: 'tag'
                     }
                 }
-            },
+            }
+        };
+
+        // Conectar cartão de crédito se fornecido
+        if (creditCardId) {
+            createData.creditCard = { connect: { id: creditCardId } };
+        }
+
+        return this.prisma.transaction.create({
+            data: createData,
             include: {
-                categoryRel: true
+                categoryRel: true,
+                creditCard: true,
             }
         });
     }

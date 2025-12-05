@@ -8,6 +8,7 @@ export const CreateSubscriptionSchema = z.object({
     dayOfMonth: z.number().min(1).max(31).optional(),
     dayOfWeek: z.number().min(0).max(6).optional(),
     month: z.number().min(1).max(12).optional(), // Para yearly
+    creditCardId: z.string().uuid().optional(), // Cartão de crédito associado
 })
 
 export const GetAllSubscriptionsSchema = z.object({
@@ -24,6 +25,7 @@ export const UpdateSubscriptionSchema = z.object({
     dayOfWeek: z.number().min(0).max(6).optional(),
     month: z.number().min(1).max(12).optional(),
     isActive: z.boolean().optional(),
+    creditCardId: z.string().uuid().nullable().optional(), // Cartão de crédito associado (null para remover)
 })
 
 export type CreateSubscriptionInput = z.infer<typeof CreateSubscriptionSchema>

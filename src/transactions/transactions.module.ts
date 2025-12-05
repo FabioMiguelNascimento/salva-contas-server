@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { CreditCardsRepositoryInterface } from 'src/credit-cards/credit-cards.interface';
+import { CreditCardsRepository } from 'src/credit-cards/credit-cards.repository';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { TransactionsController } from './transactions.controller';
 import { TransactionsRepositoryInterface } from './transactions.interface';
@@ -21,6 +23,10 @@ import { UpdateTransactionUseCase } from './use-cases/update-transaction.use-cas
     {
       provide: TransactionsRepositoryInterface,
       useClass: TransactionsRepository
+    },
+    {
+      provide: CreditCardsRepositoryInterface,
+      useClass: CreditCardsRepository
     }
   ]
 })

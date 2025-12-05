@@ -23,9 +23,10 @@ export class TransactionsController {
     @UseInterceptors(FileInterceptor('file'))
     async processTransaction(
         @Body("text") body: string,
+        @Body("creditCardId") creditCardId: string | null,
         @UploadedFile() file: Express.Multer.File,
     ) {
-        const data = await this.processTransactionUseCase.execute(file, body);
+        const data = await this.processTransactionUseCase.execute(file, body, creditCardId);
 
         return success(data, "Transaction processed successfully");
     }   

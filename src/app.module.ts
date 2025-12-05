@@ -4,11 +4,12 @@ import { BudgetsModule } from './budgets/budgets.module';
 import { CategoriesModule } from './categories/categories.module';
 import { CreditCardsModule } from './credit-cards/credit-cards.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TransactionsModule } from './transactions/transactions.module';
 
 @Module({
-  imports: [AuthModule, TransactionsModule, CategoriesModule, SubscriptionsModule, DashboardModule, BudgetsModule, NotificationsModule, CreditCardsModule],
+  imports: [AuthModule, HealthModule, TransactionsModule, CategoriesModule, SubscriptionsModule, DashboardModule, BudgetsModule, NotificationsModule, CreditCardsModule],
 })
 export class AppModule {}

@@ -1,15 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Scope } from '@nestjs/common';
+import { UserContext } from '../auth/user-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { DashboardRepositoryInterface } from './dashboard.interface';
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class DashboardRepository extends DashboardRepositoryInterface {
-  constructor(private readonly prisma: PrismaService) {
-    super()
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly userContext: UserContext,
+  ) {
+    super();
+  }
+
+  private get userId(): string {
+    return this.userContext.userId;
   }
 
   async getMetrics(month?: number, year?: number) {
-    const whereClause: any = {};
+    const whereClause: any = { userId: this.userId };
     if (month && year) {
       whereClause.createdAt = {
         gte: new Date(year, month - 1, 1),
@@ -59,6 +67,7 @@ export class DashboardRepository extends DashboardRepositoryInterface {
 
     const pendingTransactions = await this.prisma.transaction.findMany({
       where: {
+        userId: this.userId,
         status: 'pending',
       },
     });

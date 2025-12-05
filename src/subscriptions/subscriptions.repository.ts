@@ -1,15 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Scope } from '@nestjs/common';
 import { Subscription } from 'generated/prisma/client';
+import { UserContext } from 'src/auth/user-context.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateSubscriptionInput, GetAllSubscriptionsInput, UpdateSubscriptionInput } from 'src/schemas/subscriptions.schema';
 import { SubscriptionsRepositoryInterface } from './subscriptions.interface';
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export default class SubscriptionsRepository extends SubscriptionsRepositoryInterface {
-    private readonly DEV_USER_ID = '00000000-0000-0000-0000-000000000000';
-
-    constructor(private prisma: PrismaService) {
+    constructor(
+        private prisma: PrismaService,
+        private userContext: UserContext,
+    ) {
         super();
+    }
+
+    private get userId(): string {
+        return this.userContext.userId;
     }
 
     async createSubscription(data: CreateSubscriptionInput): Promise<any> {
@@ -17,7 +23,7 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
         
         const createData: any = {
             ...restData,
-            userId: this.DEV_USER_ID,
+            userId: this.userId,
         };
 
         if (creditCardId) {
@@ -35,7 +41,7 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
 
     async getAllSubscriptions(filters?: GetAllSubscriptionsInput): Promise<any[]> {
         const where: any = {
-            userId: this.DEV_USER_ID,
+            userId: this.userId,
             isActive: true,
         };
 
@@ -71,7 +77,7 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
 
         const subscriptions = await this.prisma.subscription.findMany({
             where: {
-                userId: this.DEV_USER_ID,
+                userId: this.userId,
                 isActive: true,
                 OR: [
                     {
@@ -97,7 +103,7 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
 
         for (const sub of subscriptions) {
             const transactionData: any = {
-                userId: this.DEV_USER_ID,
+                userId: this.userId,
                 amount: sub.amount,
                 description: sub.description,
                 category: sub.category.name,

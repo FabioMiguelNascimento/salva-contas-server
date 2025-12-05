@@ -1,13 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Scope } from '@nestjs/common';
+import { Budget } from 'generated/prisma/client';
+import { UserContext } from '../auth/user-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BudgetsRepositoryInterface } from './budgets.interface';
-import { Budget } from 'generated/prisma/client';
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class BudgetsRepository implements BudgetsRepositoryInterface {
-  private readonly DEV_USER_ID = '00000000-0000-0000-0000-000000000000';
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly userContext: UserContext,
+  ) {}
 
-  constructor(private readonly prisma: PrismaService) {}
+  private get userId(): string {
+    return this.userContext.userId;
+  }
 
   async createBudget(data: {
     categoryId: string;
@@ -18,7 +24,7 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
     return this.prisma.budget.create({
       data: {
         ...data,
-        userId: this.DEV_USER_ID,
+        userId: this.userId,
       },
       include: {
         category: true,
@@ -27,7 +33,7 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
   }
 
   async getBudgets(month?: number, year?: number): Promise<Budget[]> {
-    const where: any = { userId: this.DEV_USER_ID };
+    const where: any = { userId: this.userId };
 
     if (month && year) {
       where.month = month;
@@ -71,7 +77,7 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
   }>> {
     const budgets = await this.prisma.budget.findMany({
       where: {
-        userId: this.DEV_USER_ID,
+        userId: this.userId,
         month,
         year,
       },
@@ -85,7 +91,7 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
         // Calculate spent amount for this category in the month/year
         const spentResult = await this.prisma.transaction.aggregate({
           where: {
-            userId: this.DEV_USER_ID,
+            userId: this.userId,
             category: budget.category.name,
             type: 'expense',
             createdAt: {

@@ -1,18 +1,27 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { CategoriesRepositoryInterface } from './categories.interface';
-import { GetAllCategoriesInput } from 'src/schemas/categories.schema';
+import { Injectable, Scope } from '@nestjs/common';
 import { Category } from 'generated/prisma/client';
+import { UserContext } from 'src/auth/user-context.service';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { GetAllCategoriesInput } from 'src/schemas/categories.schema';
 import { BaseCategoryUpdateInput } from 'src/types/categories.type';
+import { CategoriesRepositoryInterface } from './categories.interface';
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export default class CategoriesRepository extends CategoriesRepositoryInterface {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private userContext: UserContext,
+  ) {
     super();
   }
 
-async getAllCategories({ limit, cursor }: GetAllCategoriesInput) {
+  private get userId(): string {
+    return this.userContext.userId;
+  }
+
+  async getAllCategories({ limit, cursor }: GetAllCategoriesInput) {
     const categories = await this.prisma.category.findMany({
+      where: { userId: this.userId },
       take: limit + 1,
       cursor: cursor ? { id: cursor } : undefined,
       skip: cursor ? 1 : 0,

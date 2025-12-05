@@ -1,15 +1,21 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Scope } from "@nestjs/common";
 import { Transaction } from "generated/prisma/client";
+import { UserContext } from "src/auth/user-context.service";
 import { PrismaService } from "src/prisma/prisma.service";
 import { AIReceiptData, CreateTransactionInput, GetTransactionsInput, UpdateTransactionInput } from "src/schemas/transactions.schema";
 import { TransactionsRepositoryInterface } from "./transactions.interface";
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export default class TransactionsRepository extends TransactionsRepositoryInterface {
-    private readonly DEV_USER_ID = '00000000-0000-0000-0000-000000000000'; 
-
-    constructor(private prisma: PrismaService) {
+    constructor(
+        private prisma: PrismaService,
+        private userContext: UserContext,
+    ) {
         super();
+    }
+
+    private get userId(): string {
+        return this.userContext.userId;
     }
 
     async createTransaction(data: AIReceiptData): Promise<Transaction> {
@@ -18,19 +24,19 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
 
         const createData: any = {
             ...transactionData,
-            userId: this.DEV_USER_ID,
+            userId: this.userId,
             category: normalizedCategory,
             categoryName: normalizedCategory,
             categoryRel: {
                 connectOrCreate: {
                     where: {
                         userId_name: {
-                            userId: this.DEV_USER_ID,
+                            userId: this.userId,
                             name: normalizedCategory
                         }
                     },
                     create: {
-                        userId: this.DEV_USER_ID,
+                        userId: this.userId,
                         name: normalizedCategory,
                         icon: 'tag'
                     }
@@ -65,7 +71,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
 
         const createData: any = {
             ...transactionData,
-            userId: this.DEV_USER_ID,
+            userId: this.userId,
             category: category.name,
             categoryName: category.name,
         };
@@ -85,7 +91,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
 
     async getTransactions({ page, limit, categoryId, type, status, startDate, endDate, month, year, creditCardId }: GetTransactionsInput) {
         const where: any = {
-            userId: this.DEV_USER_ID,
+            userId: this.userId,
         };
 
         if (categoryId) where.categoryId = categoryId;

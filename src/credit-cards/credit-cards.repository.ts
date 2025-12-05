@@ -1,27 +1,33 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Scope } from '@nestjs/common';
 import { CreditCard } from '../../generated/prisma/client';
+import { UserContext } from '../auth/user-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCreditCardInput, GetCreditCardsInput, UpdateCreditCardInput } from '../schemas/credit-cards.schema';
 import { CreditCardsRepositoryInterface, CreditCardWithUsage } from './credit-cards.interface';
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class CreditCardsRepository implements CreditCardsRepositoryInterface {
-  private readonly DEV_USER_ID = '00000000-0000-0000-0000-000000000000';
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly userContext: UserContext,
+  ) {}
 
-  constructor(private readonly prisma: PrismaService) {}
+  private get userId(): string {
+    return this.userContext.userId;
+  }
 
   async createCreditCard(data: CreateCreditCardInput): Promise<CreditCard> {
     return this.prisma.creditCard.create({
       data: {
         ...data,
-        userId: this.DEV_USER_ID,
-        availableLimit: data.limit, // Inicialmente o limite disponível é igual ao limite total
+        userId: this.userId,
+        availableLimit: data.limit,
       },
     });
   }
 
   async getCreditCards(filters?: GetCreditCardsInput): Promise<CreditCard[]> {
-    const where: any = { userId: this.DEV_USER_ID };
+    const where: any = { userId: this.userId };
 
     if (filters?.status) {
       where.status = filters.status;
@@ -48,7 +54,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
       // Transações do ciclo atual (entre início e fechamento da fatura)
       const currentInvoiceResult = await this.prisma.transaction.aggregate({
         where: {
-          userId: this.DEV_USER_ID,
+          userId: this.userId,
           creditCardId: card.id,
           type: 'expense',
           paymentDate: {
@@ -62,7 +68,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
       // Transações pendentes de ciclos anteriores (não pagas)
       const pendingResult = await this.prisma.transaction.aggregate({
         where: {
-          userId: this.DEV_USER_ID,
+          userId: this.userId,
           creditCardId: card.id,
           type: 'expense',
           status: 'pending',
@@ -138,7 +144,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     return this.prisma.creditCard.findFirst({
       where: {
         id,
-        userId: this.DEV_USER_ID,
+        userId: this.userId,
       },
     });
   }
@@ -147,7 +153,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     return this.prisma.creditCard.update({
       where: {
         id,
-        userId: this.DEV_USER_ID,
+        userId: this.userId,
       },
       data,
     });
@@ -157,7 +163,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     await this.prisma.creditCard.delete({
       where: {
         id,
-        userId: this.DEV_USER_ID,
+        userId: this.userId,
       },
     });
   }
@@ -166,7 +172,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     return this.prisma.creditCard.update({
       where: {
         id,
-        userId: this.DEV_USER_ID,
+        userId: this.userId,
       },
       data: {
         availableLimit: amount,
@@ -184,7 +190,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     const creditCard = await this.prisma.creditCard.findFirst({
       where: {
         id,
-        userId: this.DEV_USER_ID,
+        userId: this.userId,
       },
     });
 
@@ -195,7 +201,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     // Calcular dívida atual (transações pendentes do cartão)
     const currentDebtResult = await this.prisma.transaction.aggregate({
       where: {
-        userId: this.DEV_USER_ID,
+        userId: this.userId,
         creditCardId: id,
         status: 'pending',
       },

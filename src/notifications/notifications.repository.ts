@@ -1,13 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Scope } from '@nestjs/common';
 import { Notification } from 'generated/prisma/client';
+import { UserContext } from '../auth/user-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsRepositoryInterface } from './notifications.interface';
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class NotificationsRepository implements NotificationsRepositoryInterface {
-  private readonly DEV_USER_ID = '00000000-0000-0000-0000-000000000000';
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly userContext: UserContext,
+  ) {}
 
-  constructor(private readonly prisma: PrismaService) {}
+  private get userId(): string {
+    return this.userContext.userId;
+  }
 
   async createNotification(data: {
     title: string;
@@ -18,13 +24,13 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
     return this.prisma.notification.create({
       data: {
         ...data,
-        userId: this.DEV_USER_ID,
+        userId: this.userId,
       },
     });
   }
 
   async getNotifications(status?: 'read' | 'unread', limit = 50): Promise<Notification[]> {
-    const where: any = { userId: this.DEV_USER_ID };
+    const where: any = { userId: this.userId };
 
     if (status) {
       where.status = status;
@@ -52,7 +58,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
   async markAllAsRead(): Promise<number> {
     const result = await this.prisma.notification.updateMany({
       where: {
-        userId: this.DEV_USER_ID,
+        userId: this.userId,
         status: 'unread',
       },
       data: {
@@ -73,7 +79,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
   async getUnreadCount(): Promise<number> {
     return this.prisma.notification.count({
       where: {
-        userId: this.DEV_USER_ID,
+        userId: this.userId,
         status: 'unread',
       },
     });
@@ -85,7 +91,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
 
     const dueTomorrow = await this.prisma.transaction.findMany({
       where: {
-        userId: this.DEV_USER_ID,
+        userId: this.userId,
         dueDate: {
           gte: new Date(tomorrow.toDateString()),
           lt: new Date(tomorrow.toDateString() + ' 23:59:59'),
@@ -98,7 +104,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
       // Verificar se já existe notificação para esta transação
       const existingNotification = await this.prisma.notification.findFirst({
         where: {
-          userId: this.DEV_USER_ID,
+          userId: this.userId,
           type: 'due_date',
           relatedId: transaction.id,
           status: 'unread',
@@ -124,7 +130,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
     // Buscar progresso dos budgets
     const budgets = await this.prisma.budget.findMany({
       where: {
-        userId: this.DEV_USER_ID,
+        userId: this.userId,
         month: currentMonth,
         year: currentYear,
       },
@@ -137,7 +143,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
       // Calcular gasto atual
       const spentResult = await this.prisma.transaction.aggregate({
         where: {
-          userId: this.DEV_USER_ID,
+          userId: this.userId,
           category: budget.category.name,
           type: 'expense',
           createdAt: {
@@ -158,7 +164,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
       if (percentage >= 80) {
         const existingNotification = await this.prisma.notification.findFirst({
           where: {
-            userId: this.DEV_USER_ID,
+            userId: this.userId,
             type: 'budget_limit',
             relatedId: budget.id,
             status: 'unread',
@@ -183,25 +189,20 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
 
     const renewingSubscriptions = await this.prisma.subscription.findMany({
       where: {
-        userId: this.DEV_USER_ID,
+        userId: this.userId,
         isActive: true,
-        // Para assinaturas mensais, verificar próximas renovações
-        // Isso seria mais complexo na implementação real
       },
     });
 
-    // Por enquanto, apenas um exemplo básico
     for (const subscription of renewingSubscriptions) {
-      // Lógica para calcular próximas renovações baseada na frequência
-      // Por simplicidade, vamos criar uma notificação semanal para assinaturas ativas
       const existingNotification = await this.prisma.notification.findFirst({
         where: {
-          userId: this.DEV_USER_ID,
+          userId: this.userId,
           type: 'subscription_renewal',
           relatedId: subscription.id,
           status: 'unread',
           createdAt: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Últimas 24h
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
           },
         },
       });

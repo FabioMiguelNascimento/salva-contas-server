@@ -61,13 +61,21 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             throw new Error('Category not found');
         }
 
+        const { creditCardId, ...transactionData } = data;
+
+        const createData: any = {
+            ...transactionData,
+            userId: this.DEV_USER_ID,
+            category: category.name,
+            categoryName: category.name,
+        };
+
+        if (creditCardId) {
+            createData.creditCard = { connect: { id: creditCardId } };
+        }
+
         return this.prisma.transaction.create({
-            data: {
-                ...data,
-                userId: this.DEV_USER_ID,
-                category: category.name,
-                categoryName: category.name,
-            },
+            data: createData,
             include: {
                 categoryRel: true,
                 creditCard: true,

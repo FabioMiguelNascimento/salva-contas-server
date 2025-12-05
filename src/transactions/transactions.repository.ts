@@ -61,12 +61,13 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
                 categoryName: category.name,
             },
             include: {
-                categoryRel: true
+                categoryRel: true,
+                creditCard: true,
             }
         });
     }
 
-    async getTransactions({ page, limit, categoryId, type, status, startDate, endDate, month, year }: GetTransactionsInput) {
+    async getTransactions({ page, limit, categoryId, type, status, startDate, endDate, month, year, creditCardId }: GetTransactionsInput) {
         const where: any = {
             userId: this.DEV_USER_ID,
         };
@@ -74,6 +75,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         if (categoryId) where.categoryId = categoryId;
         if (type) where.type = type;
         if (status) where.status = status;
+        if (creditCardId) where.creditCardId = creditCardId;
 
         // Se month e year fornecidos, sobrescreve startDate e endDate
         if (month && year) {
@@ -91,7 +93,8 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         const data = await this.prisma.transaction.findMany({
             where,
             include: {
-                categoryRel: true
+                categoryRel: true,
+                creditCard: true,
             },
             orderBy: { createdAt: 'desc' },
             skip: (page - 1) * limit,
@@ -126,6 +129,10 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         return this.prisma.transaction.update({
             where: { id },
             data: updateData,
+            include: {
+                categoryRel: true,
+                creditCard: true,
+            },
         });
     }
 

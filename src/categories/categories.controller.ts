@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import { GetAllCategoriesInput, GetAllCategoriesSchema, UpdateCategorySchema } from 'src/schemas/categories.schema';
 import { BaseCategoryUpdateInput } from 'src/types/categories.type';
@@ -14,7 +14,7 @@ export class CategoriesController {
     ) {}
 
     @Get()
-    async getAllCategories(@Body(new ZodValidationPipe(GetAllCategoriesSchema)) data: GetAllCategoriesInput) {
+    async getAllCategories(@Query(new ZodValidationPipe(GetAllCategoriesSchema)) data: GetAllCategoriesInput) {
         const paginatedCategories = await this.getAllCategoriesUseCase.execute(data);
 
         return successWithPagination(

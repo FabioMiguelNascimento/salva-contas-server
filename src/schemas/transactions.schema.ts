@@ -18,6 +18,7 @@ export const CreateTransactionSchema = z.object({
   status: z.enum(['paid', 'pending']),
   dueDate: z.coerce.date().nullable(),
   paymentDate: z.coerce.date().nullable(),
+  creditCardId: z.string().uuid().optional(),
 });
 
 export const GetTransactionsSchema = z.object({
@@ -30,6 +31,7 @@ export const GetTransactionsSchema = z.object({
   endDate: z.coerce.date().optional(),
   month: z.coerce.number().min(1).max(12).optional(),
   year: z.coerce.number().min(1900).max(2100).optional(),
+  creditCardId: z.string().uuid().optional(),
 });
 
 export const UpdateTransactionSchema = z.object({
@@ -40,6 +42,7 @@ export const UpdateTransactionSchema = z.object({
   status: z.enum(['paid', 'pending']).optional(),
   dueDate: z.coerce.date().nullable().optional(),
   paymentDate: z.coerce.date().nullable().optional(),
+  creditCardId: z.string().uuid().optional(),
 });
 
 export type AIReceiptData = z.infer<typeof AIReceiptSchema>;

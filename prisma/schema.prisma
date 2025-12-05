@@ -60,6 +60,9 @@ model Transaction {
   categoryId   String?   @map("category_id")
   categoryRel  Category? @relation(fields: [categoryId], references: [id])
 
+  creditCardId String?       @map("credit_card_id")
+  creditCard   CreditCard?   @relation(fields: [creditCardId], references: [id])
+
   @@map("transactions")
 }
 
@@ -120,4 +123,39 @@ model Notification {
   readAt     DateTime?          @map("read_at")
 
   @@map("notifications")
+}
+
+enum CreditCardFlag {
+  visa
+  mastercard
+  american_express
+  elo
+  hipercard
+  other
+}
+
+enum CreditCardStatus {
+  active
+  blocked
+  expired
+  cancelled
+}
+
+model CreditCard {
+  id              String           @id @default(uuid())
+  userId          String           @map("user_id")
+  name            String           // Nome personalizado do cartão
+  flag            CreditCardFlag   // Bandeira
+  lastFourDigits  String           @map("last_four_digits") // Últimos 4 dígitos
+  limit           Decimal          @db.Decimal(10, 2) // Limite do cartão
+  availableLimit  Decimal          @db.Decimal(10, 2) @map("available_limit") // Limite disponível
+  closingDay      Int              @map("closing_day") // Dia do fechamento (1-31)
+  dueDay          Int              @map("due_day") // Dia do vencimento (1-31)
+  status          CreditCardStatus @default(active)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  transactions    Transaction[]
+
+  @@map("credit_cards")
 }

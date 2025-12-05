@@ -28,7 +28,7 @@ export class TransactionsController {
         const data = await this.processTransactionUseCase.execute(file, body);
 
         return success(data, "Transaction processed successfully");
-    }
+    }   
 
     @Post('manual')
     async createManualTransaction(

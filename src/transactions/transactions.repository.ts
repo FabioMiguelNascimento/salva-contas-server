@@ -113,17 +113,22 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     }
 
     async updateTransaction(id: string, data: UpdateTransactionInput): Promise<Transaction> {
-        const updateData: any = { ...data };
+        const { categoryId, creditCardId, ...restData } = data;
+        const updateData: any = { ...restData };
 
-        if (data.categoryId) {
+        if (categoryId) {
             const category = await this.prisma.category.findUnique({
-                where: { id: data.categoryId },
+                where: { id: categoryId },
             });
             if (category) {
                 updateData.category = category.name;
                 updateData.categoryName = category.name;
-                updateData.categoryRel = { connect: { id: data.categoryId } };
+                updateData.categoryRel = { connect: { id: categoryId } };
             }
+        }
+
+        if (creditCardId) {
+            updateData.creditCard = { connect: { id: creditCardId } };
         }
 
         return this.prisma.transaction.update({

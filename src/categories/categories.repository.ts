@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CategoriesRepositoryInterface } from './categories.interface';
 import { GetAllCategoriesInput } from 'src/schemas/categories.schema';
+import { Category } from 'generated/prisma/client';
+import { BaseCategoryUpdateInput } from 'src/types/categories.type';
 
 @Injectable()
 export default class CategoriesRepository extends CategoriesRepositoryInterface {
@@ -33,5 +35,14 @@ async getAllCategories({ limit, cursor }: GetAllCategoriesInput) {
         hasNextPage: !!nextCursor,
       },
     };
+  }
+
+  async updateCategory(data: BaseCategoryUpdateInput, id: string): Promise<Category> {
+    const updatedCategory = await this.prisma.category.update({
+      where: { id },
+      data,
+    });
+
+    return updatedCategory;
   }
 }

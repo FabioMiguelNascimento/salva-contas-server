@@ -1,9 +1,9 @@
-import { Controller, Post, Body, Get } from "@nestjs/common";
+import { Body, Controller, Get, Post, Query } from "@nestjs/common";
 import { ZodValidationPipe } from "src/common/pipes/zod-validation.pipe";
-import { CreateSubscriptionSchema, CreateSubscriptionInput } from "src/schemas/subscriptions.schema";
+import { CreateSubscriptionInput, CreateSubscriptionSchema, GetAllSubscriptionsInput, GetAllSubscriptionsSchema } from "src/schemas/subscriptions.schema";
+import { success } from "src/utils/api-response-helper";
 import CreateSubscriptionUseCase from "./use-cases/create-subscription.use-case";
 import GetAllSubscriptionsUseCase from "./use-cases/get-all-subscriptions.use-case";
-import { success } from "src/utils/api-response-helper";
 
 @Controller('subscriptions')
 export class SubscriptionsController {
@@ -22,8 +22,10 @@ export class SubscriptionsController {
     }
 
     @Get()
-    async getAllSubscriptions() {
-        const subscriptions = await this.getAllSubscriptionsUseCase.execute();
+    async getAllSubscriptions(
+        @Query(new ZodValidationPipe(GetAllSubscriptionsSchema)) filters: GetAllSubscriptionsInput,
+    ) {
+        const subscriptions = await this.getAllSubscriptionsUseCase.execute(filters);
 
         return success(subscriptions, "Assinaturas recuperadas com sucesso");
     }

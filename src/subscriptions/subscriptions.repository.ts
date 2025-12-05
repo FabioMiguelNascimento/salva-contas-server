@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateSubscriptionInput } from 'src/schemas/subscriptions.schema';
+import { CreateSubscriptionInput, GetAllSubscriptionsInput } from 'src/schemas/subscriptions.schema';
 import { SubscriptionsRepositoryInterface } from './subscriptions.interface';
 
 @Injectable()
@@ -23,12 +23,26 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
         });
     }
 
-    async getAllSubscriptions(): Promise<any[]> {
+    async getAllSubscriptions(filters?: GetAllSubscriptionsInput): Promise<any[]> {
+        const where: any = {
+            userId: this.DEV_USER_ID,
+            isActive: true,
+        };
+
+        if (filters?.month && filters?.year) {
+            where.createdAt = {
+                gte: new Date(filters.year, filters.month - 1, 1),
+                lt: new Date(filters.year, filters.month, 1),
+            };
+        } else if (filters?.year) {
+            where.createdAt = {
+                gte: new Date(filters.year, 0, 1),
+                lt: new Date(filters.year + 1, 0, 1),
+            };
+        }
+
         return this.prisma.subscription.findMany({
-            where: {
-                userId: this.DEV_USER_ID,
-                isActive: true,
-            },
+            where,
             include: {
                 category: true,
             },

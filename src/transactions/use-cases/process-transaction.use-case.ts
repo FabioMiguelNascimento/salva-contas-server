@@ -17,7 +17,11 @@ export default class ProcessTransactionUseCase {
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
   }
 
-  async execute(file: Express.Multer.File | null, textInput: string | null, creditCardId?: string | null) {
+  async execute(
+    file: Express.Multer.File | null, 
+    textInput: string | null, 
+    options?: { creditCardId?: string | null; paymentDate?: string | null; dueDate?: string | null }
+  ) {
     // Buscar cartões disponíveis para a IA poder sugerir
     const creditCards = await this.creditCardsRepository.getCreditCards({ page: 1, limit: 100, status: 'active' });
     
@@ -76,9 +80,14 @@ export default class ProcessTransactionUseCase {
 
     const data = validationResult.data;
 
-    // Se o usuário passou um creditCardId explícito, usar ele em vez do sugerido pela IA
-    if (creditCardId) {
-      data.creditCardId = creditCardId;
+    if (options?.creditCardId) {
+      data.creditCardId = options.creditCardId;
+    }
+    if (options?.paymentDate) {
+      data.paymentDate = new Date(options.paymentDate);
+    }
+    if (options?.dueDate) {
+      data.dueDate = new Date(options.dueDate);
     }
 
     return this.transactionsRepository.createTransaction(data);

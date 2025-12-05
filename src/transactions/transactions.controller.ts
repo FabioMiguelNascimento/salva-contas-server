@@ -24,9 +24,11 @@ export class TransactionsController {
     async processTransaction(
         @Body("text") body: string,
         @Body("creditCardId") creditCardId: string | null,
+        @Body("paymentDate") paymentDate: string | null,
+        @Body("dueDate") dueDate: string | null,
         @UploadedFile() file: Express.Multer.File,
     ) {
-        const data = await this.processTransactionUseCase.execute(file, body, creditCardId);
+        const data = await this.processTransactionUseCase.execute(file, body, { creditCardId, paymentDate, dueDate });
 
         return success(data, "Transaction processed successfully");
     }   

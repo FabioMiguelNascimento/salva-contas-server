@@ -1,14 +1,18 @@
-import { Body, Controller, Post, UploadedFile, UseInterceptors, UsePipes } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
-import { AIReceiptSchema } from 'src/schemas/transactions.schema';
-import { success } from 'src/utils/api-response-helper';
-import { FileInterceptor, MulterModule } from '@nestjs/platform-express';
+import { CreateTransactionInput, CreateTransactionSchema, GetTransactionsInput, GetTransactionsSchema } from 'src/schemas/transactions.schema';
+import { success, successWithPagination } from 'src/utils/api-response-helper';
+import CreateManualTransactionUseCase from './use-cases/create-manual-transaction.use-case';
+import GetTransactionsUseCase from './use-cases/get-transactions.use-case';
 import ProcessTransactionUseCase from './use-cases/process-transaction.use-case';
 
 @Controller('transactions')
 export class TransactionsController {
     constructor(
         private readonly processTransactionUseCase: ProcessTransactionUseCase,
+        private readonly createManualTransactionUseCase: CreateManualTransactionUseCase,
+        private readonly getTransactionsUseCase: GetTransactionsUseCase,
     ) {}
 
     @Post()
@@ -20,5 +24,23 @@ export class TransactionsController {
         const data = await this.processTransactionUseCase.execute(file, body);
 
         return success(data, "Transaction processed successfully");
+    }
+
+    @Post('manual')
+    async createManualTransaction(
+        @Body(new ZodValidationPipe(CreateTransactionSchema)) data: CreateTransactionInput,
+    ) {
+        const transaction = await this.createManualTransactionUseCase.execute(data);
+
+        return success(transaction, "Transação criada com sucesso");
+    }
+
+    @Get()
+    async getTransactions(
+        @Query(new ZodValidationPipe(GetTransactionsSchema)) filters: GetTransactionsInput,
+    ) {
+        const result = await this.getTransactionsUseCase.execute(filters);
+
+        return successWithPagination(result.data, result.meta, "Transações recuperadas com sucesso");
     }
 }

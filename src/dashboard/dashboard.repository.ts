@@ -17,28 +17,42 @@ export class DashboardRepository extends DashboardRepositoryInterface {
   }
 
   async getMetrics(month?: number, year?: number) {
-    const whereClause: any = { userId: this.userId };
-    if (month && year) {
-      whereClause.createdAt = {
-        gte: new Date(year, month - 1, 1),
-        lt: new Date(year, month, 1),
-      };
-    } else if (year) {
-      whereClause.createdAt = {
-        gte: new Date(year, 0, 1),
-        lt: new Date(year + 1, 0, 1),
-      };
-    }
+    const currentMonth = month || new Date().getMonth() + 1;
+    const currentYear = year || new Date().getFullYear();
 
-    const transactions = await this.prisma.transaction.findMany({
-      where: whereClause,
+    const currentPeriodStart = new Date(currentYear, currentMonth - 1, 1);
+    const currentPeriodEnd = new Date(currentYear, currentMonth, 1);
+
+    const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+    const previousYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+    const previousPeriodStart = new Date(previousYear, previousMonth - 1, 1);
+    const previousPeriodEnd = new Date(previousYear, previousMonth, 1);
+
+    const currentTransactions = await this.prisma.transaction.findMany({
+      where: {
+        userId: this.userId,
+        createdAt: {
+          gte: currentPeriodStart,
+          lt: currentPeriodEnd,
+        },
+      },
+    });
+
+    const previousTransactions = await this.prisma.transaction.findMany({
+      where: {
+        userId: this.userId,
+        createdAt: {
+          gte: previousPeriodStart,
+          lt: previousPeriodEnd,
+        },
+      },
     });
 
     let totalIncome = 0;
     let totalExpenses = 0;
     const categoryMap = new Map<string, { income: number; expenses: number }>();
 
-    for (const transaction of transactions) {
+    for (const transaction of currentTransactions) {
       const amount = Number(transaction.amount);
       if (transaction.type === 'income') {
         totalIncome += amount;
@@ -57,6 +71,32 @@ export class DashboardRepository extends DashboardRepositoryInterface {
         cat.expenses += amount;
       }
     }
+
+    let previousIncome = 0;
+    let previousExpenses = 0;
+
+    for (const transaction of previousTransactions) {
+      const amount = Number(transaction.amount);
+      if (transaction.type === 'income') {
+        previousIncome += amount;
+      } else if (transaction.type === 'expense') {
+        previousExpenses += amount;
+      }
+    }
+
+    const calculateChangePercent = (current: number, previous: number): number => {
+      if (previous === 0) {
+        return current > 0 ? 100 : 0;
+      }
+      return Number((((current - previous) / previous) * 100).toFixed(1));
+    };
+
+    const expensesChangePercent = calculateChangePercent(totalExpenses, previousExpenses);
+    const incomeChangePercent = calculateChangePercent(totalIncome, previousIncome);
+    const balanceChangePercent = calculateChangePercent(
+      totalIncome - totalExpenses,
+      previousIncome - previousExpenses,
+    );
 
     const categoryBreakdown = Array.from(categoryMap.entries()).map(([category, { income, expenses }]) => ({
       category,
@@ -91,6 +131,14 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       totalIncome,
       totalExpenses,
       netBalance: totalIncome - totalExpenses,
+      incomeChangePercent,
+      expensesChangePercent,
+      balanceChangePercent,
+      previousMonth: {
+        income: previousIncome,
+        expenses: previousExpenses,
+        balance: previousIncome - previousExpenses,
+      },
       categoryBreakdown,
       pendingBills: {
         count: pendingCount,

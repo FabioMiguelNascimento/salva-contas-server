@@ -23,12 +23,19 @@ enum TransactionStatus {
   pending
 }
 
+enum SubscriptionFrequency {
+  weekly
+  monthly
+  yearly
+}
+
 model Category {
   id        String        @id @default(uuid())
   userId    String        @map("user_id")
   name      String
   icon      String?
   transactions Transaction[]
+  subscriptions Subscription[]
 
   @@unique([userId, name])
   @@map("categories")
@@ -53,4 +60,21 @@ model Transaction {
   categoryRel  Category? @relation(fields: [categoryId], references: [id])
 
   @@map("transactions")
+}
+
+model Subscription {
+  id          String               @id @default(uuid())
+  userId      String               @map("user_id")
+  description String
+  amount      Decimal              @db.Decimal(10, 2)
+  categoryId  String               @map("category_id")
+  category    Category             @relation(fields: [categoryId], references: [id])
+  frequency   SubscriptionFrequency
+  dayOfMonth  Int?
+  dayOfWeek   Int?
+  month       Int?                 // Para yearly, especificar o mês (1-12)
+  isActive    Boolean              @default(true)
+  createdAt   DateTime             @default(now()) @map("created_at")
+
+  @@map("subscriptions")
 }

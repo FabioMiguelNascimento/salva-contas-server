@@ -10,5 +10,10 @@ export abstract class DashboardRepositoryInterface {
       expenses: number;
       net: number;
     }>;
+    pendingBills: {
+      count: number;
+      totalAmount: number;
+      overdue: number;
+    };
   }>;
 }

@@ -12,6 +12,11 @@ export const getDashboardMetricsResponseSchema = z.object({
       net: z.number(),
     }),
   ),
+  pendingBills: z.object({
+    count: z.number(),
+    totalAmount: z.number(),
+    overdue: z.number(),
+  }),
 });
 
 export type GetDashboardMetricsResponse = z.infer<typeof getDashboardMetricsResponseSchema>;

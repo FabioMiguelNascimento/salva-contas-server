@@ -57,11 +57,37 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       net: income - expenses,
     }));
 
+    const pendingTransactions = await this.prisma.transaction.findMany({
+      where: {
+        status: 'pending',
+      },
+    });
+
+    const now = new Date();
+    let pendingCount = 0;
+    let pendingTotalAmount = 0;
+    let overdueCount = 0;
+
+    for (const transaction of pendingTransactions) {
+      const amount = Number(transaction.amount);
+      pendingCount++;
+      pendingTotalAmount += amount;
+
+      if (transaction.dueDate && transaction.dueDate < now) {
+        overdueCount++;
+      }
+    }
+
     return {
       totalIncome,
       totalExpenses,
       netBalance: totalIncome - totalExpenses,
       categoryBreakdown,
+      pendingBills: {
+        count: pendingCount,
+        totalAmount: pendingTotalAmount,
+        overdue: overdueCount,
+      },
     };
   }
 }

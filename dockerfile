@@ -27,4 +27,4 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
 
 
-CMD node dist/main
+CMD node dist/src/main

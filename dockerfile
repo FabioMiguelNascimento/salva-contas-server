@@ -16,13 +16,12 @@ RUN pnpm prisma generate
 RUN pnpm run build
 
 FROM base AS runner
-WORKDIR /app
 ENV NODE_ENV production
 
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/.env ./.env
+COPY --from=builder /dist ./dist
+COPY --from=builder /node_modules ./node_modules
+COPY --from=builder /prisma ./prisma
+COPY --from=builder /package.json ./package.json
+COPY --from=builder /.env ./.env
 
 CMD npx prisma migrate deploy && node dist/main

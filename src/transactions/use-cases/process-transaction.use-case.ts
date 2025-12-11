@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { AIReceiptSchema } from 'src/schemas/transactions.schema';
+import { parseDateLocal } from 'src/utils/date-utils';
 import { CreditCardsRepositoryInterface } from '../../credit-cards/credit-cards.interface';
 import { TransactionsRepositoryInterface } from '../transactions.interface';
 
@@ -83,11 +84,17 @@ export default class ProcessTransactionUseCase {
     if (options?.creditCardId) {
       data.creditCardId = options.creditCardId;
     }
+
     if (options?.paymentDate) {
-      data.paymentDate = new Date(options.paymentDate);
+      data.paymentDate = parseDateLocal(options.paymentDate);
+    } else if (data.paymentDate) {
+      data.paymentDate = parseDateLocal(data.paymentDate as any);
     }
+
     if (options?.dueDate) {
-      data.dueDate = new Date(options.dueDate);
+      data.dueDate = parseDateLocal(options.dueDate);
+    } else if (data.dueDate) {
+      data.dueDate = parseDateLocal(data.dueDate as any);
     }
 
     return this.transactionsRepository.createTransaction(data);

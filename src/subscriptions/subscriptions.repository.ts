@@ -73,7 +73,8 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
     }
 
     async createRecurringTransactions(): Promise<void> {
-        const today = new Date();
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const dayOfMonth = today.getDate();
         const dayOfWeek = today.getDay();
         const month = today.getMonth() + 1; 
@@ -105,7 +106,7 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
         });
 
         for (const sub of subscriptions) {
-            const transactionData: any = {
+                const transactionData: any = {
                 userId: this.userId,
                 amount: sub.amount,
                 description: sub.description,
@@ -114,7 +115,8 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
                 categoryId: sub.categoryId,
                 type: 'expense',
                 status: 'pending', // ou 'paid' se débito automático
-                dueDate: today,
+                    // store dueDate as local date (midnight)
+                    dueDate: today,
             };
 
             // Se a assinatura tem cartão de crédito, vincular à transação

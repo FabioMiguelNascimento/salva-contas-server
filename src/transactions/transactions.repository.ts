@@ -3,6 +3,7 @@ import { Transaction } from "generated/prisma/client";
 import { UserContext } from "src/auth/user-context.service";
 import { PrismaService } from "src/prisma/prisma.service";
 import { AIReceiptData, CreateTransactionInput, GetTransactionsInput, UpdateTransactionInput } from "src/schemas/transactions.schema";
+import { parseDateLocal } from "src/utils/date-utils";
 import { TransactionsRepositoryInterface } from "./transactions.interface";
 
 @Injectable({ scope: Scope.REQUEST })
@@ -22,8 +23,13 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         const normalizedCategory = data.category.charAt(0).toUpperCase() + data.category.slice(1).toLowerCase();
         const { category, creditCardId, ...transactionData } = data;
 
+        const dueDate = parseDateLocal((data as any).dueDate);
+        const paymentDate = parseDateLocal((data as any).paymentDate);
+
         const createData: any = {
             ...transactionData,
+            dueDate,
+            paymentDate,
             userId: this.userId,
             category: normalizedCategory,
             categoryName: normalizedCategory,
@@ -69,8 +75,14 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
 
         const { creditCardId, ...transactionData } = data;
 
+        // Normalize date-only values from input to local midnight
+        const dueDate = parseDateLocal((data as any).dueDate);
+        const paymentDate = parseDateLocal((data as any).paymentDate);
+
         const createData: any = {
             ...transactionData,
+            dueDate,
+            paymentDate,
             userId: this.userId,
             category: category.name,
             categoryName: category.name,
@@ -102,13 +114,27 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         // Se month e year fornecidos, sobrescreve startDate e endDate
         if (month && year) {
             startDate = new Date(year, month - 1, 1);
-            endDate = new Date(year, month, 0); // Último dia do mês
+            // set endDate to the end of the last day of the month
+            endDate = new Date(year, month, 0, 23, 59, 59, 999);
         }
 
         if (startDate || endDate) {
+            // normalize provided dates and ensure start is start of day and end is end of day
+            const normalizedStart = startDate ? (() => {
+                const d = parseDateLocal(startDate) as Date;
+                d.setHours(0,0,0,0);
+                return d;
+            })() : undefined;
+
+            const normalizedEnd = endDate ? (() => {
+                const d = parseDateLocal(endDate) as Date;
+                d.setHours(23,59,59,999);
+                return d;
+            })() : undefined;
+
             where.createdAt = {};
-            if (startDate) where.createdAt.gte = startDate;
-            if (endDate) where.createdAt.lte = endDate;
+            if (normalizedStart) where.createdAt.gte = normalizedStart;
+            if (normalizedEnd) where.createdAt.lte = normalizedEnd;
         }
 
         const total = await this.prisma.transaction.count({ where });
@@ -137,6 +163,14 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     async updateTransaction(id: string, data: UpdateTransactionInput): Promise<Transaction> {
         const { categoryId, creditCardId, ...restData } = data;
         const updateData: any = { ...restData };
+
+        // normalize dates
+        if ((restData as any).dueDate !== undefined) {
+            updateData.dueDate = parseDateLocal((restData as any).dueDate);
+        }
+        if ((restData as any).paymentDate !== undefined) {
+            updateData.paymentDate = parseDateLocal((restData as any).paymentDate);
+        }
 
         if (categoryId) {
             const category = await this.prisma.category.findUnique({

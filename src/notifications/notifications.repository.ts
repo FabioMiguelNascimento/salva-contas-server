@@ -1,5 +1,6 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { Notification } from 'generated/prisma/client';
+import { parseDateLocal } from 'src/utils/date-utils';
 import { UserContext } from '../auth/user-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsRepositoryInterface } from './notifications.interface';
@@ -88,13 +89,16 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
   async generateDueDateNotifications(): Promise<void> {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
+    const startOfTomorrow = parseDateLocal(new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate())) as Date;
+    const endOfTomorrow = new Date(startOfTomorrow.getTime());
+    (endOfTomorrow as Date).setHours(23, 59, 59, 999);
 
     const dueTomorrow = await this.prisma.transaction.findMany({
       where: {
         userId: this.userId,
         dueDate: {
-          gte: new Date(tomorrow.toDateString()),
-          lt: new Date(tomorrow.toDateString() + ' 23:59:59'),
+          gte: startOfTomorrow,
+          lt: endOfTomorrow,
         },
         status: 'pending',
       },

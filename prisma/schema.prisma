@@ -63,6 +63,8 @@ model Transaction {
   creditCardId String?       @map("credit_card_id")
   creditCard   CreditCard?   @relation(fields: [creditCardId], references: [id])
 
+  attachments  Attachment[]
+
   @@map("transactions")
 }
 
@@ -82,6 +84,8 @@ model Subscription {
 
   creditCardId String?       @map("credit_card_id")
   creditCard   CreditCard?   @relation(fields: [creditCardId], references: [id])
+
+  attachments  Attachment[]
 
   @@map("subscriptions")
 }
@@ -162,4 +166,34 @@ model CreditCard {
   subscriptions   Subscription[]
 
   @@map("credit_cards")
+}
+
+enum AttachmentType {
+  pdf
+  image
+  document
+}
+
+model Attachment {
+  id             String         @id @default(uuid())
+  userId         String         @map("user_id")
+  fileName       String         @map("file_name")
+  originalName   String         @map("original_name")
+  fileSize       Int            @map("file_size") // Tamanho em bytes
+  mimeType       String         @map("mime_type")
+  type           AttachmentType
+  storageUrl     String         @map("storage_url") // URL ou path do arquivo
+  description    String?
+  
+  // Relacionamentos polimórficos
+  transactionId  String?        @map("transaction_id")
+  transaction    Transaction?   @relation(fields: [transactionId], references: [id])
+
+  subscriptionId String?        @map("subscription_id")
+  subscription   Subscription?  @relation(fields: [subscriptionId], references: [id])
+  
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@map("attachments")
 }

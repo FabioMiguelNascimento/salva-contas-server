@@ -1,10 +1,9 @@
 import { Injectable, Scope } from "@nestjs/common";
-import { Transaction } from "generated/prisma/client";
 import { UserContext } from "src/auth/user-context.service";
 import { PrismaService } from "src/prisma/prisma.service";
 import { AIReceiptData, CreateTransactionInput, GetTransactionsInput, UpdateTransactionInput } from "src/schemas/transactions.schema";
 import { parseDateLocal } from "src/utils/date-utils";
-import { TransactionsRepositoryInterface } from "./transactions.interface";
+import { TransactionsRepositoryInterface, TransactionWithCount } from "./transactions.interface";
 
 @Injectable({ scope: Scope.REQUEST })
 export default class TransactionsRepository extends TransactionsRepositoryInterface {
@@ -19,7 +18,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         return this.userContext.userId;
     }
 
-    async createTransaction(data: AIReceiptData): Promise<Transaction> {
+    async createTransaction(data: AIReceiptData): Promise<TransactionWithCount> {
         const normalizedCategory = data.category.charAt(0).toUpperCase() + data.category.slice(1).toLowerCase();
         const { category, creditCardId, ...transactionData } = data;
 
@@ -50,7 +49,6 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             }
         };
 
-        // Conectar cartão de crédito se fornecido
         if (creditCardId) {
             createData.creditCard = { connect: { id: creditCardId } };
         }
@@ -60,11 +58,16 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             include: {
                 categoryRel: true,
                 creditCard: true,
+                _count: {
+                    select: {
+                        attachments: true,
+                    },
+                },
             }
         });
     }
 
-    async createManualTransaction(data: CreateTransactionInput): Promise<Transaction> {
+    async createManualTransaction(data: CreateTransactionInput): Promise<TransactionWithCount> {
         const category = await this.prisma.category.findUnique({
             where: { id: data.categoryId }
         });
@@ -75,7 +78,6 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
 
         const { creditCardId, ...transactionData } = data;
 
-        // Normalize date-only values from input to local midnight
         const dueDate = parseDateLocal((data as any).dueDate);
         const paymentDate = parseDateLocal((data as any).paymentDate);
 
@@ -97,6 +99,11 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             include: {
                 categoryRel: true,
                 creditCard: true,
+                _count: {
+                    select: {
+                        attachments: true,
+                    },
+                },
             }
         });
     }
@@ -111,15 +118,12 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         if (status) where.status = status;
         if (creditCardId) where.creditCardId = creditCardId;
 
-        // Se month e year fornecidos, sobrescreve startDate e endDate
         if (month && year) {
             startDate = new Date(year, month - 1, 1);
-            // set endDate to the end of the last day of the month
             endDate = new Date(year, month, 0, 23, 59, 59, 999);
         }
 
         if (startDate || endDate) {
-            // normalize provided dates and ensure start is start of day and end is end of day
             const normalizedStart = startDate ? (() => {
                 const d = parseDateLocal(startDate) as Date;
                 d.setHours(0,0,0,0);
@@ -143,6 +147,11 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             include: {
                 categoryRel: true,
                 creditCard: true,
+                _count: {
+                    select: {
+                        attachments: true,
+                    },
+                },
             },
             orderBy: { createdAt: 'desc' },
             skip: (page - 1) * limit,
@@ -160,11 +169,10 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         };
     }
 
-    async updateTransaction(id: string, data: UpdateTransactionInput): Promise<Transaction> {
+    async updateTransaction(id: string, data: UpdateTransactionInput): Promise<TransactionWithCount> {
         const { categoryId, creditCardId, ...restData } = data;
         const updateData: any = { ...restData };
 
-        // normalize dates
         if ((restData as any).dueDate !== undefined) {
             updateData.dueDate = parseDateLocal((restData as any).dueDate);
         }
@@ -193,6 +201,11 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             include: {
                 categoryRel: true,
                 creditCard: true,
+                _count: {
+                    select: {
+                        attachments: true,
+                    },
+                },
             },
         });
     }

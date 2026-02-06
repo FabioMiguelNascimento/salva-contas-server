@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { AttachmentsRepositoryInterface, StorageServiceInterface } from 'src/attachments/attachments.interface';
+import AttachmentsRepository from 'src/attachments/attachments.repository';
+import { S3StorageService } from 'src/attachments/storage/s3-storage.service';
 import { CreditCardsRepositoryInterface } from 'src/credit-cards/credit-cards.interface';
 import { CreditCardsRepository } from 'src/credit-cards/credit-cards.repository';
 import { PrismaModule } from 'src/prisma/prisma.module';
@@ -27,6 +30,14 @@ import { UpdateTransactionUseCase } from './use-cases/update-transaction.use-cas
     {
       provide: CreditCardsRepositoryInterface,
       useClass: CreditCardsRepository
+    },
+    {
+      provide: AttachmentsRepositoryInterface,
+      useClass: AttachmentsRepository
+    },
+    {
+      provide: StorageServiceInterface,
+      useClass: S3StorageService
     }
   ]
 })

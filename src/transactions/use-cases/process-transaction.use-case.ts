@@ -1,14 +1,14 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
-import sharp from 'sharp';
-import { AttachmentsRepositoryInterface, StorageServiceInterface } from 'src/attachments/attachments.interface';
+import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { AIReceiptSchema } from 'src/schemas/transactions.schema';
+import { StorageService } from 'src/storage/storage.service';
 import { parseDateLocal } from 'src/utils/date-utils';
 import { CreditCardsRepositoryInterface } from '../../credit-cards/credit-cards.interface';
 import { TransactionsRepositoryInterface } from '../transactions.interface';
 
 @Injectable()
 export default class ProcessTransactionUseCase {
+  private readonly logger = new Logger(ProcessTransactionUseCase.name);
   private genAI: GoogleGenerativeAI;
 
   constructor(
@@ -16,10 +16,7 @@ export default class ProcessTransactionUseCase {
     private readonly transactionsRepository: TransactionsRepositoryInterface,
     @Inject(CreditCardsRepositoryInterface)
     private readonly creditCardsRepository: CreditCardsRepositoryInterface,
-    @Inject(StorageServiceInterface)
-    private readonly storageService: StorageServiceInterface,
-    @Inject(AttachmentsRepositoryInterface)
-    private readonly attachmentsRepository: AttachmentsRepositoryInterface,
+    private readonly storageService: StorageService,
   ) {
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
   }
@@ -115,67 +112,34 @@ export default class ProcessTransactionUseCase {
       data.dueDate = parseDateLocal(data.dueDate as any);
     }
 
-    const transaction = await this.transactionsRepository.createTransaction(data);
+    // Upload do arquivo para o R2 se presente
+    let attachmentData: {
+      attachmentKey?: string;
+      attachmentOriginalName?: string;
+      attachmentMimeType?: string;
+      attachmentSize?: number;
+    } = {};
 
     if (file) {
       try {
-        const fileType = this.determineFileType(file.mimetype);
-
-        let finalBuffer = file.buffer;
-        let finalMimeType = file.mimetype;
-        let finalSize = file.size;
-
-        if (file.mimetype.startsWith('image/')) {
-          const compressedImage = await sharp(file.buffer)
-            .resize(1920, 1920, {
-              fit: 'inside',
-              withoutEnlargement: true,
-            })
-            .jpeg({ quality: 85 })
-            .toBuffer();
-
-          finalBuffer = compressedImage;
-          finalMimeType = 'image/jpeg';
-          finalSize = compressedImage.length;
-
-          console.log(`Imagem comprimida: ${file.size} bytes → ${finalSize} bytes (${Math.round((1 - finalSize / file.size) * 100)}% redução)`);
-        }
-
-        const { fileName, url } = await this.storageService.uploadFile(
-          {
-            buffer: finalBuffer,
-            originalName: file.originalname,
-            mimeType: finalMimeType,
-            size: finalSize,
-          },
-          transaction.userId,
-        );
-
-        await this.attachmentsRepository.createAttachment({
-          fileName,
-          originalName: file.originalname,
-          fileSize: finalSize,
-          mimeType: finalMimeType,
-          storageUrl: url,
-          type: fileType,
-          transactionId: transaction.id,
-          description: 'Comprovante processado automaticamente',
-        });
+        const fileKey = await this.storageService.uploadFile(file, 'receipts');
+        attachmentData = {
+          attachmentKey: fileKey,
+          attachmentOriginalName: file.originalname,
+          attachmentMimeType: file.mimetype,
+          attachmentSize: file.size,
+        };
       } catch (error) {
-        console.error('Erro ao salvar arquivo no bucket:', error);
+        this.logger.warn(`Upload de anexo falhou, continuando sem anexo: ${error}`);
+        // Não falha a transação se o upload falhar
       }
     }
 
-    return transaction;
-  }
+    const transaction = await this.transactionsRepository.createTransaction({
+      ...data,
+      ...attachmentData,
+    });
 
-  private determineFileType(mimeType: string): 'pdf' | 'image' | 'document' {
-    if (mimeType === 'application/pdf') {
-      return 'pdf';
-    }
-    if (mimeType.startsWith('image/')) {
-      return 'image';
-    }
-    return 'document';
+    return transaction;
   }
 }

@@ -53,6 +53,13 @@ model Transaction {
   dueDate      DateTime?         @map("due_date") @db.Date
   paymentDate  DateTime?         @map("payment_date") @db.Date
   rawText      String?           @map("raw_text")
+  
+  // Campos para anexo único (recibo)
+  attachmentKey       String?  @map("attachment_key")        // Caminho no R2 (ex: receipts/uuid.jpg)
+  attachmentOriginalName String? @map("attachment_original_name") // Nome original do arquivo
+  attachmentMimeType  String?  @map("attachment_mime_type")   // MIME type
+  attachmentSize      Int?     @map("attachment_size")        // Tamanho em bytes
+  
   createdAt    DateTime          @default(now()) @map("created_at")
 
   categoryName String    @map("category_name")

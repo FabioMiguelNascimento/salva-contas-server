@@ -58,11 +58,6 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             include: {
                 categoryRel: true,
                 creditCard: true,
-                _count: {
-                    select: {
-                        attachments: true,
-                    },
-                },
             }
         });
     }
@@ -99,11 +94,6 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             include: {
                 categoryRel: true,
                 creditCard: true,
-                _count: {
-                    select: {
-                        attachments: true,
-                    },
-                },
             }
         });
     }
@@ -147,11 +137,6 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             include: {
                 categoryRel: true,
                 creditCard: true,
-                _count: {
-                    select: {
-                        attachments: true,
-                    },
-                },
             },
             orderBy: { createdAt: 'desc' },
             skip: (page - 1) * limit,
@@ -201,11 +186,6 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             include: {
                 categoryRel: true,
                 creditCard: true,
-                _count: {
-                    select: {
-                        attachments: true,
-                    },
-                },
             },
         });
     }

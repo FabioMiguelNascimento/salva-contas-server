@@ -5,11 +5,6 @@ export type TransactionWithCount = Prisma.TransactionGetPayload<{
     include: {
         categoryRel: true;
         creditCard: true;
-        _count: {
-            select: {
-                attachments: true;
-            };
-        };
     };
 }>;
 

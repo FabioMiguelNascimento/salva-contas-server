@@ -17,12 +17,7 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
   });
 
-  // Servir arquivos estáticos da pasta uploads
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
-    prefix: '/uploads/',
-  });
-
-  await app.listen(process.env.PORT!, '0.0.0.0');
+  await app.listen(process.env.PORT!, '192.168.3.9');
   console.log(`🚀 Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();

@@ -17,8 +17,10 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
   });
 
-  await app.listen(process.env.PORT!, '0.0.0.0');
+  const port = process.env.PORT!; 
+
+  await app.listen(port, '0.0.0.0');
+  
   console.log(`🚀 Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();
-

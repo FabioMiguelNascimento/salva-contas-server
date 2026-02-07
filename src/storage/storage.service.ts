@@ -18,18 +18,20 @@ export class StorageService {
     const accessKeyId = process.env.R2_ACCESS_KEY_ID;
     const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
     const endpoint = process.env.R2_ENDPOINT;
+    const region = process.env.AWS_REGION
 
     if (!accessKeyId || !secretAccessKey || !endpoint || !this.bucketName) {
       throw new Error('R2 configuration is missing. Please set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, and R2_BUCKET_NAME in your .env file');
     }
 
     this.client = new S3Client({
-      region: 'auto',
+      region,
       endpoint,
       credentials: {
         accessKeyId,
         secretAccessKey,
       },
+      forcePathStyle:true
     });
   }
 

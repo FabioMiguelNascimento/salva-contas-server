@@ -1,5 +1,6 @@
 import { Injectable, Scope } from "@nestjs/common";
 import { UserContext } from "src/auth/user-context.service";
+import { WorkspaceContext } from "src/auth/workspace-context.service";
 import { PrismaService } from "src/prisma/prisma.service";
 import { AIReceiptData, CreateTransactionInput, GetTransactionsInput, UpdateTransactionInput } from "src/schemas/transactions.schema";
 import { parseDateLocal } from "src/utils/date-utils";
@@ -10,8 +11,13 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     constructor(
         private prisma: PrismaService,
         private userContext: UserContext,
+        private workspaceContext: WorkspaceContext,
     ) {
         super();
+    }
+
+    private get workspaceId(): string {
+        return this.workspaceContext.workspaceId;
     }
 
     private get userId(): string {
@@ -29,24 +35,27 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             ...transactionData,
             dueDate,
             paymentDate,
-            userId: this.userId,
+            workspace: { connect: { id: this.workspaceId } },
+            createdById: this.userId,
+            // preenche scalar obrigatório `category` e relação `categoryRel`
             category: normalizedCategory,
-            categoryName: normalizedCategory,
             categoryRel: {
                 connectOrCreate: {
                     where: {
-                        userId_name: {
-                            userId: this.userId,
+                        workspaceId_name: {
+                            workspaceId: this.workspaceId,
                             name: normalizedCategory
                         }
                     },
                     create: {
-                        userId: this.userId,
+                        workspaceId: this.workspaceId,
                         name: normalizedCategory,
                         icon: 'tag'
                     }
                 }
-            }
+            },
+            // garante que o scalar obrigatório categoryName seja preenchido
+            categoryName: normalizedCategory,
         };
 
         if (creditCardId) {
@@ -80,7 +89,9 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             ...transactionData,
             dueDate,
             paymentDate,
-            userId: this.userId,
+            workspace: { connect: { id: this.workspaceId } },
+            createdById: this.userId,
+            categoryId: data.categoryId ?? undefined,
             category: category.name,
             categoryName: category.name,
         };
@@ -100,7 +111,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
 
     async getTransactions({ page, limit, categoryId, type, status, startDate, endDate, month, year, creditCardId }: GetTransactionsInput) {
         const where: any = {
-            userId: this.userId,
+            workspaceId: this.workspaceId,
         };
 
         if (categoryId) where.categoryId = categoryId;
@@ -170,9 +181,9 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
                 where: { id: categoryId },
             });
             if (category) {
+                updateData.categoryRel = { connect: { id: categoryId } };
                 updateData.category = category.name;
                 updateData.categoryName = category.name;
-                updateData.categoryRel = { connect: { id: categoryId } };
             }
         }
 

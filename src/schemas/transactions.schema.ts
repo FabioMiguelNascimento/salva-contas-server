@@ -6,8 +6,9 @@ export const AIReceiptSchema = z.object({
   category: z.string(),
   type: z.enum(['expense', 'income']),
   status: z.enum(['paid', 'pending']),
-  dueDate: z.coerce.date().nullable(), 
-  paymentDate: z.coerce.date().nullable(),
+  // AI returns dates as "DD/MM/YYYY" (string). Accept string|null/undefined here and convert later.
+  dueDate: z.string().nullable().optional(),
+  paymentDate: z.string().nullable().optional(),
   creditCardId: z.string().nullable().optional(),
 });
 

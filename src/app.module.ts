@@ -9,6 +9,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { StorageModule } from './storage/storage.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TransactionsModule } from './transactions/transactions.module';
+import { WorkspacesModule } from './workspaces/workspaces.module';
 
 @Module({
   imports: [
@@ -21,7 +22,8 @@ import { TransactionsModule } from './transactions/transactions.module';
     DashboardModule, 
     BudgetsModule, 
     NotificationsModule, 
-    CreditCardsModule
+    CreditCardsModule,
+    WorkspacesModule,
   ],
 })
 export class AppModule {}

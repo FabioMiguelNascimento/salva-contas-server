@@ -1,6 +1,7 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { Category } from 'generated/prisma/client';
 import { UserContext } from 'src/auth/user-context.service';
+import { WorkspaceContext } from 'src/auth/workspace-context.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { GetAllCategoriesInput } from 'src/schemas/categories.schema';
 import { BaseCategoryUpdateInput } from 'src/types/categories.type';
@@ -11,19 +12,20 @@ export default class CategoriesRepository extends CategoriesRepositoryInterface 
   constructor(
     private prisma: PrismaService,
     private userContext: UserContext,
+    private workspaceContext: WorkspaceContext,
   ) {
     super();
   }
 
-  private get userId(): string {
-    return this.userContext.userId;
+  private get workspaceId(): string {
+    return this.workspaceContext.workspaceId;
   }
 
   async getAllCategories({ limit, cursor }: GetAllCategoriesInput) {
     const categories = await this.prisma.category.findMany({
       where: {
         OR: [
-          { userId: this.userId },
+          { workspaceId: this.workspaceId },
           { isGlobal: true },
         ]
       },

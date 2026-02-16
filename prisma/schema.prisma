@@ -29,23 +29,66 @@ enum SubscriptionFrequency {
   yearly
 }
 
-model Category {
-  id        String        @id @default(uuid())
-  userId    String        @map("user_id")
-  name      String
-  icon      String?
-  isGlobal  Boolean       @default(false)
-  transactions Transaction[]
-  subscriptions Subscription[]
-  budgets   Budget[]
+enum WorkspaceRole {
+  ADMIN
+  MEMBER
+}
 
-  @@unique([userId, name])
+model Workspace {
+  id          String   @id @default(uuid())
+  name        String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  members       WorkspaceMember[]
+  transactions  Transaction[]
+  categories    Category[]
+  subscriptions Subscription[]
+  budgets       Budget[]
+  creditCards   CreditCard[]
+  notifications Notification[]
+  attachments   Attachment[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid())
+  role        WorkspaceRole @default(MEMBER)
+  joinedAt    DateTime      @default(now()) @map("joined_at")
+  lastAccessed DateTime?    @map("last_accessed")
+
+  userId      String        @map("user_id")
+  workspaceId String        @map("workspace_id")
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@map("workspace_members")
+}
+
+model Category {
+  id           String        @id @default(uuid())
+  workspaceId  String?       @map("workspace_id")
+  workspace    Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name         String
+  icon         String?
+  isGlobal     Boolean       @default(false)
+  
+  transactions  Transaction[]
+  subscriptions Subscription[]
+  budgets       Budget[]
+
+  @@unique([workspaceId, name])
   @@map("categories")
 }
 
 model Transaction {
   id           String            @id @default(uuid())
-  userId       String            @map("user_id")
+  workspaceId  String            @map("workspace_id")
+  workspace    Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  createdById  String?           @map("created_by_id")
+  
   amount       Decimal           @db.Decimal(10, 2)
   description  String
   category     String
@@ -55,11 +98,10 @@ model Transaction {
   paymentDate  DateTime?         @map("payment_date") @db.Date
   rawText      String?           @map("raw_text")
   
-  // Campos para anexo único (recibo)
-  attachmentKey       String?  @map("attachment_key")        // Caminho no R2 (ex: receipts/uuid.jpg)
-  attachmentOriginalName String? @map("attachment_original_name") // Nome original do arquivo
-  attachmentMimeType  String?  @map("attachment_mime_type")   // MIME type
-  attachmentSize      Int?     @map("attachment_size")        // Tamanho em bytes
+  attachmentKey          String?  @map("attachment_key")
+  attachmentOriginalName String?  @map("attachment_original_name")
+  attachmentMimeType     String?  @map("attachment_mime_type")
+  attachmentSize         Int?     @map("attachment_size")
   
   createdAt    DateTime          @default(now()) @map("created_at")
 
@@ -78,7 +120,11 @@ model Transaction {
 
 model Subscription {
   id          String               @id @default(uuid())
-  userId      String               @map("user_id")
+  workspaceId String               @map("workspace_id")
+  workspace   Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  createdById String?              @map("created_by_id")
+  
   description String
   amount      Decimal              @db.Decimal(10, 2)
   categoryId  String               @map("category_id")
@@ -99,17 +145,21 @@ model Subscription {
 }
 
 model Budget {
-  id         String   @id @default(uuid())
-  userId     String   @map("user_id")
-  categoryId String   @map("category_id")
-  category   Category @relation(fields: [categoryId], references: [id])
-  amount     Decimal  @db.Decimal(10, 2)
-  month      Int
-  year       Int 
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  createdById String?  @map("created_by_id")
+  
+  categoryId  String   @map("category_id")
+  category    Category @relation(fields: [categoryId], references: [id])
+  amount      Decimal  @db.Decimal(10, 2)
+  month       Int
+  year        Int 
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  @@unique([userId, categoryId, month, year])
+  @@unique([workspaceId, categoryId, month, year])
   @@map("budgets")
 }
 
@@ -127,15 +177,19 @@ enum NotificationStatus {
 }
 
 model Notification {
-  id         String             @id @default(uuid())
-  userId     String             @map("user_id")
-  title      String
-  message    String
-  type       NotificationType   @default(general)
-  status     NotificationStatus @default(unread)
-  relatedId  String?            @map("related_id")
-  createdAt  DateTime           @default(now()) @map("created_at")
-  readAt     DateTime?          @map("read_at")
+  id          String             @id @default(uuid())
+  workspaceId String             @map("workspace_id")
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  userId      String             @map("user_id")
+  
+  title       String
+  message     String
+  type        NotificationType   @default(general)
+  status      NotificationStatus @default(unread)
+  relatedId   String?            @map("related_id")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  readAt      DateTime?          @map("read_at")
 
   @@map("notifications")
 }
@@ -158,14 +212,18 @@ enum CreditCardStatus {
 
 model CreditCard {
   id              String           @id @default(uuid())
-  userId          String           @map("user_id")
-  name            String           // Nome personalizado do cartão
-  flag            CreditCardFlag   // Bandeira
-  lastFourDigits  String           @map("last_four_digits") // Últimos 4 dígitos
-  limit           Decimal          @db.Decimal(10, 2) // Limite do cartão
-  availableLimit  Decimal          @db.Decimal(10, 2) @map("available_limit") // Limite disponível
-  closingDay      Int              @map("closing_day") // Dia do fechamento (1-31)
-  dueDay          Int              @map("due_day") // Dia do vencimento (1-31)
+  workspaceId     String           @map("workspace_id")
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  createdById     String?          @map("created_by_id")
+  
+  name            String
+  flag            CreditCardFlag
+  lastFourDigits  String           @map("last_four_digits")
+  limit           Decimal          @db.Decimal(10, 2)
+  availableLimit  Decimal          @db.Decimal(10, 2) @map("available_limit")
+  closingDay      Int              @map("closing_day")
+  dueDay          Int              @map("due_day")
   status          CreditCardStatus @default(active)
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
@@ -184,16 +242,19 @@ enum AttachmentType {
 
 model Attachment {
   id             String         @id @default(uuid())
-  userId         String         @map("user_id")
+  workspaceId    String         @map("workspace_id")
+  workspace      Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  createdById    String?        @map("created_by_id")
+  
   fileName       String         @map("file_name")
   originalName   String         @map("original_name")
-  fileSize       Int            @map("file_size") // Tamanho em bytes
+  fileSize       Int            @map("file_size")
   mimeType       String         @map("mime_type")
   type           AttachmentType
-  storageUrl     String         @map("storage_url") // URL ou path do arquivo
+  storageUrl     String         @map("storage_url")
   description    String?
   
-  // Relacionamentos polimórficos
   transactionId  String?        @map("transaction_id")
   transaction    Transaction?   @relation(fields: [transactionId], references: [id])
 

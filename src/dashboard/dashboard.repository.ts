@@ -1,5 +1,6 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { UserContext } from '../auth/user-context.service';
+import { WorkspaceContext } from '../auth/workspace-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { DashboardRepositoryInterface } from './dashboard.interface';
 
@@ -8,12 +9,13 @@ export class DashboardRepository extends DashboardRepositoryInterface {
   constructor(
     private readonly prisma: PrismaService,
     private readonly userContext: UserContext,
+    private readonly workspaceContext: WorkspaceContext,
   ) {
     super();
   }
 
-  private get userId(): string {
-    return this.userContext.userId;
+  private get workspaceId(): string {
+    return this.workspaceContext.workspaceId;
   }
 
   async getMetrics(month?: number, year?: number) {
@@ -30,7 +32,7 @@ export class DashboardRepository extends DashboardRepositoryInterface {
 
     const currentTransactions = await this.prisma.transaction.findMany({
       where: {
-        userId: this.userId,
+        workspaceId: this.workspaceId,
         createdAt: {
           gte: currentPeriodStart,
           lt: currentPeriodEnd,
@@ -40,7 +42,7 @@ export class DashboardRepository extends DashboardRepositoryInterface {
 
     const previousTransactions = await this.prisma.transaction.findMany({
       where: {
-        userId: this.userId,
+        workspaceId: this.workspaceId,
         createdAt: {
           gte: previousPeriodStart,
           lt: previousPeriodEnd,
@@ -107,7 +109,7 @@ export class DashboardRepository extends DashboardRepositoryInterface {
 
     const pendingTransactions = await this.prisma.transaction.findMany({
       where: {
-        userId: this.userId,
+        workspaceId: this.workspaceId,
         status: 'pending',
       },
     });

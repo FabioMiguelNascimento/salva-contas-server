@@ -1,11 +1,10 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import { CategoriesRepositoryInterface } from 'src/categories/categories.interface';
 import { AIReceiptSchema } from 'src/schemas/transactions.schema';
 import { StorageService } from 'src/storage/storage.service';
-import { parseDateLocal } from 'src/utils/date-utils';
 import { CreditCardsRepositoryInterface } from '../../credit-cards/credit-cards.interface';
 import { TransactionsRepositoryInterface } from '../transactions.interface';
-import { CategoriesRepositoryInterface } from 'src/categories/categories.interface';
 
 @Injectable()
 export default class ProcessTransactionUseCase {
@@ -113,16 +112,13 @@ export default class ProcessTransactionUseCase {
       data.creditCardId = options.creditCardId;
     }
 
-    if (options?.paymentDate) {
-      data.paymentDate = parseDateLocal(options.paymentDate);
-    } else if (data.paymentDate) {
-      data.paymentDate = parseDateLocal(data.paymentDate as any);
+    // Keep dates as strings (AI returns DD/MM/YYYY). The repository will parse them via parseDateLocal.
+    if (options?.paymentDate !== undefined) {
+      data.paymentDate = options.paymentDate;
     }
 
-    if (options?.dueDate) {
-      data.dueDate = parseDateLocal(options.dueDate);
-    } else if (data.dueDate) {
-      data.dueDate = parseDateLocal(data.dueDate as any);
+    if (options?.dueDate !== undefined) {
+      data.dueDate = options.dueDate;
     }
 
     // Upload do arquivo para o R2 se presente

@@ -1,6 +1,7 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { CreditCard } from '../../generated/prisma/client';
 import { UserContext } from '../auth/user-context.service';
+import { WorkspaceContext } from '../auth/workspace-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCreditCardInput, GetCreditCardsInput, UpdateCreditCardInput } from '../schemas/credit-cards.schema';
 import { CreditCardsRepositoryInterface, CreditCardWithUsage } from './credit-cards.interface';
@@ -10,7 +11,12 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
   constructor(
     private readonly prisma: PrismaService,
     private readonly userContext: UserContext,
+    private readonly workspaceContext: WorkspaceContext,
   ) {}
+
+  private get workspaceId(): string {
+    return this.workspaceContext.workspaceId;
+  }
 
   private get userId(): string {
     return this.userContext.userId;
@@ -20,14 +26,15 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     return this.prisma.creditCard.create({
       data: {
         ...data,
-        userId: this.userId,
+        workspaceId: this.workspaceId,
+        createdById: this.userId,
         availableLimit: data.limit,
       },
     });
   }
 
   async getCreditCards(filters?: GetCreditCardsInput): Promise<CreditCard[]> {
-    const where: any = { userId: this.userId };
+    const where: any = { workspaceId: this.workspaceId };
 
     if (filters?.status) {
       where.status = filters.status;
@@ -54,7 +61,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
       // Transações do ciclo atual (entre início e fechamento da fatura)
       const currentInvoiceResult = await this.prisma.transaction.aggregate({
         where: {
-          userId: this.userId,
+          workspaceId: this.workspaceId,
           creditCardId: card.id,
           type: 'expense',
           paymentDate: {
@@ -68,7 +75,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
       // Transações pendentes de ciclos anteriores (não pagas)
       const pendingResult = await this.prisma.transaction.aggregate({
         where: {
-          userId: this.userId,
+          workspaceId: this.workspaceId,
           creditCardId: card.id,
           type: 'expense',
           status: 'pending',
@@ -79,8 +86,8 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
         _sum: { amount: true },
       });
 
-      const currentInvoiceAmount = Number(currentInvoiceResult._sum.amount || 0);
-      const pendingAmount = Number(pendingResult._sum.amount || 0);
+      const currentInvoiceAmount = Number(currentInvoiceResult._sum?.amount || 0);
+      const pendingAmount = Number(pendingResult._sum?.amount || 0);
       const totalDebt = currentInvoiceAmount + pendingAmount;
       const usedLimit = totalDebt;
 
@@ -144,7 +151,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     return this.prisma.creditCard.findFirst({
       where: {
         id,
-        userId: this.userId,
+        workspaceId: this.workspaceId,
       },
     });
   }
@@ -153,7 +160,6 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     return this.prisma.creditCard.update({
       where: {
         id,
-        userId: this.userId,
       },
       data,
     });
@@ -163,7 +169,6 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     await this.prisma.creditCard.delete({
       where: {
         id,
-        userId: this.userId,
       },
     });
   }
@@ -172,7 +177,6 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     return this.prisma.creditCard.update({
       where: {
         id,
-        userId: this.userId,
       },
       data: {
         availableLimit: amount,
@@ -190,7 +194,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     const creditCard = await this.prisma.creditCard.findFirst({
       where: {
         id,
-        userId: this.userId,
+        workspaceId: this.workspaceId,
       },
     });
 
@@ -201,7 +205,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     // Calcular dívida atual (transações pendentes do cartão)
     const currentDebtResult = await this.prisma.transaction.aggregate({
       where: {
-        userId: this.userId,
+        workspaceId: this.workspaceId,
         creditCardId: id,
         status: 'pending',
       },
@@ -210,7 +214,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
       },
     });
 
-    const currentDebt = Number(currentDebtResult._sum.amount || 0);
+    const currentDebt = Number(currentDebtResult._sum?.amount || 0);
 
     // Calcular próximas datas de fechamento e vencimento
     const now = new Date();

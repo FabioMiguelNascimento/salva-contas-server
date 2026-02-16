@@ -8,8 +8,6 @@ if (!process.env.DATABASE_URL) {
 
 const prisma: PrismaClient = new PrismaService();
 
-const DEFAULT_USER_ID = 'system';
-
 const categories = [
   { name: 'Alimentação', icon: 'coffee' },
   { name: 'Supermercado', icon: 'shopping-cart' },
@@ -30,16 +28,40 @@ const categories = [
 async function main() {
   await prisma.$connect();
 
-  console.log(`Seeding ${categories.length} categories for user "${DEFAULT_USER_ID}"...`);
+  console.log(`Seeding ${categories.length} global categories (workspaceId = null)...`);
 
-  const data = categories.map((c) => ({ userId: DEFAULT_USER_ID, name: c.name, icon: c.icon, isGlobal: true }));
+  let removedDuplicates = 0;
+  for (const c of categories) {
+    const rows = await prisma.category.findMany({ where: { workspaceId: null, name: c.name }, orderBy: { id: 'asc' } });
+    if (rows.length > 1) {
+      const idsToDelete = rows.slice(1).map((r) => r.id);
+      const del = await prisma.category.deleteMany({ where: { id: { in: idsToDelete } } });
+      removedDuplicates += del.count ?? 0;
+    }
+  }
 
-  const res = await prisma.category.createMany({
-    data,
-    skipDuplicates: true,
-  });
+  const existingGlobal = await prisma.category.findMany({ where: { workspaceId: null }, select: { id: true, name: true } });
+  const existingNames = new Set(existingGlobal.map((r) => r.name));
 
-  console.log(`Seed completed. (created: ${res.count ?? 'unknown'})`);
+  const nameToId = new Map(existingGlobal.map((r) => [r.name, r.id]));
+
+  const ops = categories.map((c) =>
+    nameToId.has(c.name)
+      ? prisma.category.update({
+          where: { id: nameToId.get(c.name)! },
+          data: { icon: c.icon, isGlobal: true },
+        })
+      : prisma.category.create({
+          data: { workspaceId: null, name: c.name, icon: c.icon, isGlobal: true },
+        })
+  );
+
+  await prisma.$transaction(ops);
+
+  const created = categories.filter((c) => !existingNames.has(c.name)).length;
+  const updated = categories.length - created;
+
+  console.log(`Seed completed. created: ${created}, updated: ${updated}, duplicates removed: ${removedDuplicates}`);
 }
 
 main()

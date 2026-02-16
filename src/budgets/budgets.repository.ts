@@ -1,6 +1,7 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { Budget } from 'generated/prisma/client';
 import { UserContext } from '../auth/user-context.service';
+import { WorkspaceContext } from '../auth/workspace-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BudgetsRepositoryInterface } from './budgets.interface';
 
@@ -9,7 +10,12 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
   constructor(
     private readonly prisma: PrismaService,
     private readonly userContext: UserContext,
+    private readonly workspaceContext: WorkspaceContext,
   ) {}
+
+  private get workspaceId(): string {
+    return this.workspaceContext.workspaceId;
+  }
 
   private get userId(): string {
     return this.userContext.userId;
@@ -24,7 +30,8 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
     return this.prisma.budget.create({
       data: {
         ...data,
-        userId: this.userId,
+        workspaceId: this.workspaceId,
+        createdById: this.userId,
       },
       include: {
         category: true,
@@ -33,7 +40,7 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
   }
 
   async getBudgets(month?: number, year?: number): Promise<Budget[]> {
-    const where: any = { userId: this.userId };
+    const where: any = { workspaceId: this.workspaceId };
 
     if (month && year) {
       where.month = month;
@@ -77,7 +84,7 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
   }>> {
     const budgets = await this.prisma.budget.findMany({
       where: {
-        userId: this.userId,
+        workspaceId: this.workspaceId,
         month,
         year,
       },
@@ -91,8 +98,8 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
         // Calculate spent amount for this category in the month/year
         const spentResult = await this.prisma.transaction.aggregate({
           where: {
-            userId: this.userId,
-            category: budget.category.name,
+            workspaceId: this.workspaceId,
+            categoryId: budget.categoryId,
             type: 'expense',
             createdAt: {
               gte: new Date(year, month - 1, 1),
@@ -104,7 +111,7 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
           },
         });
 
-        const spent = Number(spentResult._sum.amount || 0);
+        const spent = Number(spentResult._sum?.amount || 0);
         const budgetAmount = Number(budget.amount);
         const remaining = budgetAmount - spent;
         const percentage = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;

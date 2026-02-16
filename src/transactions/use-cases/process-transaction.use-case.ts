@@ -5,6 +5,7 @@ import { StorageService } from 'src/storage/storage.service';
 import { parseDateLocal } from 'src/utils/date-utils';
 import { CreditCardsRepositoryInterface } from '../../credit-cards/credit-cards.interface';
 import { TransactionsRepositoryInterface } from '../transactions.interface';
+import { CategoriesRepositoryInterface } from 'src/categories/categories.interface';
 
 @Injectable()
 export default class ProcessTransactionUseCase {
@@ -16,6 +17,8 @@ export default class ProcessTransactionUseCase {
     private readonly transactionsRepository: TransactionsRepositoryInterface,
     @Inject(CreditCardsRepositoryInterface)
     private readonly creditCardsRepository: CreditCardsRepositoryInterface,
+    @Inject(CategoriesRepositoryInterface)
+    private readonly categoriesRepository: CategoriesRepositoryInterface,
     private readonly storageService: StorageService,
   ) {
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -41,10 +44,20 @@ export default class ProcessTransactionUseCase {
       ? `\n\nCARTÕES DE CRÉDITO DISPONÍVEIS:\n${creditCards.map(c => `- ID: "${c.id}" | Nome: ${c.name} | Bandeira: ${c.flag} | Final: ${c.lastFourDigits}`).join('\n')}\n\nSe a compra parecer ter sido feita com cartão de crédito, retorne o "creditCardId" correspondente. Caso contrário, retorne null.`
       : '';
 
+    const categoriesResult = await this.categoriesRepository.getAllCategories({ limit: 100 });
+    const categoriesList = categoriesResult?.data ? categoriesResult.data : [];
+
+    const categoriesInfo = categoriesList.length > 0
+      ? `\n\nCATEGORIAS DISPONÍVEIS:\n${categoriesList.map((c: any) => `- ID: "${c.id}" | Nome: ${c.name}`).join('\n')}\n\nSe alguma dessas categorias for adequada, retorne exatamente o nome no campo \"category\". Se nenhuma for adequada, gere um nome curto de categoria nova e retorne esse nome em \"category\`.`
+      : '';
+
     const prompt = `
       Atue como um extrator de dados literal. 
       
       DATA DE HOJE PARA REFERÊNCIA: ${brazilDate} (Use apenas para preencher o ano se faltar).
+
+      IMPORTANTE — CATEGORIAS:
+      ${categoriesInfo}
 
       🚨 REGRA DE OURO (DATAS):
       1. Copie a data EXATAMENTE como está impressa. 

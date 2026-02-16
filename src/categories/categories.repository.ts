@@ -21,7 +21,12 @@ export default class CategoriesRepository extends CategoriesRepositoryInterface 
 
   async getAllCategories({ limit, cursor }: GetAllCategoriesInput) {
     const categories = await this.prisma.category.findMany({
-      where: { userId: this.userId },
+      where: {
+        OR: [
+          { userId: this.userId },
+          { isGlobal: true },
+        ]
+      },
       take: limit + 1,
       cursor: cursor ? { id: cursor } : undefined,
       skip: cursor ? 1 : 0,

@@ -34,6 +34,7 @@ model Category {
   userId    String        @map("user_id")
   name      String
   icon      String?
+  isGlobal  Boolean       @default(false)
   transactions Transaction[]
   subscriptions Subscription[]
   budgets   Budget[]

@@ -10,6 +10,8 @@ import { DeleteTransactionUseCase } from './use-cases/delete-transaction.use-cas
 import GetTransactionsUseCase from './use-cases/get-transactions.use-case';
 import ProcessTransactionUseCase from './use-cases/process-transaction.use-case';
 import { UpdateTransactionUseCase } from './use-cases/update-transaction.use-case';
+import { CategoriesRepositoryInterface } from 'src/categories/categories.interface';
+import CategoriesRepository from 'src/categories/categories.repository';
 
 @Module({
   imports: [PrismaModule],
@@ -27,6 +29,10 @@ import { UpdateTransactionUseCase } from './use-cases/update-transaction.use-cas
     {
       provide: CreditCardsRepositoryInterface,
       useClass: CreditCardsRepository
+    },
+    {
+      provide: CategoriesRepositoryInterface,
+      useClass: CategoriesRepository
     }
   ]
 })

@@ -17,8 +17,8 @@ export const CreateTransactionSchema = z.object({
   categoryId: z.string().uuid(),
   type: z.enum(['expense', 'income']),
   status: z.enum(['paid', 'pending']),
-  dueDate: z.coerce.date().nullable(),
-  paymentDate: z.coerce.date().nullable(),
+  dueDate: z.coerce.date().nullable().optional(),
+  paymentDate: z.coerce.date().nullable().optional(),
   creditCardId: z.uuid().nullable().optional(),
 });
 

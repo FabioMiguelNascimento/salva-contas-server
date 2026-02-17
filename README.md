@@ -1,98 +1,157 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Salva Contas — API (backend)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend do projeto **Salva Contas** — API REST construída com NestJS e Prisma para gerenciar workspaces, transações, assinaturas, orçamentos, cartões e anexos. Autenticação via Supabase; arquivos armazenados em R2 (S3‑compatible). Ideal para desenvolvimento local e deploy em containers.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## Principais tecnologias 🔧
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- Node.js + TypeScript
+- NestJS (modular)
+- Prisma (PostgreSQL)
+- Autenticação: Supabase
+- Storage: Cloudflare R2 (S3-compatible)
+- (Opcional) Google Generative AI — extração automática de recibos
 
-## Project setup
+---
 
-```bash
-$ pnpm install
-```
+## Recursos principais ✅
 
-## Compile and run the project
+- Autenticação e gerenciamento de usuários (Supabase)
+- Workspaces e permissões
+- Transações (criação, busca, anexos)
+- Subscriptions, Budgets, Credit Cards, Notifications
+- Upload / presigned URLs para anexos (R2)
+- Seed inicial com categorias globais
+- Healthcheck: `GET /health`
+
+---
+
+## Quickstart — desenvolvimento local 🚀
+
+1. Instale dependências:
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+pnpm install
 ```
 
-## Run tests
+2. Crie um `.env` (exemplo abaixo) e configure o PostgreSQL + Supabase + R2.
+
+3. Gere o client Prisma e rode migrations:
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+pnpm prisma generate
+pnpm prisma migrate dev
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+4. Rode o seed (categorias globais):
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+pnpm run seed
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+5. Inicie em modo desenvolvimento:
 
-## Resources
+```bash
+pnpm run dev
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+A aplicação ouvirá na porta configurada pela variável `PORT`.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+---
 
-## Support
+## Variáveis de ambiente (essenciais / opcionais) ⚙️
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+- DATABASE_URL — string de conexão PostgreSQL (required)
+- PORT — porta onde a API escuta (ex.: 3333)
 
-## Stay in touch
+Autenticação (Supabase):
+- SUPABASE_URL (required)
+- SUPABASE_ANON_KEY (required)
+- SUPABASE_SERVICE_ROLE_KEY (opcional — necessário para operações administrativas)
+- PASSWORD_RESET_REDIRECT_URL (opcional)
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Storage (R2 / S3-compatible):
+- R2_ACCESS_KEY_ID (required para uploads)
+- R2_SECRET_ACCESS_KEY (required para uploads)
+- R2_ENDPOINT (required)
+- R2_BUCKET_NAME (required)
+- AWS_REGION (opcional)
 
-## License
+Recursos opcionais:
+- GEMINI_API_KEY — chave Google Generative AI (opcional; habilita extração automática de recibos)
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Exemplo mínimo `.env`:
+
+```env
+DATABASE_URL=postgresql://user:pass@localhost:5432/salvacontas
+PORT=3333
+SUPABASE_URL=https://xyz.supabase.co
+SUPABASE_ANON_KEY=xxxxxxxx
+R2_ACCESS_KEY_ID=xxxx
+R2_SECRET_ACCESS_KEY=xxxx
+R2_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+R2_BUCKET_NAME=salva-contas
+# GEMINI_API_KEY=seu-token-gemini (opcional)
+```
+
+> Nota: alguns módulos (ex.: upload de anexos ou lookup de usuários no Supabase admin) falham se as variáveis relacionadas não estiverem definidas.
+
+---
+
+## Scripts úteis (npm/pnpm) 📋
+
+- `pnpm run dev` — modo desenvolvimento (watch)
+- `pnpm run build` — build (NestJS)
+- `pnpm run start:prod` — iniciar build em produção
+- `pnpm prisma generate` — gerar Prisma Client
+- `pnpm prisma migrate dev` — aplicar migrations localmente
+- `pnpm prisma studio` — abrir Prisma Studio
+- `pnpm run seed` — rodar seed de dados
+- `pnpm run test` — executar testes
+- `pnpm run lint` — lint
+- `pnpm run format` — formatação (Prettier)
+
+---
+
+## Docker 🐳
+
+O repositório contém um `dockerfile` preparado para build e execução.
+
+Build:
+
+```bash
+docker build -t salva-contas-server .
+```
+
+Run (exemplo):
+
+```bash
+docker run -e DATABASE_URL="$DATABASE_URL" -e PORT=3333 -p 3333:3333 salva-contas-server
+```
+
+---
+
+## Banco de dados / Prisma 📦
+
+- Cliente gerado em `generated/prisma` (rodar `pnpm prisma generate` após alterar `schema.prisma`).
+- Migrations estão em `prisma/migrations`.
+- Use `pnpm prisma migrate dev` para rodar migrations em dev e `pnpm prisma migrate deploy` em produção.
+
+---
+
+## Endpoints úteis
+
+- Health: `GET /health`
+- Autenticação e outras rotas: consulte os controllers em `src/**/*.controller.ts`
+
+---
+
+## Observações finais 💡
+
+- Recursos dependentes de serviços externos (Supabase, R2, GEMINI) são opcionais — a API funciona com o mínimo: `DATABASE_URL` + `SUPABASE_*`.
+- Para desenvolvimento rápido, use um Postgres local + as variáveis acima.
+
+---
+
+Contribuições, dúvidas ou ajustes no README? Abra uma issue ou PR no repositório.

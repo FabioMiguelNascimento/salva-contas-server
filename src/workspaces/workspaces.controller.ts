@@ -1,22 +1,23 @@
 import {
-    Body,
-    Controller,
-    Delete,
-    Get,
-    Param,
-    Post,
-    UseGuards,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  UseGuards,
 } from '@nestjs/common';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
-    CreateWorkspaceInput,
-    CreateWorkspaceSchema,
-    InviteMemberInput,
-    InviteMemberSchema,
+  CreateWorkspaceInput,
+  CreateWorkspaceSchema,
+  InviteMemberInput,
+  InviteMemberSchema,
 } from '../schemas/workspaces.schema';
 import { success } from '../utils/api-response-helper';
 import { CreateWorkspaceUseCase } from './use-cases/create-workspace.use-case';
+import { GetWorkspaceMembersUseCase } from './use-cases/get-members.use-case';
 import { GetWorkspacesUseCase } from './use-cases/get-workspaces.use-case';
 import { InviteMemberUseCase } from './use-cases/invite-member.use-case';
 import { RemoveMemberUseCase } from './use-cases/remove-member.use-case';
@@ -31,6 +32,7 @@ export class WorkspacesController {
     private readonly inviteMemberUseCase: InviteMemberUseCase,
     private readonly removeMemberUseCase: RemoveMemberUseCase,
     private readonly touchWorkspaceAccessUseCase: TouchWorkspaceAccessUseCase,
+    private readonly getWorkspaceMembersUseCase: GetWorkspaceMembersUseCase,
   ) {}
 
   @Get()
@@ -67,6 +69,12 @@ export class WorkspacesController {
   ) {
     await this.removeMemberUseCase.execute(workspaceId, userId);
     return success(null, 'Membro removido com sucesso');
+  }
+
+  @Get(':id/members')
+  async getMembers(@Param('id') workspaceId: string) {
+    const members = await this.getWorkspaceMembersUseCase.execute(workspaceId);
+    return success(members, 'Membros recuperados com sucesso');
   }
 
   @Post(':id/access')

@@ -58,6 +58,10 @@ model WorkspaceMember {
   joinedAt    DateTime      @default(now()) @map("joined_at")
   lastAccessed DateTime?    @map("last_accessed")
 
+  // snapshot do usuário no momento em que foi adicionado ao workspace
+  name        String?       @map("name")
+  email       String?       @map("email")
+
   userId      String        @map("user_id")
   workspaceId String        @map("workspace_id")
   workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

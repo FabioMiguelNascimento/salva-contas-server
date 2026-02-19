@@ -5,16 +5,32 @@ import { SignInInput, SignUpInput } from '../schemas/auth.schema';
 @Injectable()
 export class SupabaseService implements OnModuleInit {
   private supabase: SupabaseClient;
+  private adminClient?: SupabaseClient;
 
   onModuleInit() {
     this.supabase = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_ANON_KEY!,
     );
+
+    // admin client (service role) — usado para operações que exigem privilégios administrativos
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      this.adminClient = createClient(
+        process.env.SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      );
+    }
   }
 
   getClient(): SupabaseClient {
     return this.supabase;
+  }
+
+  getAdminClient(): SupabaseClient {
+    if (!this.adminClient) {
+      throw new Error('Supabase admin client not configured. Set SUPABASE_SERVICE_ROLE_KEY');
+    }
+    return this.adminClient;
   }
 
   async validateToken(token: string): Promise<User | null> {
@@ -128,6 +144,27 @@ export class SupabaseService implements OnModuleInit {
     return { message: 'Senha atualizada com sucesso' };
   }
 
+  async updateProfile(token: string, payload: { name?: string; preferences?: any }) {
+    // valida o token primeiro
+    const user = await this.validateToken(token);
+    if (!user) {
+      throw new UnauthorizedException('Token inválido');
+    }
+
+    // supabase client permite atualizar user metadata via updateUser({ data })
+    const { data, error } = await this.supabase.auth.updateUser({
+      data: {
+        name: payload.name ?? user.user_metadata?.name,
+        preferences: payload.preferences ?? user.user_metadata?.preferences ?? undefined,
+      },
+    });
+
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+
+    return data.user;
+  }
   async getUser(token: string) {
     const { data, error } = await this.supabase.auth.getUser(token);
 

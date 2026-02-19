@@ -8,6 +8,8 @@ export abstract class WorkspacesRepositoryInterface {
     workspaceId: string;
     userId: string;
     role: 'ADMIN' | 'MEMBER';
+    name?: string | null;
+    email?: string | null;
   }): Promise<any>;
   abstract removeMember(workspaceId: string, userId: string): Promise<void>;
   abstract getMembership(
@@ -15,4 +17,5 @@ export abstract class WorkspacesRepositoryInterface {
     userId: string,
   ): Promise<any | null>;
   abstract touchMembership(workspaceId: string, userId: string): Promise<void>;
+  abstract getMembers(workspaceId: string): Promise<any[]>;
 }

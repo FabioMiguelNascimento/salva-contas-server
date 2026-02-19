@@ -2,16 +2,17 @@ import { Body, Controller, Get, Headers, Post, Put } from '@nestjs/common';
 import { User } from '@supabase/supabase-js';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
-    RefreshTokenInput,
-    RefreshTokenSchema,
-    ResetPasswordInput,
-    ResetPasswordSchema,
-    SignInInput,
-    SignInSchema,
-    SignUpInput,
-    SignUpSchema,
-    UpdatePasswordInput,
-    UpdatePasswordSchema,
+  RefreshTokenInput,
+  RefreshTokenSchema,
+  ResetPasswordInput,
+  ResetPasswordSchema,
+  SignInInput,
+  SignInSchema,
+  SignUpInput,
+  SignUpSchema,
+  UpdatePasswordInput,
+  UpdatePasswordSchema,
+  UpdateProfileSchema,
 } from '../schemas/auth.schema';
 import { success } from '../utils/api-response-helper';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -73,6 +74,24 @@ export class AuthController {
     const token = authorization?.replace('Bearer ', '');
     const result = await this.supabaseService.updatePassword(token, data.password);
     return success(result, 'Senha atualizada com sucesso');
+  }
+
+  @Put('update-profile')
+  async updateProfile(
+    @Headers('authorization') authorization: string,
+    @Body(new ZodValidationPipe(UpdateProfileSchema)) data: any,
+  ) {
+    const token = authorization?.replace('Bearer ', '');
+    const updated = await this.supabaseService.updateProfile(token, data);
+    return success(
+      {
+        id: updated?.id,
+        email: updated?.email,
+        name: updated?.user_metadata?.name ?? updated?.user_metadata?.preferences?.name,
+        user_metadata: updated?.user_metadata,
+      },
+      'Perfil atualizado com sucesso',
+    );
   }
 
   @Get('me')

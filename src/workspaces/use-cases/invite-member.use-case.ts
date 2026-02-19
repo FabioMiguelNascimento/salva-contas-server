@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { SupabaseService } from '../../auth/supabase.service';
 import { UserContext } from '../../auth/user-context.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WorkspacesRepositoryInterface } from '../workspaces.interface';
@@ -15,11 +16,13 @@ export class InviteMemberUseCase {
     private readonly workspacesRepository: WorkspacesRepositoryInterface,
     private readonly userContext: UserContext,
     private readonly prisma: PrismaService,
+    private readonly supabaseService: SupabaseService,
   ) {}
 
   async execute(data: {
     workspaceId: string;
-    userId: string;
+    userId?: string;
+    email?: string;
     role?: 'ADMIN' | 'MEMBER';
   }) {
     // Verifica se o usuário atual é ADMIN do workspace
@@ -38,10 +41,48 @@ export class InviteMemberUseCase {
       );
     }
 
+    let targetUserId = data.userId;
+
+    if (!targetUserId && data.email) {
+      // procura usuário no Supabase pelo email (admin client)
+      const client = this.supabaseService.getAdminClient();
+      try {
+        const list = await client.auth.admin.listUsers();
+        const found = list.data?.users?.find((u: any) => u.email === data.email);
+        if (!found) {
+          throw new NotFoundException('Usuário com esse email não encontrado');
+        }
+        targetUserId = found.id;
+      } catch (err) {
+        // repassa erro
+        throw err;
+      }
+    }
+
+    if (!targetUserId) {
+      throw new NotFoundException('userId ou email válido é necessário');
+    }
+
+    // captura snapshot de nome/email do Supabase (se disponível) e persiste no membership
+    let snapshotName: string | null = null;
+    let snapshotEmail: string | null = null;
+    try {
+      const client = this.supabaseService.getAdminClient();
+      const { data: supaUser } = await client.auth.admin.getUserById(targetUserId);
+      if (supaUser?.user) {
+        snapshotName = supaUser.user.user_metadata?.name ?? supaUser.user.email ?? null;
+        snapshotEmail = supaUser.user.email ?? null;
+      }
+    } catch (err) {
+      // não falhar o convite se não conseguirmos o snapshot
+    }
+
     const created = await this.workspacesRepository.addMember({
       workspaceId: data.workspaceId,
-      userId: data.userId,
+      userId: targetUserId,
       role: data.role ?? 'MEMBER',
+      name: snapshotName,
+      email: snapshotEmail,
     });
 
     // Cria notificação para o usuário convidado
@@ -53,7 +94,7 @@ export class InviteMemberUseCase {
       await this.prisma.notification.create({
         data: {
           workspaceId: data.workspaceId,
-          userId: data.userId,
+          userId: targetUserId,
           title,
           message,
           type: 'general',

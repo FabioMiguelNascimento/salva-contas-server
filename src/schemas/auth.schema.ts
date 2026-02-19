@@ -19,6 +19,23 @@ export const UpdatePasswordSchema = z.object({
   password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
 });
 
+export const UpdateProfileSchema = z.object({
+  name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres').optional(),
+  preferences: z
+    .object({
+      theme: z.enum(['auto', 'light', 'dark']).optional(),
+      density: z.enum(['compact', 'comfortable']).optional(),
+      notifications: z
+        .object({
+          vencimentos: z.boolean().optional(),
+          insights: z.boolean().optional(),
+          propostas: z.boolean().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+});
+
 export const RefreshTokenSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token é obrigatório'),
 });

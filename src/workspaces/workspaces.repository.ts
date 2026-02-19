@@ -55,12 +55,16 @@ export class WorkspacesRepository implements WorkspacesRepositoryInterface {
     workspaceId: string;
     userId: string;
     role: 'ADMIN' | 'MEMBER';
+    name?: string | null;
+    email?: string | null;
   }) {
     return this.prisma.workspaceMember.create({
       data: {
         workspaceId: data.workspaceId,
         userId: data.userId,
         role: data.role,
+        name: data.name ?? null,
+        email: data.email ?? null,
       },
     });
   }
@@ -87,6 +91,13 @@ export class WorkspacesRepository implements WorkspacesRepositoryInterface {
         workspaceId,
         userId,
       },
+    });
+  }
+
+  async getMembers(workspaceId: string) {
+    return this.prisma.workspaceMember.findMany({
+      where: { workspaceId },
+      orderBy: { joinedAt: 'asc' },
     });
   }
 }

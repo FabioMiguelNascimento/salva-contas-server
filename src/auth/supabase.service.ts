@@ -51,6 +51,7 @@ export class SupabaseService implements OnModuleInit {
         data: {
           name: input.name,
         },
+        emailRedirectTo: process.env.SUPABASE_REDIRECT_URL || 'https://salva-contas.vercel.app',
       },
     });
 
@@ -115,7 +116,7 @@ export class SupabaseService implements OnModuleInit {
 
   async resetPassword(email: string) {
     const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: process.env.PASSWORD_RESET_REDIRECT_URL,
+      redirectTo: process.env.SUPABASE_REDIRECT_URL || 'https://salva-contas.vercel.app',
     });
 
     if (error) {

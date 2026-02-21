@@ -29,7 +29,7 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
         
         const createData: any = {
             ...restData,
-            workspaceId: this.workspaceId,
+            workspace: { connect: { id: this.workspaceId } },
             createdById: this.userId,
             category: {
                 connect: { id: categoryId }

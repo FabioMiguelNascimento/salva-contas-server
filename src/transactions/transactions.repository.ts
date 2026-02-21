@@ -24,6 +24,25 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         return this.userContext.userId;
     }
 
+    private async recalcCardLimit(cardId: string) {
+        const card = await this.prisma.creditCard.findUnique({ where: { id: cardId } });
+        if (!card) return;
+        const agg = await this.prisma.transaction.aggregate({
+            where: {
+                workspaceId: this.workspaceId,
+                creditCardId: cardId,
+                type: 'expense',
+            },
+            _sum: { amount: true },
+        });
+        const debt = Number(agg._sum.amount || 0);
+        const newAvailable = Number(card.limit) - debt;
+        await this.prisma.creditCard.update({
+            where: { id: cardId },
+            data: { availableLimit: newAvailable },
+        });
+    }
+
     async createTransaction(data: AIReceiptData): Promise<TransactionWithCount> {
         const normalizedCategory = data.category.charAt(0).toUpperCase() + data.category.slice(1).toLowerCase();
         const { category, creditCardId, ...transactionData } = data;
@@ -67,13 +86,17 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
       };
     }
 
-    return this.prisma.transaction.create({
+const tx = await this.prisma.transaction.create({
       data: createData,
       include: {
         categoryRel: true,
         creditCard: true,
       },
     });
+    if (tx.creditCardId) {
+      await this.recalcCardLimit(tx.creditCardId);
+    }
+    return tx;
   }
 
     async createManualTransaction(data: CreateTransactionInput): Promise<TransactionWithCount> {
@@ -100,7 +123,6 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             categoryName: category.name,
         };
 
-        // connect the category by relation; the FK column will update accordingly
         if (data.categoryId) {
             createData.categoryRel = { connect: { id: data.categoryId } };
         }
@@ -109,13 +131,17 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             createData.creditCard = { connect: { id: creditCardId } };
         }
 
-        return this.prisma.transaction.create({
+        const tx = await this.prisma.transaction.create({
             data: createData,
             include: {
                 categoryRel: true,
                 creditCard: true,
             }
         });
+        if (tx.creditCardId) {
+            await this.recalcCardLimit(tx.creditCardId);
+        }
+        return tx;
     }
 
     async getTransactions({ page, limit, categoryId, type, status, startDate, endDate, month, year, creditCardId }: GetTransactionsInput) {
@@ -208,11 +234,17 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             }
         }
 
+        let priorCardId: string | null = null;
+        const existing = await this.prisma.transaction.findUnique({ where: { id } });
+        if (existing) {
+            priorCardId = existing.creditCardId;
+        }
+
         if (creditCardId) {
             updateData.creditCard = { connect: { id: creditCardId } };
         }
 
-        return this.prisma.transaction.update({
+        const updated = await this.prisma.transaction.update({
             where: { id },
             data: updateData,
             include: {
@@ -220,11 +252,22 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
                 creditCard: true,
             },
         });
+        if (priorCardId && priorCardId !== updated.creditCardId) {
+            await this.recalcCardLimit(priorCardId);
+        }
+        if (updated.creditCardId) {
+            await this.recalcCardLimit(updated.creditCardId);
+        }
+        return updated;
     }
 
     async deleteTransaction(id: string): Promise<void> {
+        const tx = await this.prisma.transaction.findUnique({ where: { id } });
         await this.prisma.transaction.delete({
             where: { id },
         });
+        if (tx?.creditCardId) {
+            await this.recalcCardLimit(tx.creditCardId);
+        }
     }
 }

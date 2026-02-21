@@ -40,7 +40,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
       where.status = filters.status;
     }
 
-    return this.prisma.creditCard.findMany({
+    const cards = await this.prisma.creditCard.findMany({
       where,
       orderBy: {
         createdAt: 'desc',
@@ -48,6 +48,23 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
       skip: filters ? (filters.page - 1) * filters.limit : 0,
       take: filters?.limit,
     });
+
+    await Promise.all(
+      cards.map(async (card) => {
+        const agg = await this.prisma.transaction.aggregate({
+          where: {
+            workspaceId: this.workspaceId,
+            creditCardId: card.id,
+            type: 'expense',
+          },
+          _sum: { amount: true },
+        });
+        const debt = Number(agg._sum.amount || 0);
+        card.availableLimit = Number(card.limit) - debt;
+      })
+    );
+
+    return cards;
   }
 
   async getCreditCardsWithUsage(filters?: GetCreditCardsInput): Promise<CreditCardWithUsage[]> {
@@ -58,7 +75,6 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     for (const card of creditCards) {
       const { invoiceStartDate, invoiceEndDate, dueDate } = this.calculateInvoiceDates(card.closingDay, card.dueDay);
       
-      // Transações do ciclo atual (entre início e fechamento da fatura)
       const currentInvoiceResult = await this.prisma.transaction.aggregate({
         where: {
           workspaceId: this.workspaceId,
@@ -72,7 +88,6 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
         _sum: { amount: true },
       });
 
-      // Transações pendentes de ciclos anteriores (não pagas)
       const pendingResult = await this.prisma.transaction.aggregate({
         where: {
           workspaceId: this.workspaceId,
@@ -121,19 +136,15 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     let dueDate: Date;
 
     if (currentDay <= closingDay) {
-      // Estamos no ciclo atual (ainda não fechou)
       invoiceEndDate = new Date(currentYear, currentMonth, closingDay, 23, 59, 59);
       invoiceStartDate = new Date(currentYear, currentMonth - 1, closingDay + 1, 0, 0, 0);
       
-      // Vencimento é no mesmo mês do fechamento, mas no dia de vencimento
       if (dueDayOfMonth > closingDay) {
         dueDate = new Date(currentYear, currentMonth, dueDayOfMonth);
       } else {
-        // Vencimento é no mês seguinte
         dueDate = new Date(currentYear, currentMonth + 1, dueDayOfMonth);
       }
     } else {
-      // Já fechou, estamos no próximo ciclo
       invoiceEndDate = new Date(currentYear, currentMonth + 1, closingDay, 23, 59, 59);
       invoiceStartDate = new Date(currentYear, currentMonth, closingDay + 1, 0, 0, 0);
       
@@ -202,7 +213,6 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
       throw new Error('Credit card not found');
     }
 
-    // Calcular dívida atual (transações pendentes do cartão)
     const currentDebtResult = await this.prisma.transaction.aggregate({
       where: {
         workspaceId: this.workspaceId,
@@ -216,20 +226,17 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
 
     const currentDebt = Number(currentDebtResult._sum?.amount || 0);
 
-    // Calcular próximas datas de fechamento e vencimento
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1; // Janeiro = 1
+    const currentMonth = now.getMonth() + 1;
 
     let nextClosingDate: Date;
     let nextDueDate: Date;
 
     if (now.getDate() <= creditCard.closingDay) {
-      // Ainda não fechou este mês
       nextClosingDate = new Date(currentYear, currentMonth - 1, creditCard.closingDay);
       nextDueDate = new Date(currentYear, currentMonth - 1, creditCard.dueDay);
     } else {
-      // Já fechou este mês, próximo fechamento é no próximo mês
       nextClosingDate = new Date(currentYear, currentMonth, creditCard.closingDay);
       nextDueDate = new Date(currentYear, currentMonth, creditCard.dueDay);
     }

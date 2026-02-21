@@ -31,45 +31,51 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         const dueDate = parseDateLocal((data as any).dueDate);
         const paymentDate = parseDateLocal((data as any).paymentDate);
 
-        const createData: any = {
-            ...transactionData,
-            dueDate,
-            paymentDate,
-            workspace: { connect: { id: this.workspaceId } },
-            createdById: this.userId,
-            // preenche scalar obrigatório `category` e relação `categoryRel`
-            category: normalizedCategory,
-            categoryRel: {
-                connectOrCreate: {
-                    where: {
-                        workspaceId_name: {
-                            workspaceId: this.workspaceId,
-                            name: normalizedCategory
-                        }
-                    },
-                    create: {
-                        workspaceId: this.workspaceId,
-                        name: normalizedCategory,
-                        icon: 'tag'
-                    }
-                }
-            },
-            // garante que o scalar obrigatório categoryName seja preenchido
-            categoryName: normalizedCategory,
-        };
+    let categoryToConnect = await this.prisma.category.findFirst({
+      where: {
+        name: normalizedCategory,
+        OR: [
+          { workspaceId: this.workspaceId },
+          { isGlobal: true },
+        ],
+      },
+      orderBy: { workspaceId: 'desc' },
+    });
 
-        if (creditCardId) {
-            createData.creditCard = { connect: { id: creditCardId } };
-        }
-
-        return this.prisma.transaction.create({
-            data: createData,
-            include: {
-                categoryRel: true,
-                creditCard: true,
-            }
-        });
+    if (!categoryToConnect) {
     }
+
+    const createData: any = {
+        ...transactionData,
+        dueDate,
+        paymentDate,
+        workspace: { connect: { id: this.workspaceId } },
+        createdById: this.userId,
+        category: normalizedCategory,
+        categoryName: normalizedCategory,
+    };
+
+    if (categoryToConnect) {
+      createData.categoryRel = { connect: { id: categoryToConnect.id } };
+      createData.categoryId = categoryToConnect.id;
+    } else {
+      createData.categoryRel = {
+        create: {
+          workspaceId: this.workspaceId,
+          name: normalizedCategory,
+          icon: 'tag',
+        },
+      };
+    }
+
+    return this.prisma.transaction.create({
+      data: createData,
+      include: {
+        categoryRel: true,
+        creditCard: true,
+      },
+    });
+  }
 
     async createManualTransaction(data: CreateTransactionInput): Promise<TransactionWithCount> {
         const category = await this.prisma.category.findUnique({
@@ -114,7 +120,19 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             workspaceId: this.workspaceId,
         };
 
-        if (categoryId) where.categoryId = categoryId;
+        if (categoryId) {
+            const cat = await this.prisma.category.findUnique({ where: { id: categoryId } });
+            if (cat) {
+                if (cat.isGlobal) {
+                    where.OR = [
+                        { categoryId },
+                        { categoryName: cat.name },
+                    ];
+                } else {
+                    where.categoryId = categoryId;
+                }
+            }
+        }
         if (type) where.type = type;
         if (status) where.status = status;
         if (creditCardId) where.creditCardId = creditCardId;

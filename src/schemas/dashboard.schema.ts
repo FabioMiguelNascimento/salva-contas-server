@@ -7,6 +7,7 @@ export const getDashboardMetricsResponseSchema = z.object({
   categoryBreakdown: z.array(
     z.object({
       category: z.string(),
+      categoryId: z.string().uuid().nullable().optional(),
       income: z.number(),
       expenses: z.number(),
       net: z.number(),

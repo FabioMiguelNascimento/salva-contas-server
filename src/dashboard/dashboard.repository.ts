@@ -107,6 +107,23 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       net: income - expenses,
     }));
 
+    if (categoryBreakdown.length > 0) {
+      const categoryNames = categoryBreakdown.map((c) => c.category);
+      const matchedCategories = await this.prisma.category.findMany({
+        where: {
+          workspaceId: this.workspaceId,
+          name: { in: categoryNames },
+        },
+        select: { id: true, name: true },
+      });
+
+      const nameToId = new Map(matchedCategories.map((c) => [c.name, c.id]));
+
+      for (const item of categoryBreakdown) {
+        (item as any).categoryId = nameToId.get(item.category) ?? null;
+      }
+    }
+
     const pendingTransactions = await this.prisma.transaction.findMany({
       where: {
         workspaceId: this.workspaceId,

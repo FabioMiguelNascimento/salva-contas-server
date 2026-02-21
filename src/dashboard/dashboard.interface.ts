@@ -6,6 +6,7 @@ export abstract class DashboardRepositoryInterface {
     netBalance: number;
     categoryBreakdown: Array<{
       category: string;
+      categoryId?: string | null;
       income: number;
       expenses: number;
       net: number;

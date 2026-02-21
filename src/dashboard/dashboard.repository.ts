@@ -62,15 +62,12 @@ export class DashboardRepository extends DashboardRepositoryInterface {
         totalExpenses += amount;
       }
 
-      const categoryName = transaction.category || 'Uncategorized';
-      if (!categoryMap.has(categoryName)) {
-        categoryMap.set(categoryName, { income: 0, expenses: 0 });
-      }
-      const cat = categoryMap.get(categoryName)!;
-      if (transaction.type === 'income') {
-        cat.income += amount;
-      } else if (transaction.type === 'expense') {
-        cat.expenses += amount;
+      if (transaction.type === 'expense') {
+        const categoryName = transaction.category || 'Uncategorized';
+        if (!categoryMap.has(categoryName)) {
+          categoryMap.set(categoryName, { income: 0, expenses: 0 });
+        }
+        categoryMap.get(categoryName)!.expenses += amount;
       }
     }
 

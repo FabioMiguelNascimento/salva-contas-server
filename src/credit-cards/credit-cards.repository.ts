@@ -1,5 +1,5 @@
 import { Injectable, Scope } from '@nestjs/common';
-import { CreditCard } from '../../generated/prisma/client';
+import { CreditCard, Prisma } from '../../generated/prisma/client';
 import { UserContext } from '../auth/user-context.service';
 import { WorkspaceContext } from '../auth/workspace-context.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -60,7 +60,8 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
           _sum: { amount: true },
         });
         const debt = Number(agg._sum.amount || 0);
-        card.availableLimit = Number(card.limit) - debt;
+        // convert to Decimal since availableLimit is typed as Prisma.Decimal
+        card.availableLimit = new Prisma.Decimal(Number(card.limit) - debt);
       })
     );
 

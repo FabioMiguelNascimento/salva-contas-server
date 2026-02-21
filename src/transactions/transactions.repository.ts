@@ -57,7 +57,6 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
 
     if (categoryToConnect) {
       createData.categoryRel = { connect: { id: categoryToConnect.id } };
-      createData.categoryId = categoryToConnect.id;
     } else {
       createData.categoryRel = {
         create: {
@@ -97,10 +96,14 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             paymentDate,
             workspace: { connect: { id: this.workspaceId } },
             createdById: this.userId,
-            categoryId: data.categoryId ?? undefined,
             category: category.name,
             categoryName: category.name,
         };
+
+        // connect the category by relation; the FK column will update accordingly
+        if (data.categoryId) {
+            createData.categoryRel = { connect: { id: data.categoryId } };
+        }
 
         if (creditCardId) {
             createData.creditCard = { connect: { id: creditCardId } };

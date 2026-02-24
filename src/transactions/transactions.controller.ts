@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Logger, Param, Patch, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import { CreateTransactionInput, CreateTransactionSchema, GetTransactionsInput, GetTransactionsSchema, UpdateTransactionInput, UpdateTransactionSchema } from 'src/schemas/transactions.schema';
@@ -11,6 +11,8 @@ import { UpdateTransactionUseCase } from './use-cases/update-transaction.use-cas
 
 @Controller('transactions')
 export class TransactionsController {
+    private readonly logger = new Logger(TransactionsController.name);
+
     constructor(
         private readonly processTransactionUseCase: ProcessTransactionUseCase,
         private readonly createManualTransactionUseCase: CreateManualTransactionUseCase,

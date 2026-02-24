@@ -57,12 +57,22 @@ export default class ProcessTransactionUseCase {
 
       IMPORTANTE — CATEGORIAS:
       ${categoriesInfo}
+      ${creditCardsInfo}
 
       🚨 REGRA DE OURO (DATAS):
       1. Copie a data EXATAMENTE como está impressa. 
       2. Retorne no formato brasileiro "DD/MM/YYYY". 
       3. NÃO converta para o próximo dia útil. Se o boleto vence Domingo dia 10, retorne dia 10.
       4. NÃO converta fuso horário.
+
+      🚨 REGRA DE PAGAMENTO:
+      - Se o pagamento foi feito em UM único método: retorne apenas "creditCardId" (se for cartão de crédito) ou "creditCardId": null (outros métodos). NÃO retorne "splits".
+      - Se o pagamento foi DIVIDIDO em múltiplos métodos (ex: parte no cartão, parte em PIX, parte em dinheiro): retorne o array "splits" com cada parte. NÃO retorne "creditCardId" no nível raiz.
+      - Em "splits", cada item deve ter:
+        - "amount": valor daquela parte (number)
+        - "paymentMethod": um de "credit_card" | "debit" | "pix" | "cash" | "transfer" | "other"
+        - "creditCardId": UUID do cartão (apenas quando paymentMethod = "credit_card", caso contrário null)
+      - A soma dos "splits[].amount" DEVE ser igual ao "amount" total.
 
       Retorne JSON:
       {
@@ -73,7 +83,8 @@ export default class ProcessTransactionUseCase {
         "status": "paid" | "pending",
         "dueDate": "DD/MM/YYYY" (String exata do documento, ex: "10/02/2025"), 
         "paymentDate": "DD/MM/YYYY" (String exata do documento),
-        "creditCardId": "uuid..."
+        "creditCardId": "uuid ou null" (apenas quando NÃO há splits),
+        "splits": [ { "amount": number, "paymentMethod": string, "creditCardId": "uuid ou null" } ] (opcional, apenas quando houver divisão de pagamento)
       }
     `;
 
@@ -119,6 +130,16 @@ export default class ProcessTransactionUseCase {
 
     if (options?.dueDate !== undefined) {
       data.dueDate = options.dueDate;
+    }
+
+    // If splits sum doesn't match amount (floating point rounding), normalize the largest slice
+    if (data.splits && data.splits.length >= 2) {
+      const splitSum = data.splits.reduce((s, sp) => s + sp.amount, 0);
+      const diff = Math.round((data.amount - splitSum) * 100) / 100;
+      if (Math.abs(diff) > 0 && Math.abs(diff) < 1) {
+        const maxIdx = data.splits.reduce((mi, sp, i, arr) => sp.amount > arr[mi].amount ? i : mi, 0);
+        data.splits[maxIdx].amount = Math.round((data.splits[maxIdx].amount + diff) * 100) / 100;
+      }
     }
 
     // Upload do arquivo para o R2 se presente

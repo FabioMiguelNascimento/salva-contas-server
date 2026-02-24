@@ -51,16 +51,25 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
 
     await Promise.all(
       cards.map(async (card) => {
-        const agg = await this.prisma.transaction.aggregate({
+        // Transactions without splits (legacy / direct creditCardId)
+        const txAgg = await this.prisma.transaction.aggregate({
           where: {
             workspaceId: this.workspaceId,
             creditCardId: card.id,
             type: 'expense',
+            splits: { none: {} },
           },
           _sum: { amount: true },
         });
-        const debt = Number(agg._sum.amount || 0);
-        // convert to Decimal since availableLimit is typed as Prisma.Decimal
+        // Split rows pointing to this card
+        const splitAgg = await this.prisma.transactionSplit.aggregate({
+          where: {
+            creditCardId: card.id,
+            transaction: { workspaceId: this.workspaceId, type: 'expense' },
+          },
+          _sum: { amount: true },
+        });
+        const debt = Number(txAgg._sum.amount || 0) + Number(splitAgg._sum.amount || 0);
         card.availableLimit = new Prisma.Decimal(Number(card.limit) - debt);
       })
     );

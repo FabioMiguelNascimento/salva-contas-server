@@ -2,7 +2,7 @@ import { Injectable, Scope } from "@nestjs/common";
 import { UserContext } from "src/auth/user-context.service";
 import { WorkspaceContext } from "src/auth/workspace-context.service";
 import { PrismaService } from "src/prisma/prisma.service";
-import { AIReceiptData, CreateTransactionInput, GetTransactionsInput, UpdateTransactionInput } from "src/schemas/transactions.schema";
+import { AIReceiptData, CreateTransactionInput, GetTransactionsInput, SplitInput, UpdateTransactionInput } from "src/schemas/transactions.schema";
 import { parseDateLocal } from "src/utils/date-utils";
 import { TransactionsRepositoryInterface, TransactionWithCount } from "./transactions.interface";
 
@@ -27,15 +27,29 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     private async recalcCardLimit(cardId: string) {
         const card = await this.prisma.creditCard.findUnique({ where: { id: cardId } });
         if (!card) return;
-        const agg = await this.prisma.transaction.aggregate({
+
+        const txAgg = await this.prisma.transaction.aggregate({
             where: {
                 workspaceId: this.workspaceId,
                 creditCardId: cardId,
                 type: 'expense',
+                splits: { none: {} },
             },
             _sum: { amount: true },
         });
-        const debt = Number(agg._sum.amount || 0);
+
+        const splitAgg = await this.prisma.transactionSplit.aggregate({
+            where: {
+                creditCardId: cardId,
+                transaction: {
+                    workspaceId: this.workspaceId,
+                    type: 'expense',
+                },
+            },
+            _sum: { amount: true },
+        });
+
+        const debt = Number(txAgg._sum.amount || 0) + Number(splitAgg._sum.amount || 0);
         const newAvailable = Number(card.limit) - debt;
         await this.prisma.creditCard.update({
             where: { id: cardId },
@@ -43,9 +57,27 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         });
     }
 
+    private async createSplits(transactionId: string, splits: SplitInput[]) {
+        await this.prisma.transactionSplit.createMany({
+            data: splits.map((s) => ({
+                transactionId,
+                amount: s.amount,
+                paymentMethod: s.paymentMethod,
+                creditCardId: s.creditCardId ?? null,
+            })),
+        });
+    }
+
+    private async recalcSplitCards(splits: SplitInput[]) {
+        const cardIds = [...new Set(splits.filter((s) => s.creditCardId).map((s) => s.creditCardId!))];
+        for (const cardId of cardIds) {
+            await this.recalcCardLimit(cardId);
+        }
+    }
+
     async createTransaction(data: AIReceiptData): Promise<TransactionWithCount> {
         const normalizedCategory = data.category.charAt(0).toUpperCase() + data.category.slice(1).toLowerCase();
-        const { category, creditCardId, ...transactionData } = data;
+        const { category, creditCardId, splits, ...transactionData } = data;
 
         const dueDate = parseDateLocal((data as any).dueDate);
         const paymentDate = parseDateLocal((data as any).paymentDate);
@@ -86,14 +118,24 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
       };
     }
 
+    // Connect credit card only when no splits and creditCardId is provided
+    if (!splits && creditCardId) {
+      createData.creditCard = { connect: { id: creditCardId } };
+    }
+
 const tx = await this.prisma.transaction.create({
       data: createData,
       include: {
         categoryRel: true,
         creditCard: true,
+        splits: { include: { creditCard: true } },
       },
     });
-    if (tx.creditCardId) {
+
+    if (splits && splits.length >= 2) {
+      await this.createSplits(tx.id, splits as SplitInput[]);
+      await this.recalcSplitCards(splits as SplitInput[]);
+    } else if (tx.creditCardId) {
       await this.recalcCardLimit(tx.creditCardId);
     }
     return tx;
@@ -108,10 +150,12 @@ const tx = await this.prisma.transaction.create({
             throw new Error('Category not found');
         }
 
-        const { creditCardId, ...transactionData } = data;
+        const { creditCardId, splits, ...transactionData } = data as any;
 
         const dueDate = parseDateLocal((data as any).dueDate);
         const paymentDate = parseDateLocal((data as any).paymentDate);
+
+        const hasSplits = splits && splits.length > 0;
 
         const createData: any = {
             ...transactionData,
@@ -127,7 +171,7 @@ const tx = await this.prisma.transaction.create({
             createData.categoryRel = { connect: { id: data.categoryId } };
         }
 
-        if (creditCardId) {
+        if (!hasSplits && creditCardId) {
             createData.creditCard = { connect: { id: creditCardId } };
         }
 
@@ -136,12 +180,21 @@ const tx = await this.prisma.transaction.create({
             include: {
                 categoryRel: true,
                 creditCard: true,
-            }
+                splits: { include: { creditCard: true } },
+            },
         });
-        if (tx.creditCardId) {
+
+        if (hasSplits) {
+            await this.createSplits(tx.id, splits);
+            await this.recalcSplitCards(splits);
+        } else if (tx.creditCardId) {
             await this.recalcCardLimit(tx.creditCardId);
         }
-        return tx;
+
+        return this.prisma.transaction.findUnique({
+            where: { id: tx.id },
+            include: { categoryRel: true, creditCard: true, splits: { include: { creditCard: true } } },
+        }) as any;
     }
 
     async getTransactions({ page, limit, categoryId, type, status, startDate, endDate, month, year, creditCardId }: GetTransactionsInput) {
@@ -195,6 +248,7 @@ const tx = await this.prisma.transaction.create({
             include: {
                 categoryRel: true,
                 creditCard: true,
+                splits: { include: { creditCard: true } },
             },
             orderBy: { createdAt: 'desc' },
             skip: (page - 1) * limit,
@@ -213,7 +267,7 @@ const tx = await this.prisma.transaction.create({
     }
 
     async updateTransaction(id: string, data: UpdateTransactionInput): Promise<TransactionWithCount> {
-        const { categoryId, creditCardId, ...restData } = data;
+        const { categoryId, creditCardId, splits, ...restData } = data as any;
         const updateData: any = { ...restData };
 
         if ((restData as any).dueDate !== undefined) {
@@ -234,14 +288,26 @@ const tx = await this.prisma.transaction.create({
             }
         }
 
-        let priorCardId: string | null = null;
-        const existing = await this.prisma.transaction.findUnique({ where: { id } });
-        if (existing) {
-            priorCardId = existing.creditCardId;
-        }
+        const existing = await this.prisma.transaction.findUnique({
+            where: { id },
+            include: { splits: true },
+        });
+        const priorCardId: string | null = existing?.creditCardId ?? null;
+        const priorSplitCardIds = [...new Set(
+            (existing?.splits ?? []).filter((s: any) => s.creditCardId).map((s: any) => s.creditCardId as string)
+        )];
 
-        if (creditCardId) {
-            updateData.creditCard = { connect: { id: creditCardId } };
+        const hasSplits = splits && (splits as SplitInput[]).length > 0;
+
+        if (hasSplits) {
+            updateData.creditCard = { disconnect: true };
+            await this.prisma.transactionSplit.deleteMany({ where: { transactionId: id } });
+        } else if (creditCardId !== undefined) {
+            if (creditCardId) {
+                updateData.creditCard = { connect: { id: creditCardId } };
+            } else {
+                updateData.creditCard = { disconnect: true };
+            }
         }
 
         const updated = await this.prisma.transaction.update({
@@ -250,24 +316,50 @@ const tx = await this.prisma.transaction.create({
             include: {
                 categoryRel: true,
                 creditCard: true,
+                splits: { include: { creditCard: true } },
             },
         });
-        if (priorCardId && priorCardId !== updated.creditCardId) {
-            await this.recalcCardLimit(priorCardId);
+
+        if (hasSplits) {
+            await this.createSplits(id, splits as SplitInput[]);
+            const allCardIds = [...new Set([
+                ...priorSplitCardIds,
+                ...(splits as SplitInput[]).filter((s) => s.creditCardId).map((s) => s.creditCardId!),
+                ...(priorCardId ? [priorCardId] : []),
+            ])];
+            for (const cid of allCardIds) await this.recalcCardLimit(cid);
+        } else {
+            if (priorCardId && priorCardId !== updated.creditCardId) {
+                await this.recalcCardLimit(priorCardId);
+            }
+            if (priorSplitCardIds.length > 0) {
+                for (const cid of priorSplitCardIds) await this.recalcCardLimit(cid);
+            }
+            if (updated.creditCardId) {
+                await this.recalcCardLimit(updated.creditCardId);
+            }
         }
-        if (updated.creditCardId) {
-            await this.recalcCardLimit(updated.creditCardId);
-        }
-        return updated;
+
+        return this.prisma.transaction.findUnique({
+            where: { id },
+            include: { categoryRel: true, creditCard: true, splits: { include: { creditCard: true } } },
+        }) as any;
     }
 
     async deleteTransaction(id: string): Promise<void> {
-        const tx = await this.prisma.transaction.findUnique({ where: { id } });
-        await this.prisma.transaction.delete({
+        const tx = await this.prisma.transaction.findUnique({
             where: { id },
+            include: { splits: true },
         });
+        const splitCardIds = [...new Set(
+            (tx?.splits ?? []).filter((s: any) => s.creditCardId).map((s: any) => s.creditCardId as string)
+        )];
+        await this.prisma.transaction.delete({ where: { id } });
         if (tx?.creditCardId) {
             await this.recalcCardLimit(tx.creditCardId);
+        }
+        for (const cid of splitCardIds) {
+            await this.recalcCardLimit(cid);
         }
     }
 }

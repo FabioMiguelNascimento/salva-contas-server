@@ -1,7 +1,6 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { CreditCard, Prisma } from '../../generated/prisma/client';
 import { UserContext } from '../auth/user-context.service';
-import { WorkspaceContext } from '../auth/workspace-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCreditCardInput, GetCreditCardsInput, UpdateCreditCardInput } from '../schemas/credit-cards.schema';
 import { CreditCardsRepositoryInterface, CreditCardWithUsage } from './credit-cards.interface';
@@ -11,12 +10,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
   constructor(
     private readonly prisma: PrismaService,
     private readonly userContext: UserContext,
-    private readonly workspaceContext: WorkspaceContext,
   ) {}
-
-  private get workspaceId(): string {
-    return this.workspaceContext.workspaceId;
-  }
 
   private get userId(): string {
     return this.userContext.userId;
@@ -26,7 +20,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     return this.prisma.creditCard.create({
       data: {
         ...data,
-        workspaceId: this.workspaceId,
+        userId: this.userId,
         createdById: this.userId,
         availableLimit: data.limit,
       },
@@ -34,7 +28,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
   }
 
   async getCreditCards(filters?: GetCreditCardsInput): Promise<CreditCard[]> {
-    const where: any = { workspaceId: this.workspaceId };
+    const where: any = { userId: this.userId };
 
     if (filters?.status) {
       where.status = filters.status;
@@ -54,7 +48,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
         // Transactions without splits (legacy / direct creditCardId)
         const txAgg = await this.prisma.transaction.aggregate({
           where: {
-            workspaceId: this.workspaceId,
+            userId: this.userId,
             creditCardId: card.id,
             type: 'expense',
             splits: { none: {} },
@@ -65,7 +59,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
         const splitAgg = await this.prisma.transactionSplit.aggregate({
           where: {
             creditCardId: card.id,
-            transaction: { workspaceId: this.workspaceId, type: 'expense' },
+            transaction: { userId: this.userId, type: 'expense' },
           },
           _sum: { amount: true },
         });
@@ -87,7 +81,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
       
       const currentInvoiceResult = await this.prisma.transaction.aggregate({
         where: {
-          workspaceId: this.workspaceId,
+          userId: this.userId,
           creditCardId: card.id,
           type: 'expense',
           paymentDate: {
@@ -100,7 +94,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
 
       const pendingResult = await this.prisma.transaction.aggregate({
         where: {
-          workspaceId: this.workspaceId,
+          userId: this.userId,
           creditCardId: card.id,
           type: 'expense',
           status: 'pending',
@@ -172,7 +166,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     return this.prisma.creditCard.findFirst({
       where: {
         id,
-        workspaceId: this.workspaceId,
+        userId: this.userId,
       },
     });
   }
@@ -215,7 +209,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     const creditCard = await this.prisma.creditCard.findFirst({
       where: {
         id,
-        workspaceId: this.workspaceId,
+        userId: this.userId,
       },
     });
 
@@ -225,7 +219,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
 
     const currentDebtResult = await this.prisma.transaction.aggregate({
       where: {
-        workspaceId: this.workspaceId,
+        userId: this.userId,
         creditCardId: id,
         status: 'pending',
       },

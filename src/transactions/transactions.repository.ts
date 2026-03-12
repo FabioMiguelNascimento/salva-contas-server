@@ -1,6 +1,5 @@
 import { Injectable, Scope } from "@nestjs/common";
 import { UserContext } from "src/auth/user-context.service";
-import { WorkspaceContext } from "src/auth/workspace-context.service";
 import { PrismaService } from "src/prisma/prisma.service";
 import { AIReceiptData, CreateTransactionInput, GetTransactionsInput, SplitInput, UpdateTransactionInput } from "src/schemas/transactions.schema";
 import { parseDateLocal } from "src/utils/date-utils";
@@ -11,13 +10,8 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     constructor(
         private prisma: PrismaService,
         private userContext: UserContext,
-        private workspaceContext: WorkspaceContext,
     ) {
         super();
-    }
-
-    private get workspaceId(): string {
-        return this.workspaceContext.workspaceId;
     }
 
     private get userId(): string {
@@ -30,7 +24,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
 
         const txAgg = await this.prisma.transaction.aggregate({
             where: {
-                workspaceId: this.workspaceId,
+                userId: this.userId,
                 creditCardId: cardId,
                 type: 'expense',
                 splits: { none: {} },
@@ -42,7 +36,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             where: {
                 creditCardId: cardId,
                 transaction: {
-                    workspaceId: this.workspaceId,
+                    userId: this.userId,
                     type: 'expense',
                 },
             },
@@ -86,11 +80,11 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
       where: {
         name: normalizedCategory,
         OR: [
-          { workspaceId: this.workspaceId },
+          { userId: this.userId },
           { isGlobal: true },
         ],
       },
-      orderBy: { workspaceId: 'desc' },
+      orderBy: { userId: 'desc' },
     });
 
     if (!categoryToConnect) {
@@ -100,7 +94,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         ...transactionData,
         dueDate,
         paymentDate,
-        workspace: { connect: { id: this.workspaceId } },
+        userId: this.userId,
         createdById: this.userId,
         category: normalizedCategory,
         categoryName: normalizedCategory,
@@ -111,7 +105,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     } else {
       createData.categoryRel = {
         create: {
-          workspaceId: this.workspaceId,
+          userId: this.userId,
           name: normalizedCategory,
           icon: 'tag',
         },
@@ -161,7 +155,7 @@ const tx = await this.prisma.transaction.create({
             ...transactionData,
             dueDate,
             paymentDate,
-            workspace: { connect: { id: this.workspaceId } },
+            userId: this.userId,
             createdById: this.userId,
             category: category.name,
             categoryName: category.name,
@@ -199,7 +193,7 @@ const tx = await this.prisma.transaction.create({
 
     async getTransactions({ page, limit, categoryId, type, status, startDate, endDate, month, year, creditCardId }: GetTransactionsInput) {
         const where: any = {
-            workspaceId: this.workspaceId,
+            userId: this.userId,
         };
 
         if (categoryId) {

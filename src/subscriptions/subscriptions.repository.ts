@@ -1,7 +1,6 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { Subscription } from 'generated/prisma/client';
 import { UserContext } from 'src/auth/user-context.service';
-import { WorkspaceContext } from 'src/auth/workspace-context.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateSubscriptionInput, GetAllSubscriptionsInput, UpdateSubscriptionInput } from 'src/schemas/subscriptions.schema';
 import { SubscriptionsRepositoryInterface } from './subscriptions.interface';
@@ -11,13 +10,8 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
     constructor(
         private prisma: PrismaService,
         private userContext: UserContext,
-        private workspaceContext: WorkspaceContext,
     ) {
         super();
-    }
-
-    private get workspaceId(): string {
-        return this.workspaceContext.workspaceId;
     }
 
     private get userId(): string {
@@ -29,7 +23,7 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
         
         const createData: any = {
             ...restData,
-            workspace: { connect: { id: this.workspaceId } },
+            userId: this.userId,
             createdById: this.userId,
             category: {
                 connect: { id: categoryId }
@@ -51,7 +45,7 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
 
     async getAllSubscriptions(filters?: GetAllSubscriptionsInput): Promise<any[]> {
         const where: any = {
-            workspaceId: this.workspaceId,
+            userId: this.userId,
             isActive: true,
         };
 
@@ -88,7 +82,7 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
 
         const subscriptions = await this.prisma.subscription.findMany({
             where: {
-                workspaceId: this.workspaceId,
+                userId: this.userId,
                 isActive: true,
                 OR: [
                     {
@@ -114,7 +108,7 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
 
         for (const sub of subscriptions) {
                 const transactionData: any = {
-                workspaceId: this.workspaceId,
+                userId: this.userId,
                 createdById: this.userId,
                 amount: sub.amount,
                 description: sub.description,

@@ -2,7 +2,6 @@ import { Injectable, Scope } from '@nestjs/common';
 import { Notification } from 'generated/prisma/client';
 import { parseDateLocal } from 'src/utils/date-utils';
 import { UserContext } from '../auth/user-context.service';
-import { WorkspaceContext } from '../auth/workspace-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsRepositoryInterface } from './notifications.interface';
 
@@ -11,12 +10,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
   constructor(
     private readonly prisma: PrismaService,
     private readonly userContext: UserContext,
-    private readonly workspaceContext: WorkspaceContext,
   ) {}
-
-  private get workspaceId(): string {
-    return this.workspaceContext.workspaceId;
-  }
 
   private get userId(): string {
     return this.userContext.userId;
@@ -31,14 +25,13 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
     return this.prisma.notification.create({
       data: {
         ...data,
-        workspaceId: this.workspaceId,
         userId: this.userId,
       },
     });
   }
 
   async getNotifications(status?: 'read' | 'unread', limit = 50): Promise<Notification[]> {
-    const where: any = { workspaceId: this.workspaceId };
+    const where: any = { userId: this.userId };
 
     if (status) {
       where.status = status;
@@ -66,7 +59,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
   async markAllAsRead(): Promise<number> {
     const result = await this.prisma.notification.updateMany({
       where: {
-        workspaceId: this.workspaceId,
+        userId: this.userId,
         status: 'unread',
       },
       data: {
@@ -102,7 +95,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
 
     const dueTomorrow = await this.prisma.transaction.findMany({
       where: {
-        workspaceId: this.workspaceId,
+        userId: this.userId,
         dueDate: {
           gte: startOfTomorrow,
           lt: endOfTomorrow,
@@ -115,7 +108,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
       // Verificar se já existe notificação para esta transação
       const existingNotification = await this.prisma.notification.findFirst({
         where: {
-          workspaceId: this.workspaceId,
+          userId: this.userId,
           type: 'due_date',
           relatedId: transaction.id,
           status: 'unread',
@@ -141,7 +134,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
     // Buscar progresso dos budgets
     const budgets = await this.prisma.budget.findMany({
       where: {
-        workspaceId: this.workspaceId,
+        userId: this.userId,
         month: currentMonth,
         year: currentYear,
       },
@@ -154,7 +147,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
       // Calcular gasto atual
       const spentResult = await this.prisma.transaction.aggregate({
         where: {
-          workspaceId: this.workspaceId,
+          userId: this.userId,
           categoryId: budget.categoryId,
           type: 'expense',
           createdAt: {
@@ -175,7 +168,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
       if (percentage >= 80) {
         const existingNotification = await this.prisma.notification.findFirst({
           where: {
-            workspaceId: this.workspaceId,
+            userId: this.userId,
             type: 'budget_limit',
             relatedId: budget.id,
             status: 'unread',
@@ -200,7 +193,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
 
     const renewingSubscriptions = await this.prisma.subscription.findMany({
       where: {
-        workspaceId: this.workspaceId,
+        userId: this.userId,
         isActive: true,
       },
     });
@@ -208,7 +201,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
     for (const subscription of renewingSubscriptions) {
       const existingNotification = await this.prisma.notification.findFirst({
         where: {
-          workspaceId: this.workspaceId,
+          userId: this.userId,
           type: 'subscription_renewal',
           relatedId: subscription.id,
           status: 'unread',

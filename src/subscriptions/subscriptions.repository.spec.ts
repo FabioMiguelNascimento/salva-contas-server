@@ -6,6 +6,9 @@ const mockPrisma: any = {
     create: jest.fn(),
     update: jest.fn(),
   },
+  transaction: {
+    create: jest.fn(),
+  },
   category: {
     findUnique: jest.fn(),
   },
@@ -21,6 +24,60 @@ describe('SubscriptionsRepository', () => {
   it('should be defined', () => {
     const repo = new SubscriptionsRepository(mockPrisma, mockUserContext);
     expect(repo).toBeDefined();
+  });
+
+  describe('createRecurringTransactions', () => {
+    it('creates transactions for all active subscriptions without filtering by userId', async () => {
+      const repo = new SubscriptionsRepository(mockPrisma, mockUserContext);
+      mockPrisma.subscription.findMany.mockResolvedValue([
+        {
+          id: 'sub1',
+          userId: 'user-1',
+          amount: 10,
+          description: 'Netflix',
+          category: { name: 'Entertainment' },
+          categoryId: 'cat1',
+          creditCardId: null,
+        },
+      ]);
+      mockPrisma.transaction.create.mockResolvedValue({});
+
+      await repo.createRecurringTransactions();
+
+      const query = mockPrisma.subscription.findMany.mock.calls[0][0];
+      expect(query.where).not.toHaveProperty('userId');
+      expect(query.where.isActive).toBe(true);
+
+      expect(mockPrisma.transaction.create).toHaveBeenCalledTimes(1);
+      const created = mockPrisma.transaction.create.mock.calls[0][0].data;
+      expect(created.userId).toBe('user-1');
+      expect(created.category).toBe('Entertainment');
+      expect(created.categoryName).toBe('Entertainment');
+      expect(created.categoryRel).toEqual({ connect: { id: 'cat1' } });
+      expect(created.dueDate.getHours()).toBe(0);
+      expect(created.dueDate.getMinutes()).toBe(0);
+    });
+
+    it('connects a credit card when the subscription has one', async () => {
+      const repo = new SubscriptionsRepository(mockPrisma, mockUserContext);
+      mockPrisma.subscription.findMany.mockResolvedValue([
+        {
+          id: 'sub2',
+          userId: 'user-2',
+          amount: 15,
+          description: 'Spotify',
+          category: { name: 'Music' },
+          categoryId: 'cat2',
+          creditCardId: 'card-1',
+        },
+      ]);
+      mockPrisma.transaction.create.mockResolvedValue({});
+
+      await repo.createRecurringTransactions();
+
+      const created = mockPrisma.transaction.create.mock.calls[0][0].data;
+      expect(created.creditCard).toEqual({ connect: { id: 'card-1' } });
+    });
   });
 
   describe('getAllSubscriptions', () => {

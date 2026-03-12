@@ -6,4 +6,5 @@ export abstract class SubscriptionsRepositoryInterface {
     abstract getAllSubscriptions(filters?: GetAllSubscriptionsInput): Promise<Subscription[]>;
     abstract updateSubscription(id: string, data: UpdateSubscriptionInput): Promise<Subscription>;
     abstract cancelSubscription(id: string): Promise<Subscription>;
+    abstract createRecurringTransactions(): Promise<void>;
 }

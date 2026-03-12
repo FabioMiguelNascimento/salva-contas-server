@@ -1,7 +1,6 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { Budget } from 'generated/prisma/client';
 import { UserContext } from '../auth/user-context.service';
-import { WorkspaceContext } from '../auth/workspace-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BudgetsRepositoryInterface } from './budgets.interface';
 
@@ -10,12 +9,7 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
   constructor(
     private readonly prisma: PrismaService,
     private readonly userContext: UserContext,
-    private readonly workspaceContext: WorkspaceContext,
   ) {}
-
-  private get workspaceId(): string {
-    return this.workspaceContext.workspaceId;
-  }
 
   private get userId(): string {
     return this.userContext.userId;
@@ -30,7 +24,7 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
     return this.prisma.budget.create({
       data: {
         ...data,
-        workspaceId: this.workspaceId,
+        userId: this.userId,
         createdById: this.userId,
       },
       include: {
@@ -40,7 +34,7 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
   }
 
   async getBudgets(month?: number, year?: number): Promise<Budget[]> {
-    const where: any = { workspaceId: this.workspaceId };
+    const where: any = { userId: this.userId };
 
     if (month && year) {
       where.month = month;
@@ -84,7 +78,7 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
   }>> {
     const budgets = await this.prisma.budget.findMany({
       where: {
-        workspaceId: this.workspaceId,
+        userId: this.userId,
         month,
         year,
       },
@@ -98,7 +92,7 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
         // Calculate spent amount for this category in the month/year
         const spentResult = await this.prisma.transaction.aggregate({
           where: {
-            workspaceId: this.workspaceId,
+            userId: this.userId,
             categoryId: budget.categoryId,
             type: 'expense',
             createdAt: {

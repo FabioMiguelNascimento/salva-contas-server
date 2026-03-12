@@ -29,51 +29,9 @@ enum SubscriptionFrequency {
   yearly
 }
 
-enum WorkspaceRole {
-  ADMIN
-  MEMBER
-}
-
-model Workspace {
-  id          String   @id @default(uuid())
-  name        String
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  members       WorkspaceMember[]
-  transactions  Transaction[]
-  categories    Category[]
-  subscriptions Subscription[]
-  budgets       Budget[]
-  creditCards   CreditCard[]
-  notifications Notification[]
-  attachments   Attachment[]
-
-  @@map("workspaces")
-}
-
-model WorkspaceMember {
-  id          String        @id @default(uuid())
-  role        WorkspaceRole @default(MEMBER)
-  joinedAt    DateTime      @default(now()) @map("joined_at")
-  lastAccessed DateTime?    @map("last_accessed")
-
-  // snapshot do usuário no momento em que foi adicionado ao workspace
-  name        String?       @map("name")
-  email       String?       @map("email")
-
-  userId      String        @map("user_id")
-  workspaceId String        @map("workspace_id")
-  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, workspaceId])
-  @@map("workspace_members")
-}
-
 model Category {
   id           String        @id @default(uuid())
-  workspaceId  String?       @map("workspace_id")
-  workspace    Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId       String?       @map("user_id")
   name         String
   icon         String?
   isGlobal     Boolean       @default(false)
@@ -82,14 +40,13 @@ model Category {
   subscriptions Subscription[]
   budgets       Budget[]
 
-  @@unique([workspaceId, name])
+  @@unique([userId, name])
   @@map("categories")
 }
 
 model Transaction {
   id           String            @id @default(uuid())
-  workspaceId  String            @map("workspace_id")
-  workspace    Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId       String            @map("user_id")
   
   createdById  String?           @map("created_by_id")
   
@@ -141,8 +98,7 @@ model TransactionSplit {
 
 model Subscription {
   id          String               @id @default(uuid())
-  workspaceId String               @map("workspace_id")
-  workspace   Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String               @map("user_id")
   
   createdById String?              @map("created_by_id")
   
@@ -167,8 +123,7 @@ model Subscription {
 
 model Budget {
   id          String   @id @default(uuid())
-  workspaceId String   @map("workspace_id")
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String   @map("user_id")
   
   createdById String?  @map("created_by_id")
   
@@ -180,7 +135,7 @@ model Budget {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  @@unique([workspaceId, categoryId, month, year])
+  @@unique([userId, categoryId, month, year])
   @@map("budgets")
 }
 
@@ -199,9 +154,6 @@ enum NotificationStatus {
 
 model Notification {
   id          String             @id @default(uuid())
-  workspaceId String             @map("workspace_id")
-  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  
   userId      String             @map("user_id")
   
   title       String
@@ -242,8 +194,7 @@ enum CreditCardStatus {
 
 model CreditCard {
   id              String           @id @default(uuid())
-  workspaceId     String           @map("workspace_id")
-  workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId          String           @map("user_id")
   
   createdById     String?          @map("created_by_id")
   
@@ -273,8 +224,7 @@ enum AttachmentType {
 
 model Attachment {
   id             String         @id @default(uuid())
-  workspaceId    String         @map("workspace_id")
-  workspace      Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId         String         @map("user_id")
   
   createdById    String?        @map("created_by_id")
   

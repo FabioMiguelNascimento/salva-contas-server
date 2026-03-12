@@ -28,11 +28,11 @@ const categories = [
 async function main() {
   await prisma.$connect();
 
-  console.log(`Seeding ${categories.length} global categories (workspaceId = null)...`);
+  console.log(`Seeding ${categories.length} global categories...`);
 
   let removedDuplicates = 0;
   for (const c of categories) {
-    const rows = await prisma.category.findMany({ where: { workspaceId: null, name: c.name }, orderBy: { id: 'asc' } });
+    const rows = await prisma.category.findMany({ where: { userId: null, name: c.name }, orderBy: { id: 'asc' } });
     if (rows.length > 1) {
       const idsToDelete = rows.slice(1).map((r) => r.id);
       const del = await prisma.category.deleteMany({ where: { id: { in: idsToDelete } } });
@@ -40,7 +40,7 @@ async function main() {
     }
   }
 
-  const existingGlobal = await prisma.category.findMany({ where: { workspaceId: null }, select: { id: true, name: true } });
+  const existingGlobal = await prisma.category.findMany({ where: { userId: null }, select: { id: true, name: true } });
   const existingNames = new Set(existingGlobal.map((r) => r.name));
 
   const nameToId = new Map(existingGlobal.map((r) => [r.name, r.id]));
@@ -52,7 +52,7 @@ async function main() {
           data: { icon: c.icon, isGlobal: true },
         })
       : prisma.category.create({
-          data: { workspaceId: null, name: c.name, icon: c.icon, isGlobal: true },
+          data: { userId: null, name: c.name, icon: c.icon, isGlobal: true },
         })
   );
 

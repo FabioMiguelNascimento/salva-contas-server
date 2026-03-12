@@ -5,7 +5,6 @@ import { AuthController } from './auth.controller';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 import { SupabaseService } from './supabase.service';
 import { UserContext } from './user-context.service';
-import { WorkspaceContext } from './workspace-context.service';
 
 @Global()
 @Module({
@@ -14,12 +13,11 @@ import { WorkspaceContext } from './workspace-context.service';
   providers: [
     SupabaseService,
     UserContext,
-    WorkspaceContext,
     {
       provide: APP_GUARD,
       useClass: SupabaseAuthGuard,
     },
   ],
-  exports: [SupabaseService, UserContext, WorkspaceContext],
+  exports: [SupabaseService, UserContext],
 })
 export class AuthModule {}

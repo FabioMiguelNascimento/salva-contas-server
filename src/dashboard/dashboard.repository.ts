@@ -1,6 +1,5 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { UserContext } from '../auth/user-context.service';
-import { WorkspaceContext } from '../auth/workspace-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { DashboardRepositoryInterface } from './dashboard.interface';
 
@@ -9,13 +8,12 @@ export class DashboardRepository extends DashboardRepositoryInterface {
   constructor(
     private readonly prisma: PrismaService,
     private readonly userContext: UserContext,
-    private readonly workspaceContext: WorkspaceContext,
   ) {
     super();
   }
 
-  private get workspaceId(): string {
-    return this.workspaceContext.workspaceId;
+  private get userId(): string {
+    return this.userContext.userId;
   }
 
   async getMetrics(month?: number, year?: number) {
@@ -32,7 +30,7 @@ export class DashboardRepository extends DashboardRepositoryInterface {
 
     const currentTransactions = await this.prisma.transaction.findMany({
       where: {
-        workspaceId: this.workspaceId,
+        userId: this.userId,
         createdAt: {
           gte: currentPeriodStart,
           lt: currentPeriodEnd,
@@ -42,7 +40,7 @@ export class DashboardRepository extends DashboardRepositoryInterface {
 
     const previousTransactions = await this.prisma.transaction.findMany({
       where: {
-        workspaceId: this.workspaceId,
+        userId: this.userId,
         createdAt: {
           gte: previousPeriodStart,
           lt: previousPeriodEnd,
@@ -108,7 +106,7 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       const categoryNames = categoryBreakdown.map((c) => c.category);
       const matchedCategories = await this.prisma.category.findMany({
         where: {
-          workspaceId: this.workspaceId,
+          userId: this.userId,
           name: { in: categoryNames },
         },
         select: { id: true, name: true },
@@ -123,7 +121,7 @@ export class DashboardRepository extends DashboardRepositoryInterface {
 
     const pendingTransactions = await this.prisma.transaction.findMany({
       where: {
-        workspaceId: this.workspaceId,
+        userId: this.userId,
         status: 'pending',
       },
     });

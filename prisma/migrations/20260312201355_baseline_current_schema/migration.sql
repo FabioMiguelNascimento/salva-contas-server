@@ -1,3 +1,6 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateEnum
 CREATE TYPE "TransactionType" AS ENUM ('expense', 'income');
 
@@ -14,6 +17,9 @@ CREATE TYPE "NotificationType" AS ENUM ('due_date', 'budget_limit', 'payment_rem
 CREATE TYPE "NotificationStatus" AS ENUM ('unread', 'read');
 
 -- CreateEnum
+CREATE TYPE "PaymentMethod" AS ENUM ('credit_card', 'debit', 'pix', 'cash', 'transfer', 'other');
+
+-- CreateEnum
 CREATE TYPE "CreditCardFlag" AS ENUM ('visa', 'mastercard', 'american_express', 'elo', 'hipercard', 'other');
 
 -- CreateEnum
@@ -25,9 +31,10 @@ CREATE TYPE "AttachmentType" AS ENUM ('pdf', 'image', 'document');
 -- CreateTable
 CREATE TABLE "categories" (
     "id" TEXT NOT NULL,
-    "user_id" TEXT NOT NULL,
+    "user_id" TEXT,
     "name" TEXT NOT NULL,
     "icon" TEXT,
+    "isGlobal" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "categories_pkey" PRIMARY KEY ("id")
 );
@@ -36,6 +43,7 @@ CREATE TABLE "categories" (
 CREATE TABLE "transactions" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
+    "created_by_id" TEXT,
     "amount" DECIMAL(10,2) NOT NULL,
     "description" TEXT NOT NULL,
     "category" TEXT NOT NULL,
@@ -57,9 +65,22 @@ CREATE TABLE "transactions" (
 );
 
 -- CreateTable
+CREATE TABLE "transaction_splits" (
+    "id" TEXT NOT NULL,
+    "transaction_id" TEXT NOT NULL,
+    "amount" DECIMAL(10,2) NOT NULL,
+    "payment_method" "PaymentMethod" NOT NULL,
+    "credit_card_id" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "transaction_splits_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "subscriptions" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
+    "created_by_id" TEXT,
     "description" TEXT NOT NULL,
     "amount" DECIMAL(10,2) NOT NULL,
     "category_id" TEXT NOT NULL,
@@ -78,6 +99,7 @@ CREATE TABLE "subscriptions" (
 CREATE TABLE "budgets" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
+    "created_by_id" TEXT,
     "category_id" TEXT NOT NULL,
     "amount" DECIMAL(10,2) NOT NULL,
     "month" INTEGER NOT NULL,
@@ -107,6 +129,7 @@ CREATE TABLE "notifications" (
 CREATE TABLE "credit_cards" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
+    "created_by_id" TEXT,
     "name" TEXT NOT NULL,
     "flag" "CreditCardFlag" NOT NULL,
     "last_four_digits" TEXT NOT NULL,
@@ -125,6 +148,7 @@ CREATE TABLE "credit_cards" (
 CREATE TABLE "attachments" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
+    "created_by_id" TEXT,
     "file_name" TEXT NOT NULL,
     "original_name" TEXT NOT NULL,
     "file_size" INTEGER NOT NULL,
@@ -153,6 +177,12 @@ ALTER TABLE "transactions" ADD CONSTRAINT "transactions_category_id_fkey" FOREIG
 ALTER TABLE "transactions" ADD CONSTRAINT "transactions_credit_card_id_fkey" FOREIGN KEY ("credit_card_id") REFERENCES "credit_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "transaction_splits" ADD CONSTRAINT "transaction_splits_transaction_id_fkey" FOREIGN KEY ("transaction_id") REFERENCES "transactions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "transaction_splits" ADD CONSTRAINT "transaction_splits_credit_card_id_fkey" FOREIGN KEY ("credit_card_id") REFERENCES "credit_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "categories"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -166,3 +196,4 @@ ALTER TABLE "attachments" ADD CONSTRAINT "attachments_transaction_id_fkey" FOREI
 
 -- AddForeignKey
 ALTER TABLE "attachments" ADD CONSTRAINT "attachments_subscription_id_fkey" FOREIGN KEY ("subscription_id") REFERENCES "subscriptions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+

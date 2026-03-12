@@ -78,11 +78,10 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const dayOfMonth = today.getDate();
         const dayOfWeek = today.getDay();
-        const month = today.getMonth() + 1; 
+        const month = today.getMonth() + 1;
 
         const subscriptions = await this.prisma.subscription.findMany({
             where: {
-                userId: this.userId,
                 isActive: true,
                 OR: [
                     {
@@ -107,21 +106,21 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
         });
 
         for (const sub of subscriptions) {
-                const transactionData: any = {
-                userId: this.userId,
-                createdById: this.userId,
+            const transactionData: any = {
+                userId: sub.userId,
+                createdById: sub.userId,
                 amount: sub.amount,
                 description: sub.description,
-                categoryId: sub.categoryId,
+                category: sub.category.name,
+                categoryName: sub.category.name,
+                categoryRel: { connect: { id: sub.categoryId } },
                 type: 'expense',
-                status: 'pending', // ou 'paid' se débito automático
-                    // store dueDate as local date (midnight)
-                    dueDate: today,
+                status: 'pending',
+                dueDate: today,
             };
 
-            // Se a assinatura tem cartão de crédito, vincular à transação
             if (sub.creditCardId) {
-                transactionData.creditCardId = sub.creditCardId;
+                transactionData.creditCard = { connect: { id: sub.creditCardId } };
             }
 
             await this.prisma.transaction.create({

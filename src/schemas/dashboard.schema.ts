@@ -28,3 +28,13 @@ export const getDashboardMetricsSchema = z.object({
 });
 
 export type GetDashboardMetricsDto = z.infer<typeof getDashboardMetricsSchema>;
+
+export const getDashboardSnapshotSchema = z.object({
+  month: z.coerce.number().min(1).max(12).optional(),
+  year: z.coerce.number().min(2000).max(2100).optional(),
+  status: z.enum(['paid', 'pending']).optional(),
+  type: z.enum(['expense', 'income']).optional(),
+  categoryId: z.string().uuid().optional(),
+});
+
+export type GetDashboardSnapshotDto = z.infer<typeof getDashboardSnapshotSchema>;

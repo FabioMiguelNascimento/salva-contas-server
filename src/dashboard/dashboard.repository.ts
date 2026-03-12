@@ -1,6 +1,7 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { UserContext } from '../auth/user-context.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { DashboardRepositoryInterface } from './dashboard.interface';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -8,6 +9,7 @@ export class DashboardRepository extends DashboardRepositoryInterface {
   constructor(
     private readonly prisma: PrismaService,
     private readonly userContext: UserContext,
+    private readonly storageService: StorageService,
   ) {
     super();
   }
@@ -159,6 +161,193 @@ export class DashboardRepository extends DashboardRepositoryInterface {
         totalAmount: pendingTotalAmount,
         overdue: overdueCount,
       },
+    };
+  }
+
+  async getSnapshot(filters?: {
+    month?: number;
+    year?: number;
+    status?: 'paid' | 'pending';
+    type?: 'expense' | 'income';
+    categoryId?: string;
+  }) {
+    const month = filters?.month;
+    const year = filters?.year;
+
+    const resolvedMonth = month || new Date().getMonth() + 1;
+    const resolvedYear = year || new Date().getFullYear();
+    const monthStart = new Date(resolvedYear, resolvedMonth - 1, 1);
+    const nextMonthStart = new Date(resolvedYear, resolvedMonth, 1);
+
+    const transactionWhere: any = {
+      userId: this.userId,
+    };
+
+    if (filters?.type) transactionWhere.type = filters.type;
+    if (filters?.status) transactionWhere.status = filters.status;
+
+    if (month && year) {
+      transactionWhere.createdAt = {
+        gte: monthStart,
+        lt: nextMonthStart,
+      };
+    }
+
+    if (filters?.categoryId) {
+      const category = await this.prisma.category.findUnique({ where: { id: filters.categoryId } });
+      if (category) {
+        if (category.isGlobal) {
+          transactionWhere.OR = [
+            { categoryId: filters.categoryId },
+            { categoryName: category.name },
+          ];
+        } else {
+          transactionWhere.categoryId = filters.categoryId;
+        }
+      }
+    }
+
+    const metricsPromise = this.getMetrics(month, year);
+
+    const transactionsPromise = this.prisma.transaction.findMany({
+      where: transactionWhere,
+      include: {
+        categoryRel: true,
+        creditCard: true,
+        splits: { include: { creditCard: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    const subscriptionsPromise = this.prisma.subscription.findMany({
+      where: {
+        userId: this.userId,
+        isActive: true,
+      },
+      include: {
+        category: true,
+        creditCard: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const budgetsPromise = this.prisma.budget.findMany({
+      where: {
+        userId: this.userId,
+        month: resolvedMonth,
+        year: resolvedYear,
+      },
+      include: { category: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const categoriesPromise = this.prisma.category.findMany({
+      where: {
+        OR: [{ userId: this.userId }, { isGlobal: true }],
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const creditCardsRawPromise = this.prisma.creditCard.findMany({
+      where: { userId: this.userId },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    const [metrics, transactionsRaw, subscriptions, budgets, categories, creditCardsRaw] = await Promise.all([
+      metricsPromise,
+      transactionsPromise,
+      subscriptionsPromise,
+      budgetsPromise,
+      categoriesPromise,
+      creditCardsRawPromise,
+    ]);
+
+    const transactions = await Promise.all(
+      transactionsRaw.map(async (transaction) => {
+        const attachmentUrl = transaction.attachmentKey
+          ? await this.storageService.getPresignedUrl(transaction.attachmentKey)
+          : null;
+
+        return {
+          ...transaction,
+          attachmentUrl,
+        };
+      }),
+    );
+
+    const budgetProgress = await Promise.all(
+      budgets.map(async (budget) => {
+        const spentResult = await this.prisma.transaction.aggregate({
+          where: {
+            userId: this.userId,
+            categoryId: budget.categoryId,
+            type: 'expense',
+            createdAt: {
+              gte: monthStart,
+              lt: nextMonthStart,
+            },
+          },
+          _sum: {
+            amount: true,
+          },
+        });
+
+        const spent = Number(spentResult._sum?.amount || 0);
+        const budgetAmount = Number(budget.amount);
+        const remaining = budgetAmount - spent;
+        const percentage = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
+
+        return {
+          budget,
+          spent,
+          remaining,
+          percentage,
+        };
+      }),
+    );
+
+    const creditCards = await Promise.all(
+      creditCardsRaw.map(async (card) => {
+        const txAgg = await this.prisma.transaction.aggregate({
+          where: {
+            userId: this.userId,
+            creditCardId: card.id,
+            type: 'expense',
+            splits: { none: {} },
+          },
+          _sum: { amount: true },
+        });
+
+        const splitAgg = await this.prisma.transactionSplit.aggregate({
+          where: {
+            creditCardId: card.id,
+            transaction: {
+              userId: this.userId,
+              type: 'expense',
+            },
+          },
+          _sum: { amount: true },
+        });
+
+        const debt = Number(txAgg._sum.amount || 0) + Number(splitAgg._sum.amount || 0);
+
+        return {
+          ...card,
+          availableLimit: Number(card.limit) - debt,
+        };
+      }),
+    );
+
+    return {
+      metrics,
+      transactions,
+      subscriptions,
+      budgets,
+      budgetProgress,
+      categories,
+      creditCards,
     };
   }
 }

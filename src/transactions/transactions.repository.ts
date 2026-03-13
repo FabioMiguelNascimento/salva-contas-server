@@ -282,7 +282,7 @@ const tx = await this.prisma.transaction.create({
         }) as any;
     }
 
-    async deleteTransaction(id: string): Promise<void> {
+    async deleteTransaction(id: string): Promise<{ attachmentKey: string | null }> {
         const tx = await this.prisma.transaction.findUnique({
             where: { id },
             include: { splits: true },
@@ -297,5 +297,6 @@ const tx = await this.prisma.transaction.create({
         if (splitCardIds.length > 0) {
             await Promise.all(splitCardIds.map((cid) => this.recalcCardLimit(cid)));
         }
+        return { attachmentKey: tx?.attachmentKey ?? null };
     }
 }

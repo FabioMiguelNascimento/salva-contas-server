@@ -12,5 +12,5 @@ export abstract class TransactionsRepositoryInterface {
     abstract createTransaction(data: AIReceiptData): Promise<TransactionWithCount>;
     abstract getTransactions(filters: GetTransactionsInput): Promise<{ data: TransactionWithCount[]; meta: { total: number; page: number; limit: number; totalPages: number } }>;
     abstract updateTransaction(id: string, data: UpdateTransactionInput): Promise<TransactionWithCount>;
-    abstract deleteTransaction(id: string): Promise<void>;
+    abstract deleteTransaction(id: string): Promise<{ attachmentKey: string | null }>;
 }

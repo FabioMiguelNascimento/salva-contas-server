@@ -1,6 +1,6 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { Notification } from 'generated/prisma/client';
-import { parseDateLocal } from 'src/utils/date-utils';
+import { NotificationsAutomationService } from 'src/notifications/notifications-automation.service';
 import { UserContext } from '../auth/user-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsRepositoryInterface } from './notifications.interface';
@@ -10,6 +10,7 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
   constructor(
     private readonly prisma: PrismaService,
     private readonly userContext: UserContext,
+    private readonly notificationsAutomationService: NotificationsAutomationService,
   ) {}
 
   private get userId(): string {
@@ -87,138 +88,14 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
   }
 
   async generateDueDateNotifications(): Promise<void> {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const startOfTomorrow = parseDateLocal(new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate())) as Date;
-    const endOfTomorrow = new Date(startOfTomorrow.getTime());
-    (endOfTomorrow as Date).setHours(23, 59, 59, 999);
-
-    const dueTomorrow = await this.prisma.transaction.findMany({
-      where: {
-        userId: this.userId,
-        dueDate: {
-          gte: startOfTomorrow,
-          lt: endOfTomorrow,
-        },
-        status: 'pending',
-      },
-    });
-
-    for (const transaction of dueTomorrow) {
-      // Verificar se já existe notificação para esta transação
-      const existingNotification = await this.prisma.notification.findFirst({
-        where: {
-          userId: this.userId,
-          type: 'due_date',
-          relatedId: transaction.id,
-          status: 'unread',
-        },
-      });
-
-      if (!existingNotification) {
-        await this.createNotification({
-          title: 'Conta vence amanhã',
-          message: `${transaction.description} (${transaction.categoryName || 'Sem categoria'}) vence amanhã`,
-          type: 'due_date',
-          relatedId: transaction.id,
-        });
-      }
-    }
+    await this.notificationsAutomationService.generateDueDateNotifications(this.userId);
   }
 
   async generateBudgetLimitNotifications(): Promise<void> {
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth() + 1;
-    const currentYear = currentDate.getFullYear();
-
-    // Buscar progresso dos budgets
-    const budgets = await this.prisma.budget.findMany({
-      where: {
-        userId: this.userId,
-        month: currentMonth,
-        year: currentYear,
-      },
-      include: {
-        category: true,
-      },
-    });
-
-    for (const budget of budgets) {
-      // Calcular gasto atual
-      const spentResult = await this.prisma.transaction.aggregate({
-        where: {
-          userId: this.userId,
-          categoryId: budget.categoryId,
-          type: 'expense',
-          createdAt: {
-            gte: new Date(currentYear, currentMonth - 1, 1),
-            lt: new Date(currentYear, currentMonth, 1),
-          },
-        },
-        _sum: {
-          amount: true,
-        },
-      });
-
-      const spent = Number(spentResult._sum?.amount || 0);
-      const budgetAmount = Number(budget.amount);
-      const percentage = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
-
-      // Se passou de 80% e não tem notificação ativa
-      if (percentage >= 80) {
-        const existingNotification = await this.prisma.notification.findFirst({
-          where: {
-            userId: this.userId,
-            type: 'budget_limit',
-            relatedId: budget.id,
-            status: 'unread',
-          },
-        });
-
-        if (!existingNotification) {
-          await this.createNotification({
-            title: 'Orçamento próximo do limite',
-            message: `Orçamento de ${budget.category.name} está em ${percentage.toFixed(1)}% (${spent.toFixed(2)} de ${budgetAmount.toFixed(2)})`,
-            type: 'budget_limit',
-            relatedId: budget.id,
-          });
-        }
-      }
-    }
+    await this.notificationsAutomationService.generateBudgetLimitNotifications(this.userId);
   }
 
   async generateSubscriptionRenewalNotifications(): Promise<void> {
-    const nextWeek = new Date();
-    nextWeek.setDate(nextWeek.getDate() + 7);
-
-    const renewingSubscriptions = await this.prisma.subscription.findMany({
-      where: {
-        userId: this.userId,
-        isActive: true,
-      },
-    });
-
-    for (const subscription of renewingSubscriptions) {
-      const existingNotification = await this.prisma.notification.findFirst({
-        where: {
-          userId: this.userId,
-          type: 'subscription_renewal',
-          relatedId: subscription.id,
-          status: 'unread',
-          createdAt: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
-          },
-        },
-      });
-
-      if (!existingNotification) {
-        await this.createNotification({
-          title: 'Renovação de assinatura',
-          message: `Assinatura ${subscription.description} será renovada em breve`,
-          type: 'subscription_renewal',
-          relatedId: subscription.id,
-        });
-      }
-    }
+    await this.notificationsAutomationService.generateSubscriptionRenewalNotifications(this.userId);
   }
 }

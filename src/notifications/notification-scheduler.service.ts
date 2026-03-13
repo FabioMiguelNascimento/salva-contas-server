@@ -1,17 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { GenerateNotificationsUseCase } from './use-cases/generate-notifications.use-case';
+import { NotificationsAutomationService } from './notifications-automation.service';
 
 @Injectable()
 export class NotificationSchedulerService {
-  constructor(private readonly generateNotificationsUseCase: GenerateNotificationsUseCase) {}
+  constructor(private readonly notificationsAutomationService: NotificationsAutomationService) {}
 
   // Executar diariamente às 9:00
   @Cron('0 9 * * *')
   async handleDailyNotifications() {
     console.log('Executando geração diária de notificações...');
     try {
-      await this.generateNotificationsUseCase.execute();
+      await this.notificationsAutomationService.generateForAllUsers();
       console.log('Notificações geradas com sucesso');
     } catch (error) {
       console.error('Erro ao gerar notificações:', error);
@@ -25,7 +25,7 @@ export class NotificationSchedulerService {
     try {
       // Aqui poderíamos implementar notificações mais urgentes
       // como contas vencendo hoje, etc.
-      await this.generateNotificationsUseCase.execute();
+      await this.notificationsAutomationService.generateForAllUsers();
     } catch (error) {
       console.error('Erro ao verificar notificações urgentes:', error);
     }

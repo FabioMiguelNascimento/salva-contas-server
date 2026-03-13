@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationSchedulerService } from './notification-scheduler.service';
+import { NotificationsAutomationService } from './notifications-automation.service';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsRepositoryInterface } from './notifications.interface';
 import { NotificationsRepository } from './notifications.repository';
@@ -18,6 +19,7 @@ import { MarkAsReadUseCase } from './use-cases/mark-as-read.use-case';
   controllers: [NotificationsController],
   providers: [
     NotificationSchedulerService,
+    NotificationsAutomationService,
     {
       provide: NotificationsRepositoryInterface,
       useClass: NotificationsRepository,

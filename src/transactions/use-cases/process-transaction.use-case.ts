@@ -1,6 +1,6 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
 import { CategoriesRepositoryInterface } from 'src/categories/categories.interface';
+import { GEN_AI_SERVICE, GenAIServiceInterface } from 'src/gen-ai/gen-ai.interface';
 import { AIReceiptSchema } from 'src/schemas/transactions.schema';
 import { StorageService } from 'src/storage/storage.service';
 import { CreditCardsRepositoryInterface } from '../../credit-cards/credit-cards.interface';
@@ -9,7 +9,8 @@ import { TransactionsRepositoryInterface } from '../transactions.interface';
 @Injectable()
 export default class ProcessTransactionUseCase {
   private readonly logger = new Logger(ProcessTransactionUseCase.name);
-  private genAI: GoogleGenerativeAI;
+  private readonly maxCreditCardsInPrompt = Number(process.env.GEMINI_TRANSACTION_CARDS_LIMIT || 20);
+  private readonly maxCategoriesInPrompt = Number(process.env.GEMINI_TRANSACTION_CATEGORIES_LIMIT || 30);
 
   constructor(
     @Inject(TransactionsRepositoryInterface)
@@ -19,15 +20,19 @@ export default class ProcessTransactionUseCase {
     @Inject(CategoriesRepositoryInterface)
     private readonly categoriesRepository: CategoriesRepositoryInterface,
     private readonly storageService: StorageService,
-  ) {
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-  }
+    @Inject(GEN_AI_SERVICE)
+    private readonly genAIService: GenAIServiceInterface,
+  ) {}
 
   async execute(
     file: Express.Multer.File | null,
     textInput: string | null,
     options?: { creditCardId?: string | null; paymentDate?: string | null; dueDate?: string | null }
   ) {
+    if (!file && !textInput?.trim()) {
+      throw new BadRequestException('Envie um arquivo ou texto para processamento da transação.');
+    }
+
     const now = new Date();
 
     const brazilDate = now.toLocaleDateString('pt-BR', {
@@ -37,80 +42,93 @@ export default class ProcessTransactionUseCase {
       month: 'long',
       day: 'numeric'
     });
-    const creditCards = await this.creditCardsRepository.getCreditCards({ page: 1, limit: 100, status: 'active' });
+    const includeCreditCardsInPrompt = !options?.creditCardId;
 
-    const creditCardsInfo = creditCards.length > 0
-      ? `\n\nCARTÕES DE CRÉDITO DISPONÍVEIS:\n${creditCards.map(c => `- ID: "${c.id}" | Nome: ${c.name} | Bandeira: ${c.flag} | Final: ${c.lastFourDigits}`).join('\n')}\n\nSe a compra parecer ter sido feita com cartão de crédito, retorne o "creditCardId" correspondente. Caso contrário, retorne null.`
+    const uploadAttachmentPromise = file
+      ? this.storageService
+          .uploadFile(file, 'receipts')
+          .then((fileKey) => ({
+            attachmentKey: fileKey,
+            attachmentOriginalName: file.originalname,
+            attachmentMimeType: file.mimetype,
+            attachmentSize: file.size,
+          }))
+          .catch((error) => {
+            this.logger.warn(`Upload de anexo falhou ${error}`);
+            throw new ConflictException("Falha ao processar anexo");
+          })
+      : Promise.resolve({});
+
+    const [creditCards, categoriesResult] = await Promise.all([
+      includeCreditCardsInPrompt
+        ? this.creditCardsRepository.getCreditCards({ page: 1, limit: this.maxCreditCardsInPrompt, status: 'active' })
+        : Promise.resolve([]),
+      this.categoriesRepository.getAllCategories({ limit: this.maxCategoriesInPrompt }),
+    ]);
+
+    const creditCardsInfo = includeCreditCardsInPrompt && creditCards.length > 0
+      ? `\nCARTOES:\n${creditCards.map(c => `${c.id}|${c.name}|${c.flag}|${c.lastFourDigits}`).join('\n')}\nUse creditCardId apenas quando pagamento for cartao de credito.`
       : '';
 
-    const categoriesResult = await this.categoriesRepository.getAllCategories({ limit: 100 });
     const categoriesList = categoriesResult?.data ? categoriesResult.data : [];
 
     const categoriesInfo = categoriesList.length > 0
-      ? `\n\nCATEGORIAS DISPONÍVEIS:\n${categoriesList.map((c: any) => `- ID: "${c.id}" | Nome: ${c.name}`).join('\n')}\n\nSe alguma dessas categorias for adequada, retorne exatamente o nome no campo \"category\". Se nenhuma for adequada, gere um nome curto de categoria nova e retorne esse nome em \"category\`.`
+      ? `\nCATEGORIAS:\n${categoriesList.map((c: any) => c.name).join(', ')}\nRetorne category com nome de categoria existente quando possivel.`
       : '';
 
     const prompt = `
-      Atue como um extrator de dados literal. 
-      
-      DATA DE HOJE PARA REFERÊNCIA: ${brazilDate} (Use apenas para preencher o ano se faltar).
-
-      IMPORTANTE — CATEGORIAS:
+      Extraia dados financeiros e retorne SOMENTE JSON valido, sem markdown.
+      DATA DE HOJE: ${brazilDate} (use somente para completar ano faltante).
+      Datas devem manter valor literal do documento em DD/MM/YYYY.
       ${categoriesInfo}
       ${creditCardsInfo}
 
-      🚨 REGRA DE OURO (DATAS):
-      1. Copie a data EXATAMENTE como está impressa. 
-      2. Retorne no formato brasileiro "DD/MM/YYYY". 
-      3. NÃO converta para o próximo dia útil. Se o boleto vence Domingo dia 10, retorne dia 10.
-      4. NÃO converta fuso horário.
+      Regras:
+      - Pagamento unico: use creditCardId (ou null) e nao envie splits.
+      - Pagamento dividido: envie splits e nao envie creditCardId na raiz.
+      - splits[].paymentMethod: credit_card|debit|pix|cash|transfer|other
+      - Soma de splits deve bater com amount.
 
-      🚨 REGRA DE PAGAMENTO:
-      - Se o pagamento foi feito em UM único método: retorne apenas "creditCardId" (se for cartão de crédito) ou "creditCardId": null (outros métodos). NÃO retorne "splits".
-      - Se o pagamento foi DIVIDIDO em múltiplos métodos (ex: parte no cartão, parte em PIX, parte em dinheiro): retorne o array "splits" com cada parte. NÃO retorne "creditCardId" no nível raiz.
-      - Em "splits", cada item deve ter:
-        - "amount": valor daquela parte (number)
-        - "paymentMethod": um de "credit_card" | "debit" | "pix" | "cash" | "transfer" | "other"
-        - "creditCardId": UUID do cartão (apenas quando paymentMethod = "credit_card", caso contrário null)
-      - A soma dos "splits[].amount" DEVE ser igual ao "amount" total.
-
-      Retorne JSON:
+      JSON de saida:
       {
         "amount": number,
         "description": string,
         "category": string,
         "type": "expense" | "income",
         "status": "paid" | "pending",
-        "dueDate": "DD/MM/YYYY" (String exata do documento, ex: "10/02/2025"), 
-        "paymentDate": "DD/MM/YYYY" (String exata do documento),
-        "creditCardId": "uuid ou null" (apenas quando NÃO há splits),
-        "splits": [ { "amount": number, "paymentMethod": string, "creditCardId": "uuid ou null" } ] (opcional, apenas quando houver divisão de pagamento)
+        "dueDate": "DD/MM/YYYY" | null,
+        "paymentDate": "DD/MM/YYYY" | null,
+        "creditCardId": "uuid" | null,
+        "splits": [ { "amount": number, "paymentMethod": string, "creditCardId": "uuid" | null } ]
       }
     `;
 
-    const model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    const payload: any[] = [prompt];
-
-    if (file) {
-      let finalMimeType = file.mimetype;
-      if (file.originalname.toLowerCase().endsWith('.pdf')) {
-        finalMimeType = 'application/pdf';
-      }
-
-      payload.push({
-        inlineData: {
-          data: file.buffer.toString('base64'),
-          mimeType: finalMimeType
-        },
+    let rawText = '';
+    try {
+      rawText = await this.genAIService.generateStructuredJson({
+        prompt,
+        textInput,
+        file: file
+          ? {
+              buffer: file.buffer,
+              mimetype: file.mimetype,
+              originalname: file.originalname,
+            }
+          : null,
       });
+    } catch (error) {
+      this.logger.error('Falha no layer de GenAI ao extrair dados da transacao', error as any);
+      throw error;
     }
 
-    if (textInput) payload.push(`Contexto: ${textInput}`);
+    let parsedJson: unknown;
+    try {
+      parsedJson = JSON.parse(rawText);
+    } catch {
+      throw new BadRequestException('A IA retornou um formato inválido (JSON malformado).');
+    }
 
-    const result = await model.generateContent(payload);
-    const rawText = result.response.text().replace(/```json|```/g, '').trim();
-
-    const validationResult = AIReceiptSchema.safeParse(JSON.parse(rawText));
+    const validationResult = AIReceiptSchema.safeParse(parsedJson);
 
     if (!validationResult.success) {
       console.error(validationResult.error);
@@ -142,28 +160,7 @@ export default class ProcessTransactionUseCase {
       }
     }
 
-    // Upload do arquivo para o R2 se presente
-    let attachmentData: {
-      attachmentKey?: string;
-      attachmentOriginalName?: string;
-      attachmentMimeType?: string;
-      attachmentSize?: number;
-    } = {};
-
-    if (file) {
-      try {
-        const fileKey = await this.storageService.uploadFile(file, 'receipts');
-        attachmentData = {
-          attachmentKey: fileKey,
-          attachmentOriginalName: file.originalname,
-          attachmentMimeType: file.mimetype,
-          attachmentSize: file.size,
-        };
-      } catch (error) {
-        this.logger.warn(`Upload de anexo falhou, continuando sem anexo: ${error}`);
-        // Não falha a transação se o upload falhar
-      }
-    }
+    const attachmentData = await uploadAttachmentPromise;
 
     const transaction = await this.transactionsRepository.createTransaction({
       ...data,

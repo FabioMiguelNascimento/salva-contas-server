@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AiAdvisorModule } from './ai-advisor/ai-advisor.module';
 import { AuthModule } from './auth/auth.module';
 import { BudgetsModule } from './budgets/budgets.module';
 import { CategoriesModule } from './categories/categories.module';
@@ -13,6 +14,7 @@ import { TransactionsModule } from './transactions/transactions.module';
 @Module({
   imports: [
     StorageModule,
+    AiAdvisorModule,
     AuthModule, 
     HealthModule, 
     TransactionsModule, 

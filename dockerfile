@@ -28,4 +28,4 @@ COPY --from=builder /app/generated ./generated
 COPY --from=builder /app/package.json ./package.json
 
 
-CMD node_modules/.bin/prisma migrate deploy && node dist/src/main
+CMD node dist/src/main

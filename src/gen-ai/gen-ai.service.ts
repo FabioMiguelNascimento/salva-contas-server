@@ -44,7 +44,17 @@ export class GenAIService implements GenAIServiceInterface {
     }
 
     if (lastError?.status === 429 || lastError?.status === 503) {
-      throw new ServiceUnavailableException('Todos os provedores de IA estão temporariamente indisponíveis por cota/limite. Tente novamente em instantes.');
+      throw new ServiceUnavailableException({
+        code: 'AI_RATE_LIMIT',
+        message: 'Todos os provedores de IA estao temporariamente indisponiveis por cota/limite. Tente novamente em instantes.',
+      });
+    }
+
+    if (lastError?.status === 422) {
+      throw new ServiceUnavailableException({
+        code: 'AI_UNSUPPORTED_INPUT',
+        message: 'Os provedores de IA nao suportam esse tipo de entrada no momento.',
+      });
     }
 
     throw lastError;

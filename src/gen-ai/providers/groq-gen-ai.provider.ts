@@ -7,7 +7,6 @@ export class GroqGenAIProvider {
   private readonly apiKey = process.env.GROQ_API_KEY || '';
   private readonly endpoint = process.env.GROQ_BASE_URL || 'https://api.groq.com/openai/v1/chat/completions';
 
-  // Vision-first pool for Groq. Keep at least one multimodal model.
   private readonly modelPool = (process.env.GROQ_TRANSACTION_MODELS || 'meta-llama/llama-4-scout-17b-16e-instruct')
     .split(',')
     .map((model) => model.trim())

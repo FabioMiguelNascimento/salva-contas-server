@@ -128,6 +128,8 @@ export default class ProcessTransactionUseCase {
       throw new BadRequestException('A IA retornou um formato inválido (JSON malformado).');
     }
 
+    parsedJson = this.normalizeAiPayload(parsedJson);
+
     const validationResult = AIReceiptSchema.safeParse(parsedJson);
 
     if (!validationResult.success) {
@@ -168,5 +170,40 @@ export default class ProcessTransactionUseCase {
     });
 
     return transaction;
+  }
+
+  private normalizeAiPayload(input: unknown): unknown {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+      return input;
+    }
+
+    const payload = { ...(input as Record<string, any>) };
+    const splits = payload.splits;
+
+    if (splits == null) {
+      delete payload.splits;
+      return payload;
+    }
+
+    if (!Array.isArray(splits)) {
+      delete payload.splits;
+      return payload;
+    }
+
+    if (splits.length === 0) {
+      delete payload.splits;
+      return payload;
+    }
+
+    // AI occasionally returns a single split item; treat it as single payment.
+    if (Array.isArray(splits) && splits.length === 1) {
+      const first = splits[0] || {};
+      if (!payload.creditCardId && first.paymentMethod === 'credit_card' && first.creditCardId) {
+        payload.creditCardId = first.creditCardId;
+      }
+      delete payload.splits;
+    }
+
+    return payload;
   }
 }

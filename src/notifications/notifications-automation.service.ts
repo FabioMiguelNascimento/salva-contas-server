@@ -143,6 +143,13 @@ export class NotificationsAutomationService {
   }
 
   async generateSubscriptionRenewalNotifications(userId: string): Promise<void> {
+    const today = new Date();
+    const startWindow = new Date(today);
+    startWindow.setHours(0, 0, 0, 0);
+
+    const endWindow = new Date(startWindow);
+    endWindow.setDate(endWindow.getDate() + 7); // próxima semana
+
     const renewingSubscriptions = await this.prisma.subscription.findMany({
       where: {
         userId,
@@ -151,26 +158,64 @@ export class NotificationsAutomationService {
     });
 
     for (const subscription of renewingSubscriptions) {
+      const nextRenewal = this.calculateNextRenewalDate(subscription, today);
+      if (!nextRenewal) continue;
+
+      if (nextRenewal < startWindow || nextRenewal > endWindow) continue;
+
       const existingNotification = await this.prisma.notification.findFirst({
         where: {
           userId,
           type: 'subscription_renewal',
           relatedId: subscription.id,
           status: 'unread',
-          createdAt: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
-          },
         },
       });
 
       if (!existingNotification) {
         await this.createNotification(userId, {
           title: 'Renovação de assinatura',
-          message: `Assinatura ${subscription.description} será renovada em breve`,
+          message: `Assinatura ${subscription.description} será renovada em breve (${nextRenewal.toLocaleDateString('pt-BR')})`,
           type: 'subscription_renewal',
           relatedId: subscription.id,
         });
       }
     }
+  }
+
+  private calculateNextRenewalDate(subscription: any, from: Date): Date | null {
+    const year = from.getFullYear();
+    const month = from.getMonth();
+
+    if (subscription.frequency === 'monthly') {
+      const day = subscription.dayOfMonth ?? 1;
+
+      const candidate = new Date(year, month, day);
+      if (candidate < from) {
+        const next = new Date(year, month + 1, day);
+        return next;
+      }
+      return candidate;
+    }
+
+    if (subscription.frequency === 'weekly') {
+      const targetDay = subscription.dayOfWeek ?? 0; // 0=Dom
+      const diff = (targetDay - from.getDay() + 7) % 7;
+      const next = new Date(from);
+      next.setDate(from.getDate() + (diff === 0 ? 7 : diff));
+      return next;
+    }
+
+    if (subscription.frequency === 'yearly') {
+      const day = subscription.dayOfMonth ?? 1;
+      const monthOfYear = (subscription.month ?? 1) - 1;
+      const candidate = new Date(year, monthOfYear, day);
+      if (candidate < from) {
+        return new Date(year + 1, monthOfYear, day);
+      }
+      return candidate;
+    }
+
+    return null;
   }
 }

@@ -214,6 +214,7 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       include: {
         categoryRel: true,
         creditCard: true,
+        debitCard: true,
         splits: { include: { creditCard: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -255,13 +256,20 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       take: 10,
     });
 
-    const [metrics, transactionsRaw, subscriptions, budgets, categories, creditCardsRaw] = await Promise.all([
+    const debitCardsPromise = this.prisma.debitCard.findMany({
+      where: { userId: this.userId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    const [metrics, transactionsRaw, subscriptions, budgets, categories, creditCardsRaw, debitCards] = await Promise.all([
       metricsPromise,
       transactionsPromise,
       subscriptionsPromise,
       budgetsPromise,
       categoriesPromise,
       creditCardsRawPromise,
+      debitCardsPromise,
     ]);
 
     const createdByIds = [...new Set(
@@ -364,6 +372,7 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       budgetProgress,
       categories,
       creditCards,
+      debitCards,
     };
   }
 }

@@ -5,6 +5,7 @@ import { BudgetsModule } from './budgets/budgets.module';
 import { CategoriesModule } from './categories/categories.module';
 import { CreditCardsModule } from './credit-cards/credit-cards.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { DebitCardsModule } from './debit-cards/debit-cards.module';
 import { HealthModule } from './health/health.module';
 import { InvitesModule } from './invites/invites.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -26,6 +27,7 @@ import { TransactionsModule } from './transactions/transactions.module';
     BudgetsModule, 
     NotificationsModule, 
     CreditCardsModule,
+    DebitCardsModule,
   ],
 })
 export class AppModule {}

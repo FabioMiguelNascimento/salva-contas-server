@@ -7,12 +7,14 @@ export const SplitSchema = z.object({
   amount: z.number().positive(),
   paymentMethod: z.enum(PAYMENT_METHODS),
   creditCardId: z.string().uuid().nullable().optional(),
+  debitCardId: z.string().uuid().nullable().optional(),
 });
 
 export const AISplitSchema = z.object({
   amount: z.number().positive(),
   paymentMethod: z.enum(PAYMENT_METHODS),
   creditCardId: z.string().nullable().optional(),
+  debitCardId: z.string().nullable().optional(),
 });
 
 export const AIReceiptSchema = z.object({
@@ -25,6 +27,7 @@ export const AIReceiptSchema = z.object({
   dueDate: z.string().nullable().optional(),
   paymentDate: z.string().nullable().optional(),
   creditCardId: z.string().nullable().optional(),
+  debitCardId: z.string().nullable().optional(),
   createdById: z.string().nullable().optional(),
   // Optional: returned when payment is split across multiple methods
   splits: z.array(AISplitSchema).min(2).optional(),
@@ -40,6 +43,7 @@ export const CreateTransactionSchema = z
     dueDate: z.coerce.date().nullable().optional(),
     paymentDate: z.coerce.date().nullable().optional(),
     creditCardId: z.uuid().nullable().optional(),
+    debitCardId: z.uuid().nullable().optional(),
     splits: z.array(SplitSchema).min(1).optional(),
   })
   .refine(
@@ -74,6 +78,7 @@ export const UpdateTransactionSchema = z
     dueDate: z.coerce.date().nullable().optional(),
     paymentDate: z.coerce.date().nullable().optional(),
     creditCardId: z.uuid().nullable().optional(),
+    debitCardId: z.uuid().nullable().optional(),
     splits: z.array(SplitSchema).min(1).optional(),
   })
   .refine(

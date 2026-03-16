@@ -61,5 +61,6 @@ export abstract class DashboardRepositoryInterface {
     }>;
     categories: any[];
     creditCards: any[];
+    debitCards: any[];
   }>;
 }

@@ -31,7 +31,7 @@ export default class ProcessTransactionUseCase {
   async execute(
     file: Express.Multer.File | null,
     textInput: string | null,
-    options?: { creditCardId?: string | null; paymentDate?: string | null; dueDate?: string | null }
+    options?: { creditCardId?: string | null; debitCardId?: string | null; paymentDate?: string | null; dueDate?: string | null }
   ) {
     if (!file && !textInput?.trim()) {
       throw new BadRequestException('Envie um arquivo ou texto para processamento da transação.');
@@ -47,6 +47,7 @@ export default class ProcessTransactionUseCase {
       day: 'numeric'
     });
     const includeCreditCardsInPrompt = !options?.creditCardId;
+    const includeDebitCardsInPrompt = !options?.debitCardId;
 
     const uploadAttachmentPromise = file
       ? this.storageService
@@ -63,15 +64,22 @@ export default class ProcessTransactionUseCase {
           })
       : Promise.resolve({});
 
-    const [creditCards, categoriesResult] = await Promise.all([
+    const [creditCards, debitCards, categoriesResult] = await Promise.all([
       includeCreditCardsInPrompt
         ? this.creditCardsRepository.getCreditCards({ page: 1, limit: this.maxCreditCardsInPrompt, status: 'active' })
+        : Promise.resolve([]),
+      includeDebitCardsInPrompt
+        ? this.prisma.debitCard.findMany({ where: { userId: this.userContext.userId, status: 'active' }, orderBy: { createdAt: 'desc' }, take: this.maxCreditCardsInPrompt })
         : Promise.resolve([]),
       this.categoriesRepository.getAllCategories({ limit: this.maxCategoriesInPrompt }),
     ]);
 
     const creditCardsInfo = includeCreditCardsInPrompt && creditCards.length > 0
       ? `\nCARTOES:\n${creditCards.map(c => `${c.id}|${c.name}|${c.flag}|${c.lastFourDigits}`).join('\n')}\nUse creditCardId apenas quando pagamento for cartao de credito.`
+      : '';
+
+    const debitCardsInfo = includeDebitCardsInPrompt && debitCards.length > 0
+      ? `\nCARTOES_DEBITO:\n${debitCards.map((c) => `${c.id}|${c.name}|${c.flag}|${c.lastFourDigits}`).join('\n')}\nUse debitCardId apenas quando pagamento for cartao de debito.`
       : '';
 
     const categoriesList = categoriesResult?.data ? categoriesResult.data : [];
@@ -98,10 +106,12 @@ export default class ProcessTransactionUseCase {
       Datas devem manter valor literal do documento em DD/MM/YYYY.
       ${categoriesInfo}
       ${creditCardsInfo}
+      ${debitCardsInfo}
       ${familyMembersInfo}
 
       Regras:
       - Pagamento unico: use creditCardId (ou null) e nao envie splits.
+      - Para pagamento unico em debito, use debitCardId (ou null).
       - Pagamento dividido: envie splits e nao envie creditCardId na raiz.
       - splits[].paymentMethod: credit_card|debit|pix|cash|transfer|other
       - Soma de splits deve bater com amount.
@@ -123,8 +133,9 @@ export default class ProcessTransactionUseCase {
         "dueDate": "DD/MM/YYYY" | null,
         "paymentDate": "DD/MM/YYYY" | null,
         "creditCardId": "uuid" | null,
+        "debitCardId": "uuid" | null,
         "createdById": "uuid" | null,
-        "splits": [ { "amount": number, "paymentMethod": string, "creditCardId": "uuid" | null } ]
+        "splits": [ { "amount": number, "paymentMethod": string, "creditCardId": "uuid" | null, "debitCardId": "uuid" | null } ]
       }
       ou ARRAY desse mesmo objeto para extrato multiplo.
     `;
@@ -177,6 +188,12 @@ export default class ProcessTransactionUseCase {
     for (const [index, data] of validData.entries()) {
       if (options?.creditCardId) {
         data.creditCardId = options.creditCardId;
+        data.debitCardId = null;
+      }
+
+      if (options?.debitCardId) {
+        data.debitCardId = options.debitCardId;
+        data.creditCardId = null;
       }
 
       // Keep dates as strings (AI returns DD/MM/YYYY). The repository will parse them via parseDateLocal.
@@ -236,6 +253,10 @@ export default class ProcessTransactionUseCase {
       payload.createdById = null;
     }
 
+    if (payload.debitCardId === '') {
+      payload.debitCardId = null;
+    }
+
     if (splits == null) {
       delete payload.splits;
       return payload;
@@ -256,6 +277,9 @@ export default class ProcessTransactionUseCase {
       const first = splits[0] || {};
       if (!payload.creditCardId && first.paymentMethod === 'credit_card' && first.creditCardId) {
         payload.creditCardId = first.creditCardId;
+      }
+      if (!payload.debitCardId && first.paymentMethod === 'debit' && first.debitCardId) {
+        payload.debitCardId = first.debitCardId;
       }
       delete payload.splits;
     }

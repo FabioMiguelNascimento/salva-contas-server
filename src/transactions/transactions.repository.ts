@@ -62,6 +62,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
                 amount: s.amount,
                 paymentMethod: s.paymentMethod,
                 creditCardId: s.creditCardId ?? null,
+                debitCardId: (s as any).debitCardId ?? null,
             })),
         });
     }
@@ -92,7 +93,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
 
     async createTransaction(data: AIReceiptData): Promise<TransactionWithCount> {
         const normalizedCategory = data.category.charAt(0).toUpperCase() + data.category.slice(1).toLowerCase();
-        const { category, creditCardId, splits, ...transactionData } = data;
+        const { category, creditCardId, debitCardId, splits, ...transactionData } = data as any;
 
         const dueDate = parseDateLocal((data as any).dueDate);
         const paymentDate = parseDateLocal((data as any).paymentDate);
@@ -136,6 +137,12 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     // Connect credit card only when no splits and creditCardId is provided
     if (!splits && creditCardId) {
       createData.creditCard = { connect: { id: creditCardId } };
+            createData.debitCard = { disconnect: true };
+        }
+
+        if (!splits && !creditCardId && debitCardId) {
+            createData.debitCard = { connect: { id: debitCardId } };
+            createData.creditCard = { disconnect: true };
     }
 
 const tx = await this.prisma.transaction.create({
@@ -143,7 +150,8 @@ const tx = await this.prisma.transaction.create({
       include: {
         categoryRel: true,
         creditCard: true,
-        splits: { include: { creditCard: true } },
+                debitCard: true,
+                splits: { include: { creditCard: true, debitCard: true } },
       },
     });
 
@@ -207,7 +215,8 @@ const tx = await this.prisma.transaction.create({
             include: {
                 categoryRel: true,
                 creditCard: true,
-                splits: { include: { creditCard: true } },
+                debitCard: true,
+                splits: { include: { creditCard: true, debitCard: true } },
             },
             orderBy: { createdAt: 'desc' },
             skip: (page - 1) * limit,
@@ -240,7 +249,7 @@ const tx = await this.prisma.transaction.create({
     }
 
     async updateTransaction(id: string, data: UpdateTransactionInput): Promise<TransactionWithCount> {
-        const { categoryId, creditCardId, splits, ...restData } = data as any;
+        const { categoryId, creditCardId, debitCardId, splits, ...restData } = data as any;
         const updateData: any = { ...restData };
 
         if ((restData as any).dueDate !== undefined) {
@@ -279,12 +288,18 @@ const tx = await this.prisma.transaction.create({
 
         if (hasSplits) {
             updateData.creditCard = { disconnect: true };
+            updateData.debitCard = { disconnect: true };
             await this.prisma.transactionSplit.deleteMany({ where: { transactionId: id } });
-        } else if (creditCardId !== undefined) {
+        } else if (creditCardId !== undefined || debitCardId !== undefined) {
             if (creditCardId) {
                 updateData.creditCard = { connect: { id: creditCardId } };
+                updateData.debitCard = { disconnect: true };
+            } else if (debitCardId) {
+                updateData.debitCard = { connect: { id: debitCardId } };
+                updateData.creditCard = { disconnect: true };
             } else {
                 updateData.creditCard = { disconnect: true };
+                updateData.debitCard = { disconnect: true };
             }
         }
 
@@ -294,7 +309,8 @@ const tx = await this.prisma.transaction.create({
             include: {
                 categoryRel: true,
                 creditCard: true,
-                splits: { include: { creditCard: true } },
+                debitCard: true,
+                splits: { include: { creditCard: true, debitCard: true } },
             },
         });
 
@@ -320,7 +336,7 @@ const tx = await this.prisma.transaction.create({
 
         const finalTransaction = await this.prisma.transaction.findFirst({
             where: { id, userId: this.userId },
-            include: { categoryRel: true, creditCard: true, splits: { include: { creditCard: true } } },
+            include: { categoryRel: true, creditCard: true, debitCard: true, splits: { include: { creditCard: true, debitCard: true } } },
         });
 
         return finalTransaction ? (await this.withCreatedByName(finalTransaction)) as any : (finalTransaction as any);

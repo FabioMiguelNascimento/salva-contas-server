@@ -115,6 +115,9 @@ model Transaction {
   creditCardId String?       @map("credit_card_id")
   creditCard   CreditCard?   @relation(fields: [creditCardId], references: [id])
 
+  debitCardId String?      @map("debit_card_id")
+  debitCard   DebitCard?   @relation(fields: [debitCardId], references: [id])
+
   attachments  Attachment[]
   splits       TransactionSplit[]
 
@@ -131,6 +134,9 @@ model TransactionSplit {
 
   creditCardId  String?       @map("credit_card_id")
   creditCard    CreditCard?   @relation(fields: [creditCardId], references: [id])
+
+  debitCardId   String?       @map("debit_card_id")
+  debitCard     DebitCard?    @relation(fields: [debitCardId], references: [id])
 
   createdAt     DateTime      @default(now()) @map("created_at")
 
@@ -233,6 +239,13 @@ enum CreditCardStatus {
   cancelled
 }
 
+enum DebitCardStatus {
+  active
+  blocked
+  expired
+  cancelled
+}
+
 model CreditCard {
   id              String           @id @default(uuid())
   userId          String           @map("user_id")
@@ -255,6 +268,25 @@ model CreditCard {
   transactionSplits TransactionSplit[]
 
   @@map("credit_cards")
+}
+
+model DebitCard {
+  id              String           @id @default(uuid())
+  userId          String           @map("user_id")
+
+  createdById     String?          @map("created_by_id")
+
+  name            String
+  flag            CreditCardFlag
+  lastFourDigits  String           @map("last_four_digits")
+  status          DebitCardStatus  @default(active)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  transactions      Transaction[]
+  transactionSplits TransactionSplit[]
+
+  @@map("debit_cards")
 }
 
 enum AttachmentType {

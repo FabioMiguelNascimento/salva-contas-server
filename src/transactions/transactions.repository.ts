@@ -18,6 +18,10 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         return this.userContext.userId;
     }
 
+    private get actorUserId(): string {
+        return this.userContext.actorUserId;
+    }
+
     private async recalcCardLimit(cardId: string) {
         const card = await this.prisma.creditCard.findUnique({ where: { id: cardId } });
         if (!card) return;
@@ -67,6 +71,25 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         await Promise.all(cardIds.map((cardId) => this.recalcCardLimit(cardId)));
     }
 
+    private async withCreatedByName<T extends { createdById?: string | null }>(transaction: T): Promise<T & { createdByName: string | null }> {
+        if (!transaction?.createdById) {
+            return {
+                ...transaction,
+                createdByName: null,
+            };
+        }
+
+        const user = await this.prisma.user.findUnique({
+            where: { id: transaction.createdById },
+            select: { name: true, email: true },
+        });
+
+        return {
+            ...transaction,
+            createdByName: user?.name || user?.email || null,
+        };
+    }
+
     async createTransaction(data: AIReceiptData): Promise<TransactionWithCount> {
         const normalizedCategory = data.category.charAt(0).toUpperCase() + data.category.slice(1).toLowerCase();
         const { category, creditCardId, splits, ...transactionData } = data;
@@ -93,7 +116,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         dueDate,
         paymentDate,
         userId: this.userId,
-        createdById: this.userId,
+        createdById: (data as any).createdById ?? this.actorUserId,
         category: normalizedCategory,
         categoryName: normalizedCategory,
     };
@@ -130,7 +153,7 @@ const tx = await this.prisma.transaction.create({
     } else if (tx.creditCardId) {
       await this.recalcCardLimit(tx.creditCardId);
     }
-    return tx;
+        return (await this.withCreatedByName(tx)) as any;
   }
 
     async getTransactions({ page, limit, categoryId, type, status, startDate, endDate, month, year, creditCardId }: GetTransactionsInput) {
@@ -191,8 +214,22 @@ const tx = await this.prisma.transaction.create({
             take: limit,
         });
 
+        const createdByIds = [...new Set(data.map((tx) => tx.createdById).filter(Boolean) as string[])];
+        const users = createdByIds.length > 0
+            ? await this.prisma.user.findMany({
+                where: { id: { in: createdByIds } },
+                select: { id: true, name: true, email: true },
+            })
+            : [];
+        const usersMap = new Map(users.map((user) => [user.id, user]));
+
+        const enrichedData = data.map((tx) => ({
+            ...tx,
+            createdByName: tx.createdById ? (usersMap.get(tx.createdById)?.name || usersMap.get(tx.createdById)?.email || null) : null,
+        }));
+
         return {
-            data,
+            data: enrichedData as any,
             meta: {
                 total,
                 page,
@@ -224,10 +261,15 @@ const tx = await this.prisma.transaction.create({
             }
         }
 
-        const existing = await this.prisma.transaction.findUnique({
-            where: { id },
+        const existing = await this.prisma.transaction.findFirst({
+            where: { id, userId: this.userId },
             include: { splits: true },
         });
+        if (!existing) {
+            const notFoundError: any = new Error('Transaction not found');
+            notFoundError.code = 'P2025';
+            throw notFoundError;
+        }
         const priorCardId: string | null = existing?.creditCardId ?? null;
         const priorSplitCardIds = [...new Set(
             (existing?.splits ?? []).filter((s: any) => s.creditCardId).map((s: any) => s.creditCardId as string)
@@ -276,17 +318,24 @@ const tx = await this.prisma.transaction.create({
             }
         }
 
-        return this.prisma.transaction.findUnique({
-            where: { id },
+        const finalTransaction = await this.prisma.transaction.findFirst({
+            where: { id, userId: this.userId },
             include: { categoryRel: true, creditCard: true, splits: { include: { creditCard: true } } },
-        }) as any;
+        });
+
+        return finalTransaction ? (await this.withCreatedByName(finalTransaction)) as any : (finalTransaction as any);
     }
 
     async deleteTransaction(id: string): Promise<{ attachmentKey: string | null }> {
-        const tx = await this.prisma.transaction.findUnique({
-            where: { id },
+        const tx = await this.prisma.transaction.findFirst({
+            where: { id, userId: this.userId },
             include: { splits: true },
         });
+        if (!tx) {
+            const notFoundError: any = new Error('Transaction not found');
+            notFoundError.code = 'P2025';
+            throw notFoundError;
+        }
         const splitCardIds = [...new Set(
             (tx?.splits ?? []).filter((s: any) => s.creditCardId).map((s: any) => s.creditCardId as string)
         )];

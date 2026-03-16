@@ -16,12 +16,16 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     return this.userContext.userId;
   }
 
+  private get actorUserId(): string {
+    return this.userContext.actorUserId;
+  }
+
   async createCreditCard(data: CreateCreditCardInput): Promise<CreditCard> {
     return this.prisma.creditCard.create({
       data: {
         ...data,
         userId: this.userId,
-        createdById: this.userId,
+        createdById: this.actorUserId,
         availableLimit: data.limit,
       },
     });
@@ -172,6 +176,13 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
   }
 
   async updateCreditCard(id: string, data: UpdateCreditCardInput): Promise<CreditCard> {
+    const existing = await this.prisma.creditCard.findFirst({ where: { id, userId: this.userId } });
+    if (!existing) {
+      const notFoundError: any = new Error('Credit card not found');
+      notFoundError.code = 'P2025';
+      throw notFoundError;
+    }
+
     return this.prisma.creditCard.update({
       where: {
         id,
@@ -181,6 +192,13 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
   }
 
   async deleteCreditCard(id: string): Promise<void> {
+    const existing = await this.prisma.creditCard.findFirst({ where: { id, userId: this.userId } });
+    if (!existing) {
+      const notFoundError: any = new Error('Credit card not found');
+      notFoundError.code = 'P2025';
+      throw notFoundError;
+    }
+
     await this.prisma.creditCard.delete({
       where: {
         id,

@@ -6,6 +6,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { CreditCardsModule } from './credit-cards/credit-cards.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { HealthModule } from './health/health.module';
+import { InvitesModule } from './invites/invites.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { StorageModule } from './storage/storage.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
@@ -17,6 +18,7 @@ import { TransactionsModule } from './transactions/transactions.module';
     AiAdvisorModule,
     AuthModule, 
     HealthModule, 
+    InvitesModule,
     TransactionsModule, 
     CategoriesModule, 
     SubscriptionsModule, 

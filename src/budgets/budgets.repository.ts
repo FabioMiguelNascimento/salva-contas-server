@@ -15,6 +15,10 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
     return this.userContext.userId;
   }
 
+  private get actorUserId(): string {
+    return this.userContext.actorUserId;
+  }
+
   async createBudget(data: {
     categoryId: string;
     amount: number;
@@ -25,7 +29,7 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
       data: {
         ...data,
         userId: this.userId,
-        createdById: this.userId,
+        createdById: this.actorUserId,
       },
       include: {
         category: true,
@@ -55,6 +59,13 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
   }
 
   async updateBudget(id: string, data: { amount?: number }): Promise<Budget> {
+    const existing = await this.prisma.budget.findFirst({ where: { id, userId: this.userId } });
+    if (!existing) {
+      const notFoundError: any = new Error('Budget not found');
+      notFoundError.code = 'P2025';
+      throw notFoundError;
+    }
+
     return this.prisma.budget.update({
       where: { id },
       data,
@@ -65,6 +76,13 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
   }
 
   async deleteBudget(id: string): Promise<void> {
+    const existing = await this.prisma.budget.findFirst({ where: { id, userId: this.userId } });
+    if (!existing) {
+      const notFoundError: any = new Error('Budget not found');
+      notFoundError.code = 'P2025';
+      throw notFoundError;
+    }
+
     await this.prisma.budget.delete({
       where: { id },
     });

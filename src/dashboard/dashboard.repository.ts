@@ -264,6 +264,19 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       creditCardsRawPromise,
     ]);
 
+    const createdByIds = [...new Set(
+      transactionsRaw.map((transaction) => transaction.createdById).filter(Boolean) as string[]
+    )];
+
+    const users = createdByIds.length > 0
+      ? await this.prisma.user.findMany({
+          where: { id: { in: createdByIds } },
+          select: { id: true, name: true, email: true },
+        })
+      : [];
+
+    const usersMap = new Map(users.map((user) => [user.id, user]));
+
     const transactions = await Promise.all(
       transactionsRaw.map(async (transaction) => {
         const attachmentUrl = transaction.attachmentKey
@@ -272,6 +285,9 @@ export class DashboardRepository extends DashboardRepositoryInterface {
 
         return {
           ...transaction,
+          createdByName: transaction.createdById
+            ? (usersMap.get(transaction.createdById)?.name || usersMap.get(transaction.createdById)?.email || null)
+            : null,
           attachmentUrl,
         };
       }),

@@ -19,13 +19,38 @@ export class CreateTransactionToolUseCase implements AiAdvisorToolUseCase {
       dueDate: args.dueDate ?? undefined,
     });
 
+    const transactions = Array.isArray(transaction) ? transaction : [transaction];
+    if (transactions.length > 1) {
+      return {
+        responseForModel: {
+          totalTransactions: transactions.length,
+          transactions,
+        },
+        visualization: {
+          type: 'table_summary',
+          toolName: this.name,
+          title: `${transactions.length} transacoes criadas`,
+          payload: {
+            totalTransactions: transactions.length,
+            items: transactions.map((tx: any) => ({
+              description: tx.description,
+              amount: Number(tx.amount || 0),
+              category: tx.categoryName || tx.category || 'Sem categoria',
+            })),
+          },
+        },
+      };
+    }
+
+    const singleTransaction = transactions[0];
+
     return {
-      responseForModel: transaction,
+      responseForModel: singleTransaction,
       visualization: {
         type: 'transaction',
         toolName: this.name,
-        title: `Transacao criada: ${transaction.description}`,
-        payload: transaction,
+        title: `Transacao criada: ${singleTransaction.description}`,
+        payload: singleTransaction,
       },
     };
   }

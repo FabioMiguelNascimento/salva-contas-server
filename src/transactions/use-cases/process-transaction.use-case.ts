@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
+import { UserContext } from 'src/auth/user-context.service';
 import { CategoriesRepositoryInterface } from 'src/categories/categories.interface';
 import { GEN_AI_SERVICE, GenAIServiceInterface } from 'src/gen-ai/gen-ai.interface';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { AIReceiptSchema } from 'src/schemas/transactions.schema';
 import { StorageService } from 'src/storage/storage.service';
 import { CreditCardsRepositoryInterface } from '../../credit-cards/credit-cards.interface';
@@ -20,6 +22,8 @@ export default class ProcessTransactionUseCase {
     @Inject(CategoriesRepositoryInterface)
     private readonly categoriesRepository: CategoriesRepositoryInterface,
     private readonly storageService: StorageService,
+    private readonly userContext: UserContext,
+    private readonly prisma: PrismaService,
     @Inject(GEN_AI_SERVICE)
     private readonly genAIService: GenAIServiceInterface,
   ) {}
@@ -76,20 +80,40 @@ export default class ProcessTransactionUseCase {
       ? `\nCATEGORIAS:\n${categoriesList.map((c: any) => c.name).join(', ')}\nRetorne category com nome de categoria existente quando possivel.`
       : '';
 
+    const documentHint = file?.originalname
+      ? `\nARQUIVO: ${file.originalname}`
+      : (textInput ? `\nENTRADA DE TEXTO: ${textInput.slice(0, 250)}` : '');
+
+    const familyMembers = await this.getFamilyMembersForPrompt();
+    const familyMembersInfo = familyMembers.length > 0
+      ? `\nMEMBROS DA CONTA (use createdById somente com IDs desta lista quando o texto indicar "quem fez" a transacao):\n${familyMembers
+          .map((member, index) => `${index + 1}. ${member.id}|${member.name || 'Sem nome'}|${member.email || 'Sem email'}`)
+          .join('\n')}`
+      : '';
+
     const prompt = `
       Extraia dados financeiros e retorne SOMENTE JSON valido, sem markdown.
       DATA DE HOJE: ${brazilDate} (use somente para completar ano faltante).
+      ${documentHint}
       Datas devem manter valor literal do documento em DD/MM/YYYY.
       ${categoriesInfo}
       ${creditCardsInfo}
+      ${familyMembersInfo}
 
       Regras:
       - Pagamento unico: use creditCardId (ou null) e nao envie splits.
       - Pagamento dividido: envie splits e nao envie creditCardId na raiz.
       - splits[].paymentMethod: credit_card|debit|pix|cash|transfer|other
       - Soma de splits deve bater com amount.
+      - Se for EXTRATO com varias linhas, retorne um ARRAY de objetos (um por transacao).
+      - Em extrato, cada objeto deve ter paymentDate proprio da linha correspondente.
+      - NUNCA copie a data inicial/final do periodo para todas as transacoes.
+      - Se nao houver data da linha, use paymentDate null para aquele item.
+      - Se o texto deixar claro quem criou a transacao, retorne createdById com um ID da lista de membros.
+      - Se nao estiver claro, retorne createdById como null.
 
       JSON de saida:
+      Objeto unico (comprovante simples):
       {
         "amount": number,
         "description": string,
@@ -99,8 +123,10 @@ export default class ProcessTransactionUseCase {
         "dueDate": "DD/MM/YYYY" | null,
         "paymentDate": "DD/MM/YYYY" | null,
         "creditCardId": "uuid" | null,
+        "createdById": "uuid" | null,
         "splits": [ { "amount": number, "paymentMethod": string, "creditCardId": "uuid" | null } ]
       }
+      ou ARRAY desse mesmo objeto para extrato multiplo.
     `;
 
     let rawText = '';
@@ -130,55 +156,85 @@ export default class ProcessTransactionUseCase {
 
     parsedJson = this.normalizeAiPayload(parsedJson);
 
-    const validationResult = AIReceiptSchema.safeParse(parsedJson);
+    const candidates = Array.isArray(parsedJson) ? parsedJson : [parsedJson];
+    const validData: Array<any> = [];
 
-    if (!validationResult.success) {
-      console.error(validationResult.error);
+    for (const candidate of candidates) {
+      const validationResult = AIReceiptSchema.safeParse(candidate);
+      if (!validationResult.success) {
+        continue;
+      }
+      validData.push(validationResult.data);
+    }
+
+    if (validData.length === 0) {
       throw new BadRequestException('A IA falhou em gerar dados válidos.');
     }
 
-    const data = validationResult.data;
-
-    if (options?.creditCardId) {
-      data.creditCardId = options.creditCardId;
-    }
-
-    // Keep dates as strings (AI returns DD/MM/YYYY). The repository will parse them via parseDateLocal.
-    if (options?.paymentDate !== undefined) {
-      data.paymentDate = options.paymentDate;
-    }
-
-    if (options?.dueDate !== undefined) {
-      data.dueDate = options.dueDate;
-    }
-
-    // If splits sum doesn't match amount (floating point rounding), normalize the largest slice
-    if (data.splits && data.splits.length >= 2) {
-      const splitSum = data.splits.reduce((s, sp) => s + sp.amount, 0);
-      const diff = Math.round((data.amount - splitSum) * 100) / 100;
-      if (Math.abs(diff) > 0 && Math.abs(diff) < 1) {
-        const maxIdx = data.splits.reduce((mi, sp, i, arr) => sp.amount > arr[mi].amount ? i : mi, 0);
-        data.splits[maxIdx].amount = Math.round((data.splits[maxIdx].amount + diff) * 100) / 100;
-      }
-    }
-
     const attachmentData = await uploadAttachmentPromise;
+    const createdTransactions: any[] = [];
 
-    const transaction = await this.transactionsRepository.createTransaction({
-      ...data,
-      ...attachmentData,
-    });
+    for (const [index, data] of validData.entries()) {
+      if (options?.creditCardId) {
+        data.creditCardId = options.creditCardId;
+      }
 
-    return transaction;
+      // Keep dates as strings (AI returns DD/MM/YYYY). The repository will parse them via parseDateLocal.
+      if (options?.paymentDate !== undefined) {
+        data.paymentDate = options.paymentDate;
+      }
+
+      if (options?.dueDate !== undefined) {
+        data.dueDate = options.dueDate;
+      }
+
+      data.createdById = await this.resolveCreatedById(data.createdById ?? null);
+
+      // If splits sum doesn't match amount (floating point rounding), normalize the largest slice
+      if (data.splits && data.splits.length >= 2) {
+        const splitSum = data.splits.reduce((s, sp) => s + sp.amount, 0);
+        const diff = Math.round((data.amount - splitSum) * 100) / 100;
+        if (Math.abs(diff) > 0 && Math.abs(diff) < 1) {
+          const maxIdx = data.splits.reduce((mi, sp, i, arr) => sp.amount > arr[mi].amount ? i : mi, 0);
+          data.splits[maxIdx].amount = Math.round((data.splits[maxIdx].amount + diff) * 100) / 100;
+        }
+      }
+
+      const transaction = await this.transactionsRepository.createTransaction({
+        ...data,
+        ...(index === 0 ? attachmentData : {}),
+      });
+
+      createdTransactions.push(transaction);
+    }
+
+    return createdTransactions.length === 1 ? createdTransactions[0] : createdTransactions;
   }
 
   private normalizeAiPayload(input: unknown): unknown {
-    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    if (Array.isArray(input)) {
+      return input
+        .map((item) => this.normalizeAiPayload(item))
+        .filter((item) => !!item && typeof item === 'object');
+    }
+
+    if (!input || typeof input !== 'object') {
       return input;
     }
 
-    const payload = { ...(input as Record<string, any>) };
+    const source = input as Record<string, any>;
+
+    if (source.data && typeof source.data === 'object') {
+      // Also support wrapped formats like { data: { ... } } or { data: [{ ... }] }.
+      return this.normalizeAiPayload(source.data);
+    }
+
+    const payload = { ...source };
     const splits = payload.splits;
+
+    if (payload.createdById === '') {
+      payload.createdById = null;
+    }
 
     if (splits == null) {
       delete payload.splits;
@@ -205,5 +261,58 @@ export default class ProcessTransactionUseCase {
     }
 
     return payload;
+  }
+
+  private async getFamilyMembersForPrompt() {
+    const ownerId = this.userContext.userId;
+
+    return this.prisma.user.findMany({
+      where: {
+        OR: [{ id: ownerId }, { linkedToId: ownerId }],
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  private async resolveCreatedById(requestedCreatedById: string | null) {
+    const actorUserId = this.userContext.actorUserId;
+
+    if (!requestedCreatedById) {
+      return actorUserId;
+    }
+
+    const actor = await this.prisma.user.findUnique({
+      where: { id: actorUserId },
+      select: { id: true, linkedToId: true },
+    });
+
+    if (!actor) {
+      throw new BadRequestException('Usuário autenticado não encontrado.');
+    }
+
+    const ownerId = actor.linkedToId ?? actor.id;
+    const members = await this.prisma.user.findMany({
+      where: {
+        OR: [{ id: ownerId }, { linkedToId: ownerId }],
+      },
+      select: { id: true },
+    });
+
+    const allowedMemberIds = new Set(members.map((member) => member.id));
+    if (!allowedMemberIds.has(requestedCreatedById)) {
+      throw new BadRequestException('createdById inválido para esta conta compartilhada.');
+    }
+
+    const actorIsOwner = actor.id === ownerId;
+    if (!actorIsOwner && requestedCreatedById !== actor.id) {
+      throw new BadRequestException('Somente o dono da conta pode registrar em nome de outro membro.');
+    }
+
+    return requestedCreatedById;
   }
 }

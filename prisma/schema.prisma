@@ -29,6 +29,47 @@ enum SubscriptionFrequency {
   yearly
 }
 
+enum FamilyInviteStatus {
+  pending
+  accepted
+  declined
+  cancelled
+}
+
+model User {
+  id         String   @id
+  email      String?  @unique
+  name       String?
+  linkedToId String?  @map("linked_to_id")
+
+  linkedTo     User?  @relation("LinkedAccounts", fields: [linkedToId], references: [id])
+  linkedUsers  User[] @relation("LinkedAccounts")
+
+  invitesSent      FamilyInvite[] @relation("InviteFromUser")
+  invitesAccepted  FamilyInvite[] @relation("InviteAcceptedByUser")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model FamilyInvite {
+  id           String             @id @default(uuid())
+  fromUserId   String             @map("from_user_id")
+  acceptedById String?            @map("accepted_by_id")
+  token        String             @unique
+  status       FamilyInviteStatus @default(pending)
+  expiresAt    DateTime           @map("expires_at")
+  acceptedAt   DateTime?          @map("accepted_at")
+  createdAt    DateTime           @default(now()) @map("created_at")
+
+  fromUser     User               @relation("InviteFromUser", fields: [fromUserId], references: [id])
+  acceptedBy   User?              @relation("InviteAcceptedByUser", fields: [acceptedById], references: [id])
+
+  @@map("family_invites")
+}
+
 model Category {
   id           String        @id @default(uuid())
   userId       String?       @map("user_id")

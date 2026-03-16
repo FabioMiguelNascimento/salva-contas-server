@@ -1,18 +1,19 @@
-import { Body, Controller, Get, Headers, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Post, Put, Req } from '@nestjs/common';
 import { User } from '@supabase/supabase-js';
+import { Request } from 'express';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
-  RefreshTokenInput,
-  RefreshTokenSchema,
-  ResetPasswordInput,
-  ResetPasswordSchema,
-  SignInInput,
-  SignInSchema,
-  SignUpInput,
-  SignUpSchema,
-  UpdatePasswordInput,
-  UpdatePasswordSchema,
-  UpdateProfileSchema,
+    RefreshTokenInput,
+    RefreshTokenSchema,
+    ResetPasswordInput,
+    ResetPasswordSchema,
+    SignInInput,
+    SignInSchema,
+    SignUpInput,
+    SignUpSchema,
+    UpdatePasswordInput,
+    UpdatePasswordSchema,
+    UpdateProfileSchema,
 } from '../schemas/auth.schema';
 import { success } from '../utils/api-response-helper';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -95,12 +96,15 @@ export class AuthController {
   }
 
   @Get('me')
-  async getMe(@CurrentUser() user: User) {
+  async getMe(@CurrentUser() user: User, @Req() req: Request) {
+    const localUser = req['localUser'];
+
     return success(
       {
         id: user.id,
         email: user.email,
         name: user.user_metadata?.name,
+        linkedToId: localUser?.linkedToId ?? null,
         createdAt: user.created_at,
         emailConfirmedAt: user.email_confirmed_at,
       },

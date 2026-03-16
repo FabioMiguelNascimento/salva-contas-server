@@ -25,6 +25,7 @@ export const AIReceiptSchema = z.object({
   dueDate: z.string().nullable().optional(),
   paymentDate: z.string().nullable().optional(),
   creditCardId: z.string().nullable().optional(),
+  createdById: z.string().nullable().optional(),
   // Optional: returned when payment is split across multiple methods
   splits: z.array(AISplitSchema).min(2).optional(),
 });

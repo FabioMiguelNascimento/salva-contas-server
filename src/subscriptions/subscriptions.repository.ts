@@ -18,13 +18,17 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
         return this.userContext.userId;
     }
 
+    private get actorUserId(): string {
+        return this.userContext.actorUserId;
+    }
+
     async createSubscription(data: CreateSubscriptionInput): Promise<any> {
         const { creditCardId, categoryId, ...restData } = data;
         
         const createData: any = {
             ...restData,
             userId: this.userId,
-            createdById: this.userId,
+            createdById: this.actorUserId,
             category: {
                 connect: { id: categoryId }
             }
@@ -132,6 +136,13 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
     }
 
     async updateSubscription(id: string, data: UpdateSubscriptionInput): Promise<Subscription> {
+        const existing = await this.prisma.subscription.findFirst({ where: { id, userId: this.userId } });
+        if (!existing) {
+            const notFoundError: any = new Error('Subscription not found');
+            notFoundError.code = 'P2025';
+            throw notFoundError;
+        }
+
         const { creditCardId, ...restData } = data;
         const updateData: any = { ...restData };
 
@@ -162,6 +173,13 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
     }
 
     async cancelSubscription(id: string): Promise<Subscription> {
+        const existing = await this.prisma.subscription.findFirst({ where: { id, userId: this.userId } });
+        if (!existing) {
+            const notFoundError: any = new Error('Subscription not found');
+            notFoundError.code = 'P2025';
+            throw notFoundError;
+        }
+
         return this.prisma.subscription.update({
             where: { id },
             data: { isActive: false },

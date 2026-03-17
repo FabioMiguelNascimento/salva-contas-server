@@ -25,7 +25,11 @@ export const ToolSpendingTrendArgsSchema = z.object({
 });
 
 export const ToolTransactionDetailsArgsSchema = z.object({
-  transactionId: z.string().min(1),
+  transactionId: z.string().min(1).optional(),
+  query: z.string().min(1).optional(),
+}).refine((data) => !!data.transactionId || !!data.query, {
+  message: 'transactionId or query is required',
+  path: ['transactionId'],
 });
 
 export const ToolProcessReceiptArgsSchema = z.object({

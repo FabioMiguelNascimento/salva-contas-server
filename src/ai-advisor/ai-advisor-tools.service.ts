@@ -71,11 +71,12 @@ export class AiAdvisorToolsService {
       },
       {
         name: 'get_transaction_details',
-        description: 'Retorna detalhes de uma transacao, incluindo o anexo se existir.',
+        description: 'Retorna detalhes de uma transacao, incluindo o anexo se existir. Aceita ID ou texto.' ,
         parameters: {
           type: 'OBJECT',
           properties: {
             transactionId: { type: 'STRING', description: 'ID da transacao' },
+            query: { type: 'STRING', description: 'Texto livre para buscar transacoes por descricao' },
           },
           required: ['transactionId'],
         },

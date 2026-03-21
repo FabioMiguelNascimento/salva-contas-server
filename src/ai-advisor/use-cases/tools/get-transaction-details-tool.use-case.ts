@@ -73,22 +73,6 @@ export class GetTransactionDetailsToolUseCase implements AiAdvisorToolUseCase {
         detail = { ...transaction, attachmentUrl, categoryIcon };
       }
 
-      let detail: Record<string, any>;
-      if (!transaction || transaction.userId !== this.userId) {
-        detail = { error: 'Transacao nao encontrada ou acesso negado' };
-      } else {
-        let attachmentUrl: string | null = null;
-        if (transaction.attachmentKey) {
-          try {
-            attachmentUrl = await this.storageService.getPresignedUrl(transaction.attachmentKey);
-          } catch {
-            attachmentUrl = null;
-          }
-        }
-
-        detail = { ...transaction, attachmentUrl };
-      }
-
       return {
         responseForModel: detail,
         visualization: {

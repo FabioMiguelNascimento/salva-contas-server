@@ -102,6 +102,9 @@ export class GetTransactionDetailsToolUseCase implements AiAdvisorToolUseCase {
       amount: Number(tx.amount),
       category: tx.categoryName ?? 'Sem categoria',
       status: tx.status,
+      createdAt: tx.createdAt,
+      paymentDate: tx.paymentDate,
+      dueDate: tx.dueDate,
     }));
 
     return {

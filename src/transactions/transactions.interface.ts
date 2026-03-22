@@ -17,6 +17,9 @@ export abstract class TransactionsRepositoryInterface {
   abstract createTransaction(
     data: AIReceiptData,
   ): Promise<TransactionWithCount>;
+  abstract findDuplicateTransaction(
+    data: AIReceiptData,
+  ): Promise<TransactionWithCount | null>;
   abstract getTransactions(filters: GetTransactionsInput): Promise<{
     data: TransactionWithCount[];
     meta: { total: number; page: number; limit: number; totalPages: number };

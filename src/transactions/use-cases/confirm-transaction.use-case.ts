@@ -17,7 +17,16 @@ export class ConfirmTransactionUseCase {
     const created: Array<
       import('../transactions.interface').TransactionWithCount
     > = [];
+
     for (const entry of dataList) {
+      const existing =
+        await this.transactionsRepository.findDuplicateTransaction(entry);
+
+      if (existing) {
+        created.push(existing);
+        continue;
+      }
+
       const createdTx =
         await this.transactionsRepository.createTransaction(entry);
       created.push(createdTx);

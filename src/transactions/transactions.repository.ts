@@ -108,6 +108,41 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     };
   }
 
+  async findDuplicateTransaction(
+    data: AIReceiptData,
+  ): Promise<TransactionWithCount | null> {
+    const normalizedCategory =
+      data.category.charAt(0).toUpperCase() +
+      data.category.slice(1).toLowerCase();
+
+    const dueDate = parseDateLocal((data as any).dueDate);
+    const paymentDate = parseDateLocal((data as any).paymentDate);
+
+    const existingTx = await this.prisma.transaction.findFirst({
+      where: {
+        userId: this.userId,
+        description: data.description,
+        amount: data.amount,
+        categoryName: normalizedCategory,
+        type: data.type,
+        status: data.status,
+        dueDate,
+        paymentDate,
+        creditCardId: data.creditCardId ?? null,
+        debitCardId: data.debitCardId ?? null,
+      },
+      include: {
+        categoryRel: true,
+        creditCard: true,
+        debitCard: true,
+        splits: { include: { creditCard: true, debitCard: true } },
+      },
+    });
+
+    if (!existingTx) return null;
+    return (await this.withCreatedByName(existingTx)) as any;
+  }
+
   async createTransaction(data: AIReceiptData): Promise<TransactionWithCount> {
     const normalizedCategory =
       data.category.charAt(0).toUpperCase() +

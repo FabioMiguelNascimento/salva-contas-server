@@ -2,15 +2,15 @@ import { Injectable, Scope } from '@nestjs/common';
 import { UserContext } from 'src/auth/user-context.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
-  AIReceiptData,
-  GetTransactionsInput,
-  SplitInput,
-  UpdateTransactionInput,
+    AIReceiptData,
+    GetTransactionsInput,
+    SplitInput,
+    UpdateTransactionInput,
 } from 'src/schemas/transactions.schema';
 import { parseDateLocal } from 'src/utils/date-utils';
 import {
-  TransactionsRepositoryInterface,
-  TransactionWithCount,
+    TransactionsRepositoryInterface,
+    TransactionWithCount,
 } from './transactions.interface';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -186,15 +186,12 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
       };
     }
 
-    // Connect credit card only when no splits and creditCardId is provided
     if (!splits && creditCardId) {
       createData.creditCard = { connect: { id: creditCardId } };
-      createData.debitCard = { disconnect: true };
     }
 
     if (!splits && !creditCardId && debitCardId) {
       createData.debitCard = { connect: { id: debitCardId } };
-      createData.creditCard = { disconnect: true };
     }
 
     const tx = await this.prisma.transaction.create({

@@ -1,8 +1,8 @@
 import { Prisma } from 'generated/prisma/client';
 import {
-  AIReceiptData,
-  GetTransactionsInput,
-  UpdateTransactionInput,
+    AIReceiptData,
+    GetTransactionsInput,
+    UpdateTransactionInput,
 } from 'src/schemas/transactions.schema';
 
 export type TransactionWithCount = Prisma.TransactionGetPayload<{
@@ -13,10 +13,16 @@ export type TransactionWithCount = Prisma.TransactionGetPayload<{
   };
 }>;
 
+export type CreateTransactionOptions = {
+  skipCardRecalc?: boolean;
+};
+
 export abstract class TransactionsRepositoryInterface {
   abstract createTransaction(
     data: AIReceiptData,
+    options?: CreateTransactionOptions,
   ): Promise<TransactionWithCount>;
+  abstract recalcCardLimits(cardIds: string[]): Promise<void>;
   abstract findDuplicateTransaction(
     data: AIReceiptData,
   ): Promise<TransactionWithCount | null>;

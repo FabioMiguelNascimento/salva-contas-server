@@ -121,6 +121,8 @@ model Transaction {
   attachments  Attachment[]
   splits       TransactionSplit[]
 
+  @@index([userId, creditCardId, type], map: "idx_transactions_card_expense")
+  @@index([userId, description, amount, categoryName, type, status, dueDate, paymentDate, creditCardId, debitCardId], map: "idx_transactions_confirm_duplicate")
   @@map("transactions")
 }
 
@@ -140,6 +142,7 @@ model TransactionSplit {
 
   createdAt     DateTime      @default(now()) @map("created_at")
 
+  @@index([creditCardId], map: "idx_transaction_splits_credit_card")
   @@map("transaction_splits")
 }
 

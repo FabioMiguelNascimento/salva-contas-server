@@ -9,12 +9,18 @@ import {
 } from 'src/schemas/transactions.schema';
 import { parseDateLocal } from 'src/utils/date-utils';
 import {
+    CreateTransactionOptions,
     TransactionsRepositoryInterface,
     TransactionWithCount,
 } from './transactions.interface';
 
+const CARD_RECALC_CONCURRENCY = 4;
+
 @Injectable({ scope: Scope.REQUEST })
 export default class TransactionsRepository extends TransactionsRepositoryInterface {
+  private readonly createdByNameCache = new Map<string, string | null>();
+  private readonly categoryIdCache = new Map<string, string | null>();
+
   constructor(
     private prisma: PrismaService,
     private userContext: UserContext,
@@ -66,6 +72,37 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     });
   }
 
+  async recalcCardLimits(cardIds: string[]): Promise<void> {
+    const uniqueCardIds = [...new Set(cardIds.filter(Boolean))];
+    if (uniqueCardIds.length === 0) {
+      return;
+    }
+
+    for (let i = 0; i < uniqueCardIds.length; i += CARD_RECALC_CONCURRENCY) {
+      const batch = uniqueCardIds.slice(i, i + CARD_RECALC_CONCURRENCY);
+      await Promise.all(batch.map((cardId) => this.recalcCardLimit(cardId)));
+    }
+  }
+
+  private async resolveCategoryId(normalizedCategory: string): Promise<string | null> {
+    if (this.categoryIdCache.has(normalizedCategory)) {
+      return this.categoryIdCache.get(normalizedCategory) ?? null;
+    }
+
+    const categoryToConnect = await this.prisma.category.findFirst({
+      where: {
+        name: normalizedCategory,
+        OR: [{ userId: this.userId }, { isGlobal: true }],
+      },
+      orderBy: { userId: 'desc' },
+      select: { id: true },
+    });
+
+    const categoryId = categoryToConnect?.id ?? null;
+    this.categoryIdCache.set(normalizedCategory, categoryId);
+    return categoryId;
+  }
+
   private async createSplits(transactionId: string, splits: SplitInput[]) {
     await this.prisma.transactionSplit.createMany({
       data: splits.map((s) => ({
@@ -84,7 +121,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         splits.filter((s) => s.creditCardId).map((s) => s.creditCardId!),
       ),
     ];
-    await Promise.all(cardIds.map((cardId) => this.recalcCardLimit(cardId)));
+    await this.recalcCardLimits(cardIds);
   }
 
   private async withCreatedByName<T extends { createdById?: string | null }>(
@@ -97,14 +134,24 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
       };
     }
 
+    if (this.createdByNameCache.has(transaction.createdById)) {
+      return {
+        ...transaction,
+        createdByName: this.createdByNameCache.get(transaction.createdById) ?? null,
+      };
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: transaction.createdById },
       select: { name: true, email: true },
     });
 
+    const createdByName = user?.name || user?.email || null;
+    this.createdByNameCache.set(transaction.createdById, createdByName);
+
     return {
       ...transaction,
-      createdByName: user?.name || user?.email || null,
+      createdByName,
     };
   }
 
@@ -143,7 +190,10 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     return (await this.withCreatedByName(existingTx)) as any;
   }
 
-  async createTransaction(data: AIReceiptData): Promise<TransactionWithCount> {
+  async createTransaction(
+    data: AIReceiptData,
+    options?: CreateTransactionOptions,
+  ): Promise<TransactionWithCount> {
     const normalizedCategory =
       data.category.charAt(0).toUpperCase() +
       data.category.slice(1).toLowerCase();
@@ -153,16 +203,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     const dueDate = parseDateLocal((data as any).dueDate);
     const paymentDate = parseDateLocal((data as any).paymentDate);
 
-    const categoryToConnect = await this.prisma.category.findFirst({
-      where: {
-        name: normalizedCategory,
-        OR: [{ userId: this.userId }, { isGlobal: true }],
-      },
-      orderBy: { userId: 'desc' },
-    });
-
-    if (!categoryToConnect) {
-    }
+    const categoryIdToConnect = await this.resolveCategoryId(normalizedCategory);
 
     const createData: any = {
       ...transactionData,
@@ -174,8 +215,8 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
       categoryName: normalizedCategory,
     };
 
-    if (categoryToConnect) {
-      createData.categoryRel = { connect: { id: categoryToConnect.id } };
+    if (categoryIdToConnect) {
+      createData.categoryRel = { connect: { id: categoryIdToConnect } };
     } else {
       createData.categoryRel = {
         create: {
@@ -204,10 +245,16 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
       },
     });
 
+    if (!categoryIdToConnect && tx.categoryRel?.id) {
+      this.categoryIdCache.set(normalizedCategory, tx.categoryRel.id);
+    }
+
     if (splits && splits.length >= 2) {
       await this.createSplits(tx.id, splits as SplitInput[]);
-      await this.recalcSplitCards(splits as SplitInput[]);
-    } else if (tx.creditCardId) {
+      if (!options?.skipCardRecalc) {
+        await this.recalcSplitCards(splits as SplitInput[]);
+      }
+    } else if (tx.creditCardId && !options?.skipCardRecalc) {
       await this.recalcCardLimit(tx.creditCardId);
     }
     return (await this.withCreatedByName(tx)) as any;

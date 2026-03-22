@@ -3,7 +3,9 @@ import { DebitCardsRepositoryInterface } from '../debit-cards.interface';
 
 @Injectable()
 export class DeleteDebitCardUseCase {
-  constructor(private readonly debitCardsRepository: DebitCardsRepositoryInterface) {}
+  constructor(
+    private readonly debitCardsRepository: DebitCardsRepositoryInterface,
+  ) {}
 
   async execute(id: string): Promise<void> {
     try {

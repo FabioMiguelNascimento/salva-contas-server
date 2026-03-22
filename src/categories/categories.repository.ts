@@ -22,10 +22,7 @@ export default class CategoriesRepository extends CategoriesRepositoryInterface 
   async getAllCategories({ limit, cursor }: GetAllCategoriesInput) {
     const categories = await this.prisma.category.findMany({
       where: {
-        OR: [
-          { userId: this.userId },
-          { isGlobal: true },
-        ]
+        OR: [{ userId: this.userId }, { isGlobal: true }],
       },
       take: limit + 1,
       cursor: cursor ? { id: cursor } : undefined,
@@ -34,10 +31,10 @@ export default class CategoriesRepository extends CategoriesRepositoryInterface 
     });
 
     let nextCursor: string | undefined;
-    
+
     if (categories.length > limit) {
       const nextItem = categories.pop();
-      
+
       nextCursor = categories[categories.length - 1]?.id;
     }
 
@@ -51,7 +48,10 @@ export default class CategoriesRepository extends CategoriesRepositoryInterface 
     };
   }
 
-  async updateCategory(data: BaseCategoryUpdateInput, id: string): Promise<Category> {
+  async updateCategory(
+    data: BaseCategoryUpdateInput,
+    id: string,
+  ): Promise<Category> {
     const updatedCategory = await this.prisma.category.update({
       where: { id },
       data,

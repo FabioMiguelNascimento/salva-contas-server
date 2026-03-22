@@ -1,7 +1,16 @@
-import { BadRequestException, ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { UserContext } from 'src/auth/user-context.service';
 import { CategoriesRepositoryInterface } from 'src/categories/categories.interface';
-import { GEN_AI_SERVICE, GenAIServiceInterface } from 'src/gen-ai/gen-ai.interface';
+import {
+  GEN_AI_SERVICE,
+  GenAIServiceInterface,
+} from 'src/gen-ai/gen-ai.interface';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AIReceiptSchema } from 'src/schemas/transactions.schema';
 import { StorageService } from 'src/storage/storage.service';
@@ -11,8 +20,12 @@ import { TransactionsRepositoryInterface } from '../transactions.interface';
 @Injectable()
 export default class ProcessTransactionUseCase {
   private readonly logger = new Logger(ProcessTransactionUseCase.name);
-  private readonly maxCreditCardsInPrompt = Number(process.env.GEMINI_TRANSACTION_CARDS_LIMIT || 20);
-  private readonly maxCategoriesInPrompt = Number(process.env.GEMINI_TRANSACTION_CATEGORIES_LIMIT || 30);
+  private readonly maxCreditCardsInPrompt = Number(
+    process.env.GEMINI_TRANSACTION_CARDS_LIMIT || 20,
+  );
+  private readonly maxCategoriesInPrompt = Number(
+    process.env.GEMINI_TRANSACTION_CATEGORIES_LIMIT || 30,
+  );
 
   constructor(
     @Inject(TransactionsRepositoryInterface)
@@ -31,10 +44,18 @@ export default class ProcessTransactionUseCase {
   async execute(
     file: Express.Multer.File | null,
     textInput: string | null,
-    options?: { creditCardId?: string | null; debitCardId?: string | null; paymentDate?: string | null; dueDate?: string | null }
+    options?: {
+      creditCardId?: string | null;
+      debitCardId?: string | null;
+      paymentDate?: string | null;
+      dueDate?: string | null;
+    },
+    dryRun = false,
   ) {
     if (!file && !textInput?.trim()) {
-      throw new BadRequestException('Envie um arquivo ou texto para processamento da transação.');
+      throw new BadRequestException(
+        'Envie um arquivo ou texto para processamento da transação.',
+      );
     }
 
     const now = new Date();
@@ -44,60 +65,88 @@ export default class ProcessTransactionUseCase {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
     });
     const includeCreditCardsInPrompt = !options?.creditCardId;
     const includeDebitCardsInPrompt = !options?.debitCardId;
 
-    const uploadAttachmentPromise = file
-      ? this.storageService
-          .uploadFile(file, 'receipts')
-          .then((fileKey) => ({
-            attachmentKey: fileKey,
-            attachmentOriginalName: file.originalname,
-            attachmentMimeType: file.mimetype,
-            attachmentSize: file.size,
-          }))
-          .catch((error) => {
-            this.logger.warn(`Upload de anexo falhou ${error}`);
-            throw new ConflictException("Falha ao processar anexo");
-          })
-      : Promise.resolve({});
+    type AttachmentData = {
+      attachmentKey?: string | null;
+      attachmentOriginalName?: string | null;
+      attachmentMimeType?: string | null;
+      attachmentSize?: number | null;
+    };
+
+    const uploadAttachmentPromise: Promise<AttachmentData> = dryRun
+      ? Promise.resolve({})
+      : file
+        ? this.storageService
+            .uploadFile(file, 'receipts')
+            .then((fileKey) => ({
+              attachmentKey: fileKey,
+              attachmentOriginalName: file.originalname,
+              attachmentMimeType: file.mimetype,
+              attachmentSize: file.size,
+            }))
+            .catch((error) => {
+              this.logger.warn(`Upload de anexo falhou ${error}`);
+              throw new ConflictException('Falha ao processar anexo');
+            })
+        : Promise.resolve({});
 
     const [creditCards, debitCards, categoriesResult] = await Promise.all([
       includeCreditCardsInPrompt
-        ? this.creditCardsRepository.getCreditCards({ page: 1, limit: this.maxCreditCardsInPrompt, status: 'active' })
+        ? this.creditCardsRepository.getCreditCards({
+            page: 1,
+            limit: this.maxCreditCardsInPrompt,
+            status: 'active',
+          })
         : Promise.resolve([]),
       includeDebitCardsInPrompt
-        ? this.prisma.debitCard.findMany({ where: { userId: this.userContext.userId, status: 'active' }, orderBy: { createdAt: 'desc' }, take: this.maxCreditCardsInPrompt })
+        ? this.prisma.debitCard.findMany({
+            where: { userId: this.userContext.userId, status: 'active' },
+            orderBy: { createdAt: 'desc' },
+            take: this.maxCreditCardsInPrompt,
+          })
         : Promise.resolve([]),
-      this.categoriesRepository.getAllCategories({ limit: this.maxCategoriesInPrompt }),
+      this.categoriesRepository.getAllCategories({
+        limit: this.maxCategoriesInPrompt,
+      }),
     ]);
 
-    const creditCardsInfo = includeCreditCardsInPrompt && creditCards.length > 0
-      ? `\nCARTOES:\n${creditCards.map(c => `${c.id}|${c.name}|${c.flag}|${c.lastFourDigits}`).join('\n')}\nUse creditCardId apenas quando pagamento for cartao de credito.`
-      : '';
+    const creditCardsInfo =
+      includeCreditCardsInPrompt && creditCards.length > 0
+        ? `\nCARTOES:\n${creditCards.map((c) => `${c.id}|${c.name}|${c.flag}|${c.lastFourDigits}`).join('\n')}\nUse creditCardId apenas quando pagamento for cartao de credito.`
+        : '';
 
-    const debitCardsInfo = includeDebitCardsInPrompt && debitCards.length > 0
-      ? `\nCARTOES_DEBITO:\n${debitCards.map((c) => `${c.id}|${c.name}|${c.flag}|${c.lastFourDigits}`).join('\n')}\nUse debitCardId apenas quando pagamento for cartao de debito.`
-      : '';
+    const debitCardsInfo =
+      includeDebitCardsInPrompt && debitCards.length > 0
+        ? `\nCARTOES_DEBITO:\n${debitCards.map((c) => `${c.id}|${c.name}|${c.flag}|${c.lastFourDigits}`).join('\n')}\nUse debitCardId apenas quando pagamento for cartao de debito.`
+        : '';
 
     const categoriesList = categoriesResult?.data ? categoriesResult.data : [];
 
-    const categoriesInfo = categoriesList.length > 0
-      ? `\nCATEGORIAS:\n${categoriesList.map((c: any) => c.name).join(', ')}\nRetorne category com nome de categoria existente quando possivel.`
-      : '';
+    const categoriesInfo =
+      categoriesList.length > 0
+        ? `\nCATEGORIAS:\n${categoriesList.map((c: any) => c.name).join(', ')}\nRetorne category com nome de categoria existente quando possivel.`
+        : '';
 
     const documentHint = file?.originalname
       ? `\nARQUIVO: ${file.originalname}`
-      : (textInput ? `\nENTRADA DE TEXTO: ${textInput.slice(0, 250)}` : '');
+      : textInput
+        ? `\nENTRADA DE TEXTO: ${textInput.slice(0, 250)}`
+        : '';
 
     const familyMembers = await this.getFamilyMembersForPrompt();
-    const familyMembersInfo = familyMembers.length > 0
-      ? `\nMEMBROS DA CONTA (use createdById somente com IDs desta lista quando o texto indicar "quem fez" a transacao):\n${familyMembers
-          .map((member, index) => `${index + 1}. ${member.id}|${member.name || 'Sem nome'}|${member.email || 'Sem email'}`)
-          .join('\n')}`
-      : '';
+    const familyMembersInfo =
+      familyMembers.length > 0
+        ? `\nMEMBROS DA CONTA (use createdById somente com IDs desta lista quando o texto indicar "quem fez" a transacao):\n${familyMembers
+            .map(
+              (member, index) =>
+                `${index + 1}. ${member.id}|${member.name || 'Sem nome'}|${member.email || 'Sem email'}`,
+            )
+            .join('\n')}`
+        : '';
 
     const prompt = `
       Extraia dados financeiros e retorne SOMENTE JSON valido, sem markdown.
@@ -154,7 +203,10 @@ export default class ProcessTransactionUseCase {
           : null,
       });
     } catch (error) {
-      this.logger.error('Falha no layer de GenAI ao extrair dados da transacao', error as any);
+      this.logger.error(
+        'Falha no layer de GenAI ao extrair dados da transacao',
+        error,
+      );
       throw error;
     }
 
@@ -162,7 +214,9 @@ export default class ProcessTransactionUseCase {
     try {
       parsedJson = JSON.parse(rawText);
     } catch {
-      throw new BadRequestException('A IA retornou um formato inválido (JSON malformado).');
+      throw new BadRequestException(
+        'A IA retornou um formato inválido (JSON malformado).',
+      );
     }
 
     parsedJson = this.normalizeAiPayload(parsedJson);
@@ -205,27 +259,59 @@ export default class ProcessTransactionUseCase {
         data.dueDate = options.dueDate;
       }
 
-      data.createdById = await this.resolveCreatedById(data.createdById ?? null);
+      data.createdById = await this.resolveCreatedById(
+        data.createdById ?? null,
+      );
 
       // If splits sum doesn't match amount (floating point rounding), normalize the largest slice
       if (data.splits && data.splits.length >= 2) {
         const splitSum = data.splits.reduce((s, sp) => s + sp.amount, 0);
         const diff = Math.round((data.amount - splitSum) * 100) / 100;
         if (Math.abs(diff) > 0 && Math.abs(diff) < 1) {
-          const maxIdx = data.splits.reduce((mi, sp, i, arr) => sp.amount > arr[mi].amount ? i : mi, 0);
-          data.splits[maxIdx].amount = Math.round((data.splits[maxIdx].amount + diff) * 100) / 100;
+          const maxIdx = data.splits.reduce(
+            (mi, sp, i, arr) => (sp.amount > arr[mi].amount ? i : mi),
+            0,
+          );
+          data.splits[maxIdx].amount =
+            Math.round((data.splits[maxIdx].amount + diff) * 100) / 100;
         }
       }
 
-      const transaction = await this.transactionsRepository.createTransaction({
-        ...data,
-        ...(index === 0 ? attachmentData : {}),
-      });
+      let transaction: any;
+
+      if (dryRun) {
+        transaction = {
+          ...data,
+          dueDate: data.dueDate ?? null,
+          paymentDate: data.paymentDate ?? null,
+          categoryName: data.category || null,
+          createdById: data.createdById || null,
+          creditCardId: data.creditCardId || null,
+          debitCardId: data.debitCardId || null,
+          attachmentKey:
+            (index === 0 ? attachmentData.attachmentKey : undefined) ?? null,
+          attachmentOriginalName:
+            (index === 0 ? attachmentData.attachmentOriginalName : undefined) ??
+            null,
+          attachmentMimeType:
+            (index === 0 ? attachmentData.attachmentMimeType : undefined) ??
+            null,
+          attachmentSize:
+            (index === 0 ? attachmentData.attachmentSize : undefined) ?? null,
+        };
+      } else {
+        transaction = await this.transactionsRepository.createTransaction({
+          ...data,
+          ...(index === 0 ? attachmentData : {}),
+        });
+      }
 
       createdTransactions.push(transaction);
     }
 
-    return createdTransactions.length === 1 ? createdTransactions[0] : createdTransactions;
+    return createdTransactions.length === 1
+      ? createdTransactions[0]
+      : createdTransactions;
   }
 
   private normalizeAiPayload(input: unknown): unknown {
@@ -275,10 +361,18 @@ export default class ProcessTransactionUseCase {
     // AI occasionally returns a single split item; treat it as single payment.
     if (Array.isArray(splits) && splits.length === 1) {
       const first = splits[0] || {};
-      if (!payload.creditCardId && first.paymentMethod === 'credit_card' && first.creditCardId) {
+      if (
+        !payload.creditCardId &&
+        first.paymentMethod === 'credit_card' &&
+        first.creditCardId
+      ) {
         payload.creditCardId = first.creditCardId;
       }
-      if (!payload.debitCardId && first.paymentMethod === 'debit' && first.debitCardId) {
+      if (
+        !payload.debitCardId &&
+        first.paymentMethod === 'debit' &&
+        first.debitCardId
+      ) {
         payload.debitCardId = first.debitCardId;
       }
       delete payload.splits;
@@ -329,12 +423,16 @@ export default class ProcessTransactionUseCase {
 
     const allowedMemberIds = new Set(members.map((member) => member.id));
     if (!allowedMemberIds.has(requestedCreatedById)) {
-      throw new BadRequestException('createdById inválido para esta conta compartilhada.');
+      throw new BadRequestException(
+        'createdById inválido para esta conta compartilhada.',
+      );
     }
 
     const actorIsOwner = actor.id === ownerId;
     if (!actorIsOwner && requestedCreatedById !== actor.id) {
-      throw new BadRequestException('Somente o dono da conta pode registrar em nome de outro membro.');
+      throw new BadRequestException(
+        'Somente o dono da conta pode registrar em nome de outro membro.',
+      );
     }
 
     return requestedCreatedById;

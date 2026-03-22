@@ -1,6 +1,8 @@
-
 export abstract class DashboardRepositoryInterface {
-  abstract getMetrics(month?: number, year?: number): Promise<{
+  abstract getMetrics(
+    month?: number,
+    year?: number,
+  ): Promise<{
     totalIncome: number;
     totalExpenses: number;
     netBalance: number;

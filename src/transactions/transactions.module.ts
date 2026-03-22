@@ -11,6 +11,7 @@ import { PrismaModule } from 'src/prisma/prisma.module';
 import { TransactionsController } from './transactions.controller';
 import { TransactionsRepositoryInterface } from './transactions.interface';
 import TransactionsRepository from './transactions.repository';
+import { ConfirmTransactionUseCase } from './use-cases/confirm-transaction.use-case';
 import { DeleteTransactionUseCase } from './use-cases/delete-transaction.use-case';
 import GetTransactionsUseCase from './use-cases/get-transactions.use-case';
 import ProcessTransactionUseCase from './use-cases/process-transaction.use-case';
@@ -21,20 +22,21 @@ import { UpdateTransactionUseCase } from './use-cases/update-transaction.use-cas
   controllers: [TransactionsController],
   providers: [
     ProcessTransactionUseCase,
+    ConfirmTransactionUseCase,
     GetTransactionsUseCase,
     UpdateTransactionUseCase,
     DeleteTransactionUseCase,
     {
       provide: TransactionsRepositoryInterface,
-      useClass: TransactionsRepository
+      useClass: TransactionsRepository,
     },
     {
       provide: CreditCardsRepositoryInterface,
-      useClass: CreditCardsRepository
+      useClass: CreditCardsRepository,
     },
     {
       provide: CategoriesRepositoryInterface,
-      useClass: CategoriesRepository
+      useClass: CategoriesRepository,
     },
     GeminiGenAIProvider,
     GroqGenAIProvider,

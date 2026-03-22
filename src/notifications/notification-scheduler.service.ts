@@ -4,7 +4,9 @@ import { NotificationsAutomationService } from './notifications-automation.servi
 
 @Injectable()
 export class NotificationSchedulerService {
-  constructor(private readonly notificationsAutomationService: NotificationsAutomationService) {}
+  constructor(
+    private readonly notificationsAutomationService: NotificationsAutomationService,
+  ) {}
 
   // Executar diariamente às 9:00
   @Cron('0 9 * * *')

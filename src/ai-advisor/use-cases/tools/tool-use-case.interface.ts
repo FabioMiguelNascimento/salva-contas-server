@@ -6,5 +6,8 @@ export type ToolExecutionContext = {
 
 export interface AiAdvisorToolUseCase {
   readonly name: string;
-  execute(rawArgs: Record<string, any>, context?: ToolExecutionContext): Promise<ToolExecutionResult>;
+  execute(
+    rawArgs: Record<string, any>,
+    context?: ToolExecutionContext,
+  ): Promise<ToolExecutionResult>;
 }

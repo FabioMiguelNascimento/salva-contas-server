@@ -2,8 +2,15 @@ import { Injectable, Scope } from '@nestjs/common';
 import { CreditCard, Prisma } from '../../generated/prisma/client';
 import { UserContext } from '../auth/user-context.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateCreditCardInput, GetCreditCardsInput, UpdateCreditCardInput } from '../schemas/credit-cards.schema';
-import { CreditCardsRepositoryInterface, CreditCardWithUsage } from './credit-cards.interface';
+import {
+  CreateCreditCardInput,
+  GetCreditCardsInput,
+  UpdateCreditCardInput,
+} from '../schemas/credit-cards.schema';
+import {
+  CreditCardsRepositoryInterface,
+  CreditCardWithUsage,
+} from './credit-cards.interface';
 
 @Injectable({ scope: Scope.REQUEST })
 export class CreditCardsRepository implements CreditCardsRepositoryInterface {
@@ -67,22 +74,26 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
           },
           _sum: { amount: true },
         });
-        const debt = Number(txAgg._sum.amount || 0) + Number(splitAgg._sum.amount || 0);
+        const debt =
+          Number(txAgg._sum.amount || 0) + Number(splitAgg._sum.amount || 0);
         card.availableLimit = new Prisma.Decimal(Number(card.limit) - debt);
-      })
+      }),
     );
 
     return cards;
   }
 
-  async getCreditCardsWithUsage(filters?: GetCreditCardsInput): Promise<CreditCardWithUsage[]> {
+  async getCreditCardsWithUsage(
+    filters?: GetCreditCardsInput,
+  ): Promise<CreditCardWithUsage[]> {
     const creditCards = await this.getCreditCards(filters);
-    
+
     const result: CreditCardWithUsage[] = [];
-    
+
     for (const card of creditCards) {
-      const { invoiceStartDate, invoiceEndDate, dueDate } = this.calculateInvoiceDates(card.closingDay, card.dueDay);
-      
+      const { invoiceStartDate, invoiceEndDate, dueDate } =
+        this.calculateInvoiceDates(card.closingDay, card.dueDay);
+
       const currentInvoiceResult = await this.prisma.transaction.aggregate({
         where: {
           userId: this.userId,
@@ -109,7 +120,9 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
         _sum: { amount: true },
       });
 
-      const currentInvoiceAmount = Number(currentInvoiceResult._sum?.amount || 0);
+      const currentInvoiceAmount = Number(
+        currentInvoiceResult._sum?.amount || 0,
+      );
       const pendingAmount = Number(pendingResult._sum?.amount || 0);
       const totalDebt = currentInvoiceAmount + pendingAmount;
       const usedLimit = totalDebt;
@@ -129,10 +142,13 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     return result;
   }
 
-  private calculateInvoiceDates(closingDay: number, dueDayOfMonth: number): { 
-    invoiceStartDate: Date; 
-    invoiceEndDate: Date; 
-    dueDate: Date; 
+  private calculateInvoiceDates(
+    closingDay: number,
+    dueDayOfMonth: number,
+  ): {
+    invoiceStartDate: Date;
+    invoiceEndDate: Date;
+    dueDate: Date;
   } {
     const now = new Date();
     const currentDay = now.getDate();
@@ -144,18 +160,46 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     let dueDate: Date;
 
     if (currentDay <= closingDay) {
-      invoiceEndDate = new Date(currentYear, currentMonth, closingDay, 23, 59, 59);
-      invoiceStartDate = new Date(currentYear, currentMonth - 1, closingDay + 1, 0, 0, 0);
-      
+      invoiceEndDate = new Date(
+        currentYear,
+        currentMonth,
+        closingDay,
+        23,
+        59,
+        59,
+      );
+      invoiceStartDate = new Date(
+        currentYear,
+        currentMonth - 1,
+        closingDay + 1,
+        0,
+        0,
+        0,
+      );
+
       if (dueDayOfMonth > closingDay) {
         dueDate = new Date(currentYear, currentMonth, dueDayOfMonth);
       } else {
         dueDate = new Date(currentYear, currentMonth + 1, dueDayOfMonth);
       }
     } else {
-      invoiceEndDate = new Date(currentYear, currentMonth + 1, closingDay, 23, 59, 59);
-      invoiceStartDate = new Date(currentYear, currentMonth, closingDay + 1, 0, 0, 0);
-      
+      invoiceEndDate = new Date(
+        currentYear,
+        currentMonth + 1,
+        closingDay,
+        23,
+        59,
+        59,
+      );
+      invoiceStartDate = new Date(
+        currentYear,
+        currentMonth,
+        closingDay + 1,
+        0,
+        0,
+        0,
+      );
+
       if (dueDayOfMonth > closingDay) {
         dueDate = new Date(currentYear, currentMonth + 1, dueDayOfMonth);
       } else {
@@ -175,8 +219,13 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     });
   }
 
-  async updateCreditCard(id: string, data: UpdateCreditCardInput): Promise<CreditCard> {
-    const existing = await this.prisma.creditCard.findFirst({ where: { id, userId: this.userId } });
+  async updateCreditCard(
+    id: string,
+    data: UpdateCreditCardInput,
+  ): Promise<CreditCard> {
+    const existing = await this.prisma.creditCard.findFirst({
+      where: { id, userId: this.userId },
+    });
     if (!existing) {
       const notFoundError: any = new Error('Credit card not found');
       notFoundError.code = 'P2025';
@@ -192,7 +241,9 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
   }
 
   async deleteCreditCard(id: string): Promise<void> {
-    const existing = await this.prisma.creditCard.findFirst({ where: { id, userId: this.userId } });
+    const existing = await this.prisma.creditCard.findFirst({
+      where: { id, userId: this.userId },
+    });
     if (!existing) {
       const notFoundError: any = new Error('Credit card not found');
       notFoundError.code = 'P2025';
@@ -256,10 +307,18 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     let nextDueDate: Date;
 
     if (now.getDate() <= creditCard.closingDay) {
-      nextClosingDate = new Date(currentYear, currentMonth - 1, creditCard.closingDay);
+      nextClosingDate = new Date(
+        currentYear,
+        currentMonth - 1,
+        creditCard.closingDay,
+      );
       nextDueDate = new Date(currentYear, currentMonth - 1, creditCard.dueDay);
     } else {
-      nextClosingDate = new Date(currentYear, currentMonth, creditCard.closingDay);
+      nextClosingDate = new Date(
+        currentYear,
+        currentMonth,
+        creditCard.closingDay,
+      );
       nextDueDate = new Date(currentYear, currentMonth, creditCard.dueDay);
     }
 

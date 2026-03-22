@@ -28,7 +28,11 @@ export class GetSpendingTrendToolUseCase implements AiAdvisorToolUseCase {
     startDate.setHours(0, 0, 0, 0);
 
     const expenses = await this.prisma.transaction.findMany({
-      where: { userId: this.userId, type: 'expense', paymentDate: { gte: startDate } },
+      where: {
+        userId: this.userId,
+        type: 'expense',
+        paymentDate: { gte: startDate },
+      },
       select: { amount: true, paymentDate: true },
       orderBy: { paymentDate: 'asc' },
     });
@@ -36,7 +40,10 @@ export class GetSpendingTrendToolUseCase implements AiAdvisorToolUseCase {
     const grouped = new Map<string, number>();
     for (const tx of expenses) {
       const dateKey = (tx.paymentDate || today).toISOString().slice(0, 10);
-      grouped.set(dateKey, (grouped.get(dateKey) || 0) + Number(tx.amount || 0));
+      grouped.set(
+        dateKey,
+        (grouped.get(dateKey) || 0) + Number(tx.amount || 0),
+      );
     }
 
     const points: Array<{ date: string; total: number }> = [];
@@ -44,7 +51,10 @@ export class GetSpendingTrendToolUseCase implements AiAdvisorToolUseCase {
       const d = new Date(startDate);
       d.setDate(startDate.getDate() + i);
       const key = d.toISOString().slice(0, 10);
-      points.push({ date: key, total: Number((grouped.get(key) || 0).toFixed(2)) });
+      points.push({
+        date: key,
+        total: Number((grouped.get(key) || 0).toFixed(2)),
+      });
     }
 
     const data = { daysBack, points };

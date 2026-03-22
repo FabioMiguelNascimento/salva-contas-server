@@ -1,3 +1,6 @@
-import { CategoryUpdateInput } from "generated/prisma/models";
+import { CategoryUpdateInput } from 'generated/prisma/models';
 
-export interface BaseCategoryUpdateInput extends Omit<CategoryUpdateInput, 'id' | 'userId' | 'transactions'> {}
+export interface BaseCategoryUpdateInput extends Omit<
+  CategoryUpdateInput,
+  'id' | 'userId' | 'transactions'
+> {}

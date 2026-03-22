@@ -3,7 +3,9 @@ import { DashboardRepositoryInterface } from '../dashboard.interface';
 
 @Injectable()
 export class GetDashboardSnapshotUseCase {
-  constructor(private readonly dashboardRepository: DashboardRepositoryInterface) {}
+  constructor(
+    private readonly dashboardRepository: DashboardRepositoryInterface,
+  ) {}
 
   async execute(filters?: {
     month?: number;

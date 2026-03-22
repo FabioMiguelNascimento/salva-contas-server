@@ -5,9 +5,14 @@ import { NotificationsRepositoryInterface } from '../notifications.interface';
 
 @Injectable()
 export class GetNotificationsUseCase {
-  constructor(private readonly notificationsRepository: NotificationsRepositoryInterface) {}
+  constructor(
+    private readonly notificationsRepository: NotificationsRepositoryInterface,
+  ) {}
 
   async execute(filters?: GetNotificationsInput): Promise<Notification[]> {
-    return this.notificationsRepository.getNotifications(filters?.status, filters?.limit);
+    return this.notificationsRepository.getNotifications(
+      filters?.status,
+      filters?.limit,
+    );
   }
 }

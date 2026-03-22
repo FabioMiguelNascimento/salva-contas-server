@@ -8,7 +8,7 @@ const mockPrisma: any = {
     findFirst: jest.fn(),
     create: jest.fn(),
     updateMany: jest.fn(),
-  }
+  },
 };
 
 const mockUserContext: any = { userId: 'user-1' };
@@ -22,11 +22,19 @@ describe('NotificationsRepository', () => {
   });
 
   it('delegates due date notification generation to automation service using the current user id', async () => {
-    const repo = new NotificationsRepository(mockPrisma, mockUserContext, mockNotificationsAutomationService);
+    const repo = new NotificationsRepository(
+      mockPrisma,
+      mockUserContext,
+      mockNotificationsAutomationService,
+    );
 
     await repo.generateDueDateNotifications();
 
-    expect(mockNotificationsAutomationService.generateDueDateNotifications).toHaveBeenCalledTimes(1);
-    expect(mockNotificationsAutomationService.generateDueDateNotifications).toHaveBeenCalledWith('user-1');
+    expect(
+      mockNotificationsAutomationService.generateDueDateNotifications,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      mockNotificationsAutomationService.generateDueDateNotifications,
+    ).toHaveBeenCalledWith('user-1');
   });
 });

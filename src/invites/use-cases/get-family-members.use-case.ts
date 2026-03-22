@@ -11,7 +11,9 @@ export class GetFamilyMembersUseCase {
   ) {}
 
   async execute() {
-    const actor = await this.invitesRepository.findUserById(this.userContext.actorUserId);
+    const actor = await this.invitesRepository.findUserById(
+      this.userContext.actorUserId,
+    );
 
     if (!actor) {
       throw new NotFoundException('Usuário não encontrado.');

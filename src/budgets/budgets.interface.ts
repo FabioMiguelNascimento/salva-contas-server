@@ -10,10 +10,15 @@ export abstract class BudgetsRepositoryInterface {
   abstract getBudgets(month?: number, year?: number): Promise<Budget[]>;
   abstract updateBudget(id: string, data: { amount?: number }): Promise<Budget>;
   abstract deleteBudget(id: string): Promise<void>;
-  abstract getBudgetProgress(month: number, year: number): Promise<Array<{
-    budget: Budget;
-    spent: number;
-    remaining: number;
-    percentage: number;
-  }>>;
+  abstract getBudgetProgress(
+    month: number,
+    year: number,
+  ): Promise<
+    Array<{
+      budget: Budget;
+      spent: number;
+      remaining: number;
+      percentage: number;
+    }>
+  >;
 }

@@ -4,7 +4,9 @@ import { SubscriptionsRepositoryInterface } from '../subscriptions.interface';
 
 @Injectable()
 export class CancelSubscriptionUseCase {
-  constructor(private readonly subscriptionsRepository: SubscriptionsRepositoryInterface) {}
+  constructor(
+    private readonly subscriptionsRepository: SubscriptionsRepositoryInterface,
+  ) {}
 
   async execute(id: string): Promise<Subscription> {
     try {

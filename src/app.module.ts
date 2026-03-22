@@ -17,18 +17,17 @@ import { TransactionsModule } from './transactions/transactions.module';
   imports: [
     StorageModule,
     AiAdvisorModule,
-    AuthModule, 
-    HealthModule, 
+    AuthModule,
+    HealthModule,
     InvitesModule,
-    TransactionsModule, 
-    CategoriesModule, 
-    SubscriptionsModule, 
-    DashboardModule, 
-    BudgetsModule, 
-    NotificationsModule, 
+    TransactionsModule,
+    CategoriesModule,
+    SubscriptionsModule,
+    DashboardModule,
+    BudgetsModule,
+    NotificationsModule,
     CreditCardsModule,
     DebitCardsModule,
   ],
 })
 export class AppModule {}
-

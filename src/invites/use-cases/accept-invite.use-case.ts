@@ -1,4 +1,9 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { UserContext } from 'src/auth/user-context.service';
 import { AcceptInviteInput } from 'src/schemas/invites.schema';
 import { InvitesRepositoryInterface } from '../invites.interface';
@@ -25,10 +30,15 @@ export class AcceptInviteUseCase {
     const actorUserId = this.userContext.actorUserId;
 
     if (invite.fromUserId === actorUserId) {
-      throw new BadRequestException('Você não pode aceitar um convite da sua própria conta.');
+      throw new BadRequestException(
+        'Você não pode aceitar um convite da sua própria conta.',
+      );
     }
 
-    await this.invitesRepository.setLinkedAccount(actorUserId, invite.fromUserId);
+    await this.invitesRepository.setLinkedAccount(
+      actorUserId,
+      invite.fromUserId,
+    );
     await this.invitesRepository.markInviteAccepted({
       inviteId: invite.id,
       acceptedById: actorUserId,
@@ -36,7 +46,8 @@ export class AcceptInviteUseCase {
 
     return {
       linkedToId: invite.fromUserId,
-      ownerName: invite.fromUser?.name || invite.fromUser?.email || 'Conta principal',
+      ownerName:
+        invite.fromUser?.name || invite.fromUser?.email || 'Conta principal',
     };
   }
 }

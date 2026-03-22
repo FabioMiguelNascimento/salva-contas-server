@@ -5,8 +5,11 @@ import { GroqGenAIProvider } from 'src/gen-ai/providers/groq-gen-ai.provider';
 @Injectable()
 export class AiAdvisorModelService {
   private readonly logger = new Logger(AiAdvisorModelService.name);
-  private readonly genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-  private readonly modelName = process.env.AI_ADVISOR_MODEL || 'gemini-2.5-flash';
+  private readonly genAI = new GoogleGenerativeAI(
+    process.env.GEMINI_API_KEY || '',
+  );
+  private readonly modelName =
+    process.env.AI_ADVISOR_MODEL || 'gemini-2.5-flash';
 
   constructor(private readonly groqProvider: GroqGenAIProvider) {}
 
@@ -61,7 +64,9 @@ export class AiAdvisorModelService {
     try {
       parsed = JSON.parse(jsonText);
     } catch {
-      this.logger.warn('Fallback Groq retornou JSON invalido, retornando como texto puro.');
+      this.logger.warn(
+        'Fallback Groq retornou JSON invalido, retornando como texto puro.',
+      );
       return {
         response: {
           candidates: [
@@ -83,7 +88,9 @@ export class AiAdvisorModelService {
               parts: [
                 { text: parsed.message || '' },
                 ...(Array.isArray(parsed.functionCalls)
-                  ? parsed.functionCalls.map((fn: any) => ({ functionCall: fn }))
+                  ? parsed.functionCalls.map((fn: any) => ({
+                      functionCall: fn,
+                    }))
                   : []),
               ],
             },

@@ -3,17 +3,17 @@ import { User } from '@supabase/supabase-js';
 import { Request } from 'express';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
-    RefreshTokenInput,
-    RefreshTokenSchema,
-    ResetPasswordInput,
-    ResetPasswordSchema,
-    SignInInput,
-    SignInSchema,
-    SignUpInput,
-    SignUpSchema,
-    UpdatePasswordInput,
-    UpdatePasswordSchema,
-    UpdateProfileSchema,
+  RefreshTokenInput,
+  RefreshTokenSchema,
+  ResetPasswordInput,
+  ResetPasswordSchema,
+  SignInInput,
+  SignInSchema,
+  SignUpInput,
+  SignUpSchema,
+  UpdatePasswordInput,
+  UpdatePasswordSchema,
+  UpdateProfileSchema,
 } from '../schemas/auth.schema';
 import { success } from '../utils/api-response-helper';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -26,18 +26,17 @@ export class AuthController {
 
   @Public()
   @Post('signup')
-  async signUp(
-    @Body(new ZodValidationPipe(SignUpSchema)) data: SignUpInput,
-  ) {
+  async signUp(@Body(new ZodValidationPipe(SignUpSchema)) data: SignUpInput) {
     const result = await this.supabaseService.signUp(data);
-    return success(result, 'Conta criada com sucesso. Verifique seu email para confirmar.');
+    return success(
+      result,
+      'Conta criada com sucesso. Verifique seu email para confirmar.',
+    );
   }
 
   @Public()
   @Post('login')
-  async signIn(
-    @Body(new ZodValidationPipe(SignInSchema)) data: SignInInput,
-  ) {
+  async signIn(@Body(new ZodValidationPipe(SignInSchema)) data: SignInInput) {
     const result = await this.supabaseService.signIn(data);
     return success(result, 'Login realizado com sucesso');
   }
@@ -70,10 +69,14 @@ export class AuthController {
   @Put('update-password')
   async updatePassword(
     @Headers('authorization') authorization: string,
-    @Body(new ZodValidationPipe(UpdatePasswordSchema)) data: UpdatePasswordInput,
+    @Body(new ZodValidationPipe(UpdatePasswordSchema))
+    data: UpdatePasswordInput,
   ) {
     const token = authorization?.replace('Bearer ', '');
-    const result = await this.supabaseService.updatePassword(token, data.password);
+    const result = await this.supabaseService.updatePassword(
+      token,
+      data.password,
+    );
     return success(result, 'Senha atualizada com sucesso');
   }
 
@@ -88,7 +91,9 @@ export class AuthController {
       {
         id: updated?.id,
         email: updated?.email,
-        name: updated?.user_metadata?.name ?? updated?.user_metadata?.preferences?.name,
+        name:
+          updated?.user_metadata?.name ??
+          updated?.user_metadata?.preferences?.name,
         user_metadata: updated?.user_metadata,
       },
       'Perfil atualizado com sucesso',

@@ -14,8 +14,8 @@ import UpdateCategoryUseCase from './use-cases/update-category.use-case';
     UpdateCategoryUseCase,
     {
       provide: CategoriesRepositoryInterface,
-      useClass: CategoriesRepository
-    }
-  ]
+      useClass: CategoriesRepository,
+    },
+  ],
 })
 export class CategoriesModule {}

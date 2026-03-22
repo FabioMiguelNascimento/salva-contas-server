@@ -3,7 +3,9 @@ import { NotificationsRepositoryInterface } from '../notifications.interface';
 
 @Injectable()
 export class DeleteNotificationUseCase {
-  constructor(private readonly notificationsRepository: NotificationsRepositoryInterface) {}
+  constructor(
+    private readonly notificationsRepository: NotificationsRepositoryInterface,
+  ) {}
 
   async execute(id: string): Promise<void> {
     try {

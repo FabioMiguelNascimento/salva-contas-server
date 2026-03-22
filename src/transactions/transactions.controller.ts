@@ -1,8 +1,28 @@
-import { Body, Controller, Delete, Get, Logger, Param, Patch, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Logger,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
-import { GetTransactionsInput, GetTransactionsSchema, UpdateTransactionInput, UpdateTransactionSchema } from 'src/schemas/transactions.schema';
+import {
+  ConfirmTransactionInput,
+  ConfirmTransactionSchema,
+  GetTransactionsInput,
+  GetTransactionsSchema,
+  UpdateTransactionInput,
+  UpdateTransactionSchema,
+} from 'src/schemas/transactions.schema';
 import { success, successWithPagination } from 'src/utils/api-response-helper';
+import { ConfirmTransactionUseCase } from './use-cases/confirm-transaction.use-case';
 import { DeleteTransactionUseCase } from './use-cases/delete-transaction.use-case';
 import GetTransactionsUseCase from './use-cases/get-transactions.use-case';
 import ProcessTransactionUseCase from './use-cases/process-transaction.use-case';
@@ -10,53 +30,74 @@ import { UpdateTransactionUseCase } from './use-cases/update-transaction.use-cas
 
 @Controller('transactions')
 export class TransactionsController {
-    private readonly logger = new Logger(TransactionsController.name);
+  private readonly logger = new Logger(TransactionsController.name);
 
-    constructor(
-        private readonly processTransactionUseCase: ProcessTransactionUseCase,
-        private readonly getTransactionsUseCase: GetTransactionsUseCase,
-        private readonly updateTransactionUseCase: UpdateTransactionUseCase,
-        private readonly deleteTransactionUseCase: DeleteTransactionUseCase,
-    ) {}
+  constructor(
+    private readonly processTransactionUseCase: ProcessTransactionUseCase,
+    private readonly confirmTransactionUseCase: ConfirmTransactionUseCase,
+    private readonly getTransactionsUseCase: GetTransactionsUseCase,
+    private readonly updateTransactionUseCase: UpdateTransactionUseCase,
+    private readonly deleteTransactionUseCase: DeleteTransactionUseCase,
+  ) {}
 
-    @Post()
-    @UseInterceptors(FileInterceptor('file'))
-    async processTransaction(
-        @Body("text") body: string,
-        @Body("creditCardId") creditCardId: string | null,
-        @Body("debitCardId") debitCardId: string | null,
-        @Body("paymentDate") paymentDate: string | null,
-        @Body("dueDate") dueDate: string | null,
-        @UploadedFile() file: Express.Multer.File,
-    ) {
-        const data = await this.processTransactionUseCase.execute(file, body, { creditCardId, debitCardId, paymentDate, dueDate });
+  @Post('confirm')
+  async confirmTransactions(
+    @Body(new ZodValidationPipe(ConfirmTransactionSchema))
+    data: ConfirmTransactionInput,
+  ) {
+    const result = await this.confirmTransactionUseCase.execute(data as any);
+    return success(result, 'Transação(s) confirmada(s) com sucesso');
+  }
 
-        return success(data, "Transaction processed successfully");
-    }   
+  @Post()
+  @UseInterceptors(FileInterceptor('file'))
+  async processTransaction(
+    @Body('text') body: string,
+    @Body('creditCardId') creditCardId: string | null,
+    @Body('debitCardId') debitCardId: string | null,
+    @Body('paymentDate') paymentDate: string | null,
+    @Body('dueDate') dueDate: string | null,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const data = await this.processTransactionUseCase.execute(file, body, {
+      creditCardId,
+      debitCardId,
+      paymentDate,
+      dueDate,
+    });
 
-    @Get()
-    async getTransactions(
-        @Query(new ZodValidationPipe(GetTransactionsSchema)) filters: GetTransactionsInput,
-    ) {
-        const result = await this.getTransactionsUseCase.execute(filters);
+    return success(data, 'Transaction processed successfully');
+  }
 
-        return successWithPagination(result.data, result.meta, "Transações recuperadas com sucesso");
-    }
+  @Get()
+  async getTransactions(
+    @Query(new ZodValidationPipe(GetTransactionsSchema))
+    filters: GetTransactionsInput,
+  ) {
+    const result = await this.getTransactionsUseCase.execute(filters);
 
-    @Patch(':id')
-    async updateTransaction(
-        @Param('id') id: string,
-        @Body(new ZodValidationPipe(UpdateTransactionSchema)) data: UpdateTransactionInput,
-    ) {
-        const transaction = await this.updateTransactionUseCase.execute(id, data);
+    return successWithPagination(
+      result.data,
+      result.meta,
+      'Transações recuperadas com sucesso',
+    );
+  }
 
-        return success(transaction, "Transação atualizada com sucesso");
-    }
+  @Patch(':id')
+  async updateTransaction(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(UpdateTransactionSchema))
+    data: UpdateTransactionInput,
+  ) {
+    const transaction = await this.updateTransactionUseCase.execute(id, data);
 
-    @Delete(':id')
-    async deleteTransaction(@Param('id') id: string) {
-        await this.deleteTransactionUseCase.execute(id);
+    return success(transaction, 'Transação atualizada com sucesso');
+  }
 
-        return success(null, "Transação deletada com sucesso");
-    }
+  @Delete(':id')
+  async deleteTransaction(@Param('id') id: string) {
+    await this.deleteTransactionUseCase.execute(id);
+
+    return success(null, 'Transação deletada com sucesso');
+  }
 }

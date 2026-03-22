@@ -1,4 +1,9 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InvitesRepositoryInterface } from '../invites.interface';
 
 @Injectable()
@@ -20,7 +25,8 @@ export class PreviewInviteUseCase {
     }
 
     return {
-      ownerName: invite.fromUser?.name || invite.fromUser?.email || 'Conta principal',
+      ownerName:
+        invite.fromUser?.name || invite.fromUser?.email || 'Conta principal',
       expiresAt: invite.expiresAt,
     };
   }

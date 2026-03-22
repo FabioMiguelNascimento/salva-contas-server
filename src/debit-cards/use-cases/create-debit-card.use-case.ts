@@ -5,7 +5,9 @@ import { DebitCardsRepositoryInterface } from '../debit-cards.interface';
 
 @Injectable()
 export class CreateDebitCardUseCase {
-  constructor(private readonly debitCardsRepository: DebitCardsRepositoryInterface) {}
+  constructor(
+    private readonly debitCardsRepository: DebitCardsRepositoryInterface,
+  ) {}
 
   async execute(data: CreateDebitCardInput): Promise<DebitCard> {
     return this.debitCardsRepository.createDebitCard(data);

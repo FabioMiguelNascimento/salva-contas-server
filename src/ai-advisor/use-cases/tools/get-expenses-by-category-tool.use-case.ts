@@ -26,7 +26,11 @@ export class GetExpensesByCategoryToolUseCase implements AiAdvisorToolUseCase {
 
     const grouped = await this.prisma.transaction.groupBy({
       by: ['categoryName'],
-      where: { userId: this.userId, type: 'expense', createdAt: { gte: startDate, lt: endDate } },
+      where: {
+        userId: this.userId,
+        type: 'expense',
+        createdAt: { gte: startDate, lt: endDate },
+      },
       _sum: { amount: true },
       orderBy: { _sum: { amount: 'desc' } },
     });

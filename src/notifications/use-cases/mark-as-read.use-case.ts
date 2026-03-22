@@ -4,7 +4,9 @@ import { NotificationsRepositoryInterface } from '../notifications.interface';
 
 @Injectable()
 export class MarkAsReadUseCase {
-  constructor(private readonly notificationsRepository: NotificationsRepositoryInterface) {}
+  constructor(
+    private readonly notificationsRepository: NotificationsRepositoryInterface,
+  ) {}
 
   async execute(id: string): Promise<Notification> {
     try {

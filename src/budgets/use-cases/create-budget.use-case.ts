@@ -12,7 +12,9 @@ export class CreateBudgetUseCase {
       return await this.budgetsRepository.createBudget(data);
     } catch (error) {
       if (error.code === 'P2002') {
-        throw new ConflictException('Budget already exists for this category and period');
+        throw new ConflictException(
+          'Budget already exists for this category and period',
+        );
       }
       throw error;
     }

@@ -20,7 +20,9 @@ export const getDashboardMetricsResponseSchema = z.object({
   }),
 });
 
-export type GetDashboardMetricsResponse = z.infer<typeof getDashboardMetricsResponseSchema>;
+export type GetDashboardMetricsResponse = z.infer<
+  typeof getDashboardMetricsResponseSchema
+>;
 
 export const getDashboardMetricsSchema = z.object({
   month: z.coerce.number().min(1).max(12).optional(),
@@ -37,4 +39,6 @@ export const getDashboardSnapshotSchema = z.object({
   categoryId: z.string().uuid().optional(),
 });
 
-export type GetDashboardSnapshotDto = z.infer<typeof getDashboardSnapshotSchema>;
+export type GetDashboardSnapshotDto = z.infer<
+  typeof getDashboardSnapshotSchema
+>;

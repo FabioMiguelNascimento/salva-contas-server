@@ -8,17 +8,29 @@ export class NotificationsAutomationService {
   constructor(private readonly prisma: PrismaService) {}
 
   async generateForAllUsers(): Promise<void> {
-    const [transactionUsers, budgetUsers, subscriptionUsers] = await Promise.all([
-      this.prisma.transaction.findMany({ distinct: ['userId'], select: { userId: true } }),
-      this.prisma.budget.findMany({ distinct: ['userId'], select: { userId: true } }),
-      this.prisma.subscription.findMany({ distinct: ['userId'], select: { userId: true } }),
-    ]);
+    const [transactionUsers, budgetUsers, subscriptionUsers] =
+      await Promise.all([
+        this.prisma.transaction.findMany({
+          distinct: ['userId'],
+          select: { userId: true },
+        }),
+        this.prisma.budget.findMany({
+          distinct: ['userId'],
+          select: { userId: true },
+        }),
+        this.prisma.subscription.findMany({
+          distinct: ['userId'],
+          select: { userId: true },
+        }),
+      ]);
 
-    const userIds = [...new Set([
-      ...transactionUsers.map((item) => item.userId),
-      ...budgetUsers.map((item) => item.userId),
-      ...subscriptionUsers.map((item) => item.userId),
-    ])];
+    const userIds = [
+      ...new Set([
+        ...transactionUsers.map((item) => item.userId),
+        ...budgetUsers.map((item) => item.userId),
+        ...subscriptionUsers.map((item) => item.userId),
+      ]),
+    ];
 
     await Promise.all(userIds.map((userId) => this.generateForUser(userId)));
   }
@@ -31,12 +43,20 @@ export class NotificationsAutomationService {
     ]);
   }
 
-  private async createNotification(userId: string, data: {
-    title: string;
-    message: string;
-    type: 'due_date' | 'budget_limit' | 'payment_reminder' | 'subscription_renewal' | 'general';
-    relatedId?: string;
-  }): Promise<Notification> {
+  private async createNotification(
+    userId: string,
+    data: {
+      title: string;
+      message: string;
+      type:
+        | 'due_date'
+        | 'budget_limit'
+        | 'payment_reminder'
+        | 'subscription_renewal'
+        | 'general';
+      relatedId?: string;
+    },
+  ): Promise<Notification> {
     return this.prisma.notification.create({
       data: {
         ...data,
@@ -48,7 +68,9 @@ export class NotificationsAutomationService {
   async generateDueDateNotifications(userId: string): Promise<void> {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const startOfTomorrow = parseDateLocal(new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate())) as Date;
+    const startOfTomorrow = parseDateLocal(
+      new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate()),
+    ) as Date;
     const endOfTomorrow = new Date(startOfTomorrow.getTime());
     endOfTomorrow.setHours(23, 59, 59, 999);
 
@@ -142,7 +164,9 @@ export class NotificationsAutomationService {
     }
   }
 
-  async generateSubscriptionRenewalNotifications(userId: string): Promise<void> {
+  async generateSubscriptionRenewalNotifications(
+    userId: string,
+  ): Promise<void> {
     const today = new Date();
     const startWindow = new Date(today);
     startWindow.setHours(0, 0, 0, 0);

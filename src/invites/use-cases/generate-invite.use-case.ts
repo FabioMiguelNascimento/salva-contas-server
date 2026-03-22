@@ -5,7 +5,9 @@ import { InvitesRepositoryInterface } from '../invites.interface';
 
 @Injectable()
 export class GenerateInviteUseCase {
-  private readonly inviteTtlDays = Number(process.env.FAMILY_INVITE_TTL_DAYS || 7);
+  private readonly inviteTtlDays = Number(
+    process.env.FAMILY_INVITE_TTL_DAYS || 7,
+  );
 
   constructor(
     private readonly userContext: UserContext,
@@ -24,7 +26,10 @@ export class GenerateInviteUseCase {
       expiresAt,
     });
 
-    const frontendBaseUrl = process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const frontendBaseUrl =
+      process.env.FRONTEND_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      'http://localhost:3000';
 
     return {
       token,

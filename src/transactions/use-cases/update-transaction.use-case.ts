@@ -5,9 +5,14 @@ import { TransactionsRepositoryInterface } from '../transactions.interface';
 
 @Injectable()
 export class UpdateTransactionUseCase {
-  constructor(private readonly transactionsRepository: TransactionsRepositoryInterface) {}
+  constructor(
+    private readonly transactionsRepository: TransactionsRepositoryInterface,
+  ) {}
 
-  async execute(id: string, data: UpdateTransactionInput): Promise<Transaction> {
+  async execute(
+    id: string,
+    data: UpdateTransactionInput,
+  ): Promise<Transaction> {
     try {
       return await this.transactionsRepository.updateTransaction(id, data);
     } catch (error) {

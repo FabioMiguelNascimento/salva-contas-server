@@ -1,6 +1,13 @@
 import { z } from 'zod';
 
-export const PAYMENT_METHODS = ['credit_card', 'debit', 'pix', 'cash', 'transfer', 'other'] as const;
+export const PAYMENT_METHODS = [
+  'credit_card',
+  'debit',
+  'pix',
+  'cash',
+  'transfer',
+  'other',
+] as const;
 export type PaymentMethodType = (typeof PAYMENT_METHODS)[number];
 
 export const SplitSchema = z.object({
@@ -23,7 +30,7 @@ export const AIReceiptSchema = z.object({
   category: z.string(),
   type: z.enum(['expense', 'income']),
   status: z.enum(['paid', 'pending']),
-  // AI returns dates as "DD/MM/YYYY" (string). Accept string|null/undefined here and convert later.
+  // AI returns dates as "DD/MM/YYYY" (string). Accept string|null/optional here and convert later.
   dueDate: z.string().nullable().optional(),
   paymentDate: z.string().nullable().optional(),
   creditCardId: z.string().nullable().optional(),
@@ -32,6 +39,13 @@ export const AIReceiptSchema = z.object({
   // Optional: returned when payment is split across multiple methods
   splits: z.array(AISplitSchema).min(2).optional(),
 });
+
+export const ConfirmTransactionSchema = z.union([
+  AIReceiptSchema,
+  z.array(AIReceiptSchema),
+]);
+
+export type ConfirmTransactionInput = z.infer<typeof ConfirmTransactionSchema>;
 
 export const CreateTransactionSchema = z
   .object({
@@ -52,7 +66,10 @@ export const CreateTransactionSchema = z
       const total = data.splits.reduce((sum, s) => sum + s.amount, 0);
       return Math.abs(total - data.amount) < 0.01;
     },
-    { message: 'A soma dos splits deve ser igual ao valor total da transação', path: ['splits'] },
+    {
+      message: 'A soma dos splits deve ser igual ao valor total da transação',
+      path: ['splits'],
+    },
   );
 
 export const GetTransactionsSchema = z.object({
@@ -83,11 +100,15 @@ export const UpdateTransactionSchema = z
   })
   .refine(
     (data) => {
-      if (!data.splits || data.splits.length === 0 || data.amount == null) return true;
+      if (!data.splits || data.splits.length === 0 || data.amount == null)
+        return true;
       const total = data.splits.reduce((sum, s) => sum + s.amount, 0);
       return Math.abs(total - data.amount) < 0.01;
     },
-    { message: 'A soma dos splits deve ser igual ao valor total da transação', path: ['splits'] },
+    {
+      message: 'A soma dos splits deve ser igual ao valor total da transação',
+      path: ['splits'],
+    },
   );
 
 export type AIReceiptData = z.infer<typeof AIReceiptSchema>;

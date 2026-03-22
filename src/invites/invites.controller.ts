@@ -1,6 +1,9 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
-import { AcceptInviteInput, AcceptInviteSchema } from 'src/schemas/invites.schema';
+import {
+  AcceptInviteInput,
+  AcceptInviteSchema,
+} from 'src/schemas/invites.schema';
 import { success } from 'src/utils/api-response-helper';
 import { AcceptInviteUseCase } from './use-cases/accept-invite.use-case';
 import { GenerateInviteUseCase } from './use-cases/generate-invite.use-case';

@@ -5,9 +5,14 @@ import { SubscriptionsRepositoryInterface } from '../subscriptions.interface';
 
 @Injectable()
 export class UpdateSubscriptionUseCase {
-  constructor(private readonly subscriptionsRepository: SubscriptionsRepositoryInterface) {}
+  constructor(
+    private readonly subscriptionsRepository: SubscriptionsRepositoryInterface,
+  ) {}
 
-  async execute(id: string, data: UpdateSubscriptionInput): Promise<Subscription> {
+  async execute(
+    id: string,
+    data: UpdateSubscriptionInput,
+  ): Promise<Subscription> {
     try {
       return await this.subscriptionsRepository.updateSubscription(id, data);
     } catch (error) {

@@ -2,7 +2,11 @@ import { Injectable, Scope } from '@nestjs/common';
 import { DebitCard } from '../../generated/prisma/client';
 import { UserContext } from '../auth/user-context.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateDebitCardInput, GetDebitCardsInput, UpdateDebitCardInput } from '../schemas/debit-cards.schema';
+import {
+  CreateDebitCardInput,
+  GetDebitCardsInput,
+  UpdateDebitCardInput,
+} from '../schemas/debit-cards.schema';
 import { DebitCardsRepositoryInterface } from './debit-cards.interface';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -56,8 +60,13 @@ export class DebitCardsRepository implements DebitCardsRepositoryInterface {
     });
   }
 
-  async updateDebitCard(id: string, data: UpdateDebitCardInput): Promise<DebitCard> {
-    const existing = await this.prisma.debitCard.findFirst({ where: { id, userId: this.userId } });
+  async updateDebitCard(
+    id: string,
+    data: UpdateDebitCardInput,
+  ): Promise<DebitCard> {
+    const existing = await this.prisma.debitCard.findFirst({
+      where: { id, userId: this.userId },
+    });
     if (!existing) {
       const notFoundError: any = new Error('Debit card not found');
       notFoundError.code = 'P2025';
@@ -73,7 +82,9 @@ export class DebitCardsRepository implements DebitCardsRepositoryInterface {
   }
 
   async deleteDebitCard(id: string): Promise<void> {
-    const existing = await this.prisma.debitCard.findFirst({ where: { id, userId: this.userId } });
+    const existing = await this.prisma.debitCard.findFirst({
+      where: { id, userId: this.userId },
+    });
     if (!existing) {
       const notFoundError: any = new Error('Debit card not found');
       notFoundError.code = 'P2025';

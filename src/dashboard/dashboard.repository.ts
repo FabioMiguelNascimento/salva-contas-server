@@ -83,26 +83,37 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       }
     }
 
-    const calculateChangePercent = (current: number, previous: number): number => {
+    const calculateChangePercent = (
+      current: number,
+      previous: number,
+    ): number => {
       if (previous === 0) {
         return current > 0 ? 100 : 0;
       }
       return Number((((current - previous) / previous) * 100).toFixed(1));
     };
 
-    const expensesChangePercent = calculateChangePercent(totalExpenses, previousExpenses);
-    const incomeChangePercent = calculateChangePercent(totalIncome, previousIncome);
+    const expensesChangePercent = calculateChangePercent(
+      totalExpenses,
+      previousExpenses,
+    );
+    const incomeChangePercent = calculateChangePercent(
+      totalIncome,
+      previousIncome,
+    );
     const balanceChangePercent = calculateChangePercent(
       totalIncome - totalExpenses,
       previousIncome - previousExpenses,
     );
 
-    const categoryBreakdown = Array.from(categoryMap.entries()).map(([category, { income, expenses }]) => ({
-      category,
-      income,
-      expenses,
-      net: income - expenses,
-    }));
+    const categoryBreakdown = Array.from(categoryMap.entries()).map(
+      ([category, { income, expenses }]) => ({
+        category,
+        income,
+        expenses,
+        net: income - expenses,
+      }),
+    );
 
     if (categoryBreakdown.length > 0) {
       const categoryNames = categoryBreakdown.map((c) => c.category);
@@ -194,7 +205,9 @@ export class DashboardRepository extends DashboardRepositoryInterface {
     }
 
     if (filters?.categoryId) {
-      const category = await this.prisma.category.findUnique({ where: { id: filters.categoryId } });
+      const category = await this.prisma.category.findUnique({
+        where: { id: filters.categoryId },
+      });
       if (category) {
         if (category.isGlobal) {
           transactionWhere.OR = [
@@ -262,7 +275,15 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       take: 20,
     });
 
-    const [metrics, transactionsRaw, subscriptions, budgets, categories, creditCardsRaw, debitCards] = await Promise.all([
+    const [
+      metrics,
+      transactionsRaw,
+      subscriptions,
+      budgets,
+      categories,
+      creditCardsRaw,
+      debitCards,
+    ] = await Promise.all([
       metricsPromise,
       transactionsPromise,
       subscriptionsPromise,
@@ -272,16 +293,21 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       debitCardsPromise,
     ]);
 
-    const createdByIds = [...new Set(
-      transactionsRaw.map((transaction) => transaction.createdById).filter(Boolean) as string[]
-    )];
+    const createdByIds = [
+      ...new Set(
+        transactionsRaw
+          .map((transaction) => transaction.createdById)
+          .filter(Boolean) as string[],
+      ),
+    ];
 
-    const users = createdByIds.length > 0
-      ? await this.prisma.user.findMany({
-          where: { id: { in: createdByIds } },
-          select: { id: true, name: true, email: true },
-        })
-      : [];
+    const users =
+      createdByIds.length > 0
+        ? await this.prisma.user.findMany({
+            where: { id: { in: createdByIds } },
+            select: { id: true, name: true, email: true },
+          })
+        : [];
 
     const usersMap = new Map(users.map((user) => [user.id, user]));
 
@@ -294,7 +320,9 @@ export class DashboardRepository extends DashboardRepositoryInterface {
         return {
           ...transaction,
           createdByName: transaction.createdById
-            ? (usersMap.get(transaction.createdById)?.name || usersMap.get(transaction.createdById)?.email || null)
+            ? usersMap.get(transaction.createdById)?.name ||
+              usersMap.get(transaction.createdById)?.email ||
+              null
             : null,
           attachmentUrl,
         };
@@ -355,7 +383,8 @@ export class DashboardRepository extends DashboardRepositoryInterface {
           _sum: { amount: true },
         });
 
-        const debt = Number(txAgg._sum.amount || 0) + Number(splitAgg._sum.amount || 0);
+        const debt =
+          Number(txAgg._sum.amount || 0) + Number(splitAgg._sum.amount || 0);
 
         return {
           ...card,

@@ -5,7 +5,9 @@ import { CreditCardsRepositoryInterface } from '../credit-cards.interface';
 
 @Injectable()
 export class UpdateCreditCardUseCase {
-  constructor(private readonly creditCardsRepository: CreditCardsRepositoryInterface) {}
+  constructor(
+    private readonly creditCardsRepository: CreditCardsRepositoryInterface,
+  ) {}
 
   async execute(id: string, data: UpdateCreditCardInput): Promise<CreditCard> {
     return this.creditCardsRepository.updateCreditCard(id, data);

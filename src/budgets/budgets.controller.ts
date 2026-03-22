@@ -1,6 +1,24 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import { CreateBudgetInput, CreateBudgetSchema, GetBudgetProgressInput, GetBudgetProgressSchema, GetBudgetsInput, GetBudgetsSchema, UpdateBudgetInput, UpdateBudgetSchema } from '../schemas/budgets.schema';
+import {
+  CreateBudgetInput,
+  CreateBudgetSchema,
+  GetBudgetProgressInput,
+  GetBudgetProgressSchema,
+  GetBudgetsInput,
+  GetBudgetsSchema,
+  UpdateBudgetInput,
+  UpdateBudgetSchema,
+} from '../schemas/budgets.schema';
 import { success } from '../utils/api-response-helper';
 import { CreateBudgetUseCase } from './use-cases/create-budget.use-case';
 import { DeleteBudgetUseCase } from './use-cases/delete-budget.use-case';
@@ -36,7 +54,8 @@ export class BudgetsController {
 
   @Get('progress')
   async getBudgetProgress(
-    @Query(new ZodValidationPipe(GetBudgetProgressSchema)) filters: GetBudgetProgressInput,
+    @Query(new ZodValidationPipe(GetBudgetProgressSchema))
+    filters: GetBudgetProgressInput,
   ) {
     const progress = await this.getBudgetProgressUseCase.execute(filters);
     return success(progress, 'Progresso dos orçamentos recuperado com sucesso');

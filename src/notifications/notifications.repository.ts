@@ -20,7 +20,12 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
   async createNotification(data: {
     title: string;
     message: string;
-    type: 'due_date' | 'budget_limit' | 'payment_reminder' | 'subscription_renewal' | 'general';
+    type:
+      | 'due_date'
+      | 'budget_limit'
+      | 'payment_reminder'
+      | 'subscription_renewal'
+      | 'general';
     relatedId?: string;
   }): Promise<Notification> {
     return this.prisma.notification.create({
@@ -31,7 +36,10 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
     });
   }
 
-  async getNotifications(status?: 'read' | 'unread', limit = 50): Promise<Notification[]> {
+  async getNotifications(
+    status?: 'read' | 'unread',
+    limit = 50,
+  ): Promise<Notification[]> {
     const where: any = { userId: this.userId };
 
     if (status) {
@@ -88,14 +96,20 @@ export class NotificationsRepository implements NotificationsRepositoryInterface
   }
 
   async generateDueDateNotifications(): Promise<void> {
-    await this.notificationsAutomationService.generateDueDateNotifications(this.userId);
+    await this.notificationsAutomationService.generateDueDateNotifications(
+      this.userId,
+    );
   }
 
   async generateBudgetLimitNotifications(): Promise<void> {
-    await this.notificationsAutomationService.generateBudgetLimitNotifications(this.userId);
+    await this.notificationsAutomationService.generateBudgetLimitNotifications(
+      this.userId,
+    );
   }
 
   async generateSubscriptionRenewalNotifications(): Promise<void> {
-    await this.notificationsAutomationService.generateSubscriptionRenewalNotifications(this.userId);
+    await this.notificationsAutomationService.generateSubscriptionRenewalNotifications(
+      this.userId,
+    );
   }
 }

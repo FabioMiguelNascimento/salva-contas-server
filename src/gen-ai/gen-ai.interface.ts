@@ -11,5 +11,7 @@ export type GenerateStructuredInput = {
 };
 
 export abstract class GenAIServiceInterface {
-  abstract generateStructuredJson(input: GenerateStructuredInput): Promise<string>;
+  abstract generateStructuredJson(
+    input: GenerateStructuredInput,
+  ): Promise<string>;
 }

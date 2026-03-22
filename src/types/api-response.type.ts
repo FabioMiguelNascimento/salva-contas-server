@@ -10,7 +10,14 @@ export interface SuccessResponse<T = any> extends BaseApiResponse {
   data: T;
 }
 
-export type ErrorType = 'VALIDATION_ERROR' | 'AUTHENTICATION_ERROR' | 'AUTHORIZATION_ERROR' | 'NOT_FOUND' | 'INTERNAL_ERROR' | 'BAD_REQUEST' | 'SERVICE_UNAVAILABLE';
+export type ErrorType =
+  | 'VALIDATION_ERROR'
+  | 'AUTHENTICATION_ERROR'
+  | 'AUTHORIZATION_ERROR'
+  | 'NOT_FOUND'
+  | 'INTERNAL_ERROR'
+  | 'BAD_REQUEST'
+  | 'SERVICE_UNAVAILABLE';
 
 export interface ErrorResponse extends BaseApiResponse {
   success: false;

@@ -6,7 +6,7 @@ import { User } from '@supabase/supabase-js';
  * @example
  * @Get('profile')
  * getProfile(@CurrentUser() user: User) { ... }
- * 
+ *
  * // Ou pegar apenas um campo específico
  * @Get('profile')
  * getProfile(@CurrentUser('id') userId: string) { ... }

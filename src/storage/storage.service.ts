@@ -1,11 +1,15 @@
 import {
-    DeleteObjectCommand,
-    GetObjectCommand,
-    PutObjectCommand,
-    S3Client
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -18,10 +22,12 @@ export class StorageService {
     const accessKeyId = process.env.R2_ACCESS_KEY_ID;
     const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
     const endpoint = process.env.R2_ENDPOINT;
-    const region = process.env.AWS_REGION
+    const region = process.env.AWS_REGION;
 
     if (!accessKeyId || !secretAccessKey || !endpoint || !this.bucketName) {
-      throw new Error('R2 configuration is missing. Please set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, and R2_BUCKET_NAME in your .env file');
+      throw new Error(
+        'R2 configuration is missing. Please set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, and R2_BUCKET_NAME in your .env file',
+      );
     }
 
     this.client = new S3Client({
@@ -31,7 +37,7 @@ export class StorageService {
         accessKeyId,
         secretAccessKey,
       },
-      forcePathStyle:true
+      forcePathStyle: true,
     });
   }
 
@@ -56,7 +62,10 @@ export class StorageService {
       );
       return fileName;
     } catch (error) {
-      this.logger.error(`Erro no upload R2: ${error}`, error instanceof Error ? error.stack : '');
+      this.logger.error(
+        `Erro no upload R2: ${error}`,
+        error instanceof Error ? error.stack : '',
+      );
       throw new InternalServerErrorException('Falha ao salvar arquivo');
     }
   }
@@ -67,7 +76,10 @@ export class StorageService {
    * @param expiresIn - Tempo de validade em segundos (padrão: 1 hora)
    * @returns URL temporária ou null se erro
    */
-  async getPresignedUrl(fileKey: string, expiresIn = 3600): Promise<string | null> {
+  async getPresignedUrl(
+    fileKey: string,
+    expiresIn = 3600,
+  ): Promise<string | null> {
     if (!fileKey) return null;
 
     try {
@@ -89,7 +101,7 @@ export class StorageService {
    */
   async deleteFile(fileKey: string): Promise<void> {
     if (!fileKey) return;
-    
+
     try {
       await this.client.send(
         new DeleteObjectCommand({

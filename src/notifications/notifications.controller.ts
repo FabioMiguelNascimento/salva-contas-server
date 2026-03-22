@@ -1,6 +1,21 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import { CreateNotificationInput, CreateNotificationSchema, GetNotificationsInput, GetNotificationsSchema } from '../schemas/notifications.schema';
+import {
+  CreateNotificationInput,
+  CreateNotificationSchema,
+  GetNotificationsInput,
+  GetNotificationsSchema,
+} from '../schemas/notifications.schema';
 import { success } from '../utils/api-response-helper';
 import { CreateNotificationUseCase } from './use-cases/create-notification.use-case';
 import { DeleteNotificationUseCase } from './use-cases/delete-notification.use-case';
@@ -24,7 +39,8 @@ export class NotificationsController {
 
   @Post()
   async createNotification(
-    @Body(new ZodValidationPipe(CreateNotificationSchema)) data: CreateNotificationInput,
+    @Body(new ZodValidationPipe(CreateNotificationSchema))
+    data: CreateNotificationInput,
   ) {
     const notification = await this.createNotificationUseCase.execute(data);
     return success(notification, 'Notificação criada com sucesso');
@@ -32,7 +48,8 @@ export class NotificationsController {
 
   @Get()
   async getNotifications(
-    @Query(new ZodValidationPipe(GetNotificationsSchema)) filters: GetNotificationsInput,
+    @Query(new ZodValidationPipe(GetNotificationsSchema))
+    filters: GetNotificationsInput,
   ) {
     const notifications = await this.getNotificationsUseCase.execute(filters);
     return success(notifications, 'Notificações recuperadas com sucesso');
@@ -41,7 +58,10 @@ export class NotificationsController {
   @Get('unread-count')
   async getUnreadCount() {
     const result = await this.getUnreadCountUseCase.execute();
-    return success(result, 'Contagem de notificações não lidas recuperada com sucesso');
+    return success(
+      result,
+      'Contagem de notificações não lidas recuperada com sucesso',
+    );
   }
 
   @Patch(':id/read')

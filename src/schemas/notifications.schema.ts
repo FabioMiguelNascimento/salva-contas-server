@@ -3,7 +3,13 @@ import { z } from 'zod';
 export const CreateNotificationSchema = z.object({
   title: z.string().min(1),
   message: z.string().min(1),
-  type: z.enum(['due_date', 'budget_limit', 'payment_reminder', 'subscription_renewal', 'general']),
+  type: z.enum([
+    'due_date',
+    'budget_limit',
+    'payment_reminder',
+    'subscription_renewal',
+    'general',
+  ]),
   relatedId: z.string().uuid().optional(),
 });
 

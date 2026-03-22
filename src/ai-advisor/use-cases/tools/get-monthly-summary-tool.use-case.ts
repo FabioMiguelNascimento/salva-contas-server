@@ -39,11 +39,19 @@ export class GetMonthlySummaryToolUseCase implements AiAdvisorToolUseCase {
 
     const [incomeAgg, expenseAgg] = await Promise.all([
       this.prisma.transaction.aggregate({
-        where: { userId: this.userId, type: 'income', createdAt: { gte: startDate, lt: endDate } },
+        where: {
+          userId: this.userId,
+          type: 'income',
+          createdAt: { gte: startDate, lt: endDate },
+        },
         _sum: { amount: true },
       }),
       this.prisma.transaction.aggregate({
-        where: { userId: this.userId, type: 'expense', createdAt: { gte: startDate, lt: endDate } },
+        where: {
+          userId: this.userId,
+          type: 'expense',
+          createdAt: { gte: startDate, lt: endDate },
+        },
         _sum: { amount: true },
       }),
     ]);
@@ -51,6 +59,12 @@ export class GetMonthlySummaryToolUseCase implements AiAdvisorToolUseCase {
     const totalIncome = Number(incomeAgg._sum.amount || 0);
     const totalExpenses = Number(expenseAgg._sum.amount || 0);
 
-    return { month, year, totalIncome, totalExpenses, balance: totalIncome - totalExpenses };
+    return {
+      month,
+      year,
+      totalIncome,
+      totalExpenses,
+      balance: totalIncome - totalExpenses,
+    };
   }
 }

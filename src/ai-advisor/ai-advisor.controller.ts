@@ -1,7 +1,16 @@
-import { Body, Controller, Post, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  UploadedFiles,
+  UseInterceptors,
+} from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
-import { AiAdvisorChatRequestInput, AiAdvisorChatRequestSchema } from 'src/schemas/ai-advisor.schema';
+import {
+  AiAdvisorChatRequestInput,
+  AiAdvisorChatRequestSchema,
+} from 'src/schemas/ai-advisor.schema';
 import { success } from 'src/utils/api-response-helper';
 import { AiAdvisorService } from './ai-advisor.service';
 
@@ -17,10 +26,15 @@ export class AiAdvisorController {
   ) {
     const parsedBody = {
       ...body,
-      history: typeof body.history === 'string' ? JSON.parse(body.history) : body.history,
+      history:
+        typeof body.history === 'string'
+          ? JSON.parse(body.history)
+          : body.history,
     };
 
-    const data = new ZodValidationPipe(AiAdvisorChatRequestSchema).transform(parsedBody) as AiAdvisorChatRequestInput;
+    const data = new ZodValidationPipe(AiAdvisorChatRequestSchema).transform(
+      parsedBody,
+    ) as AiAdvisorChatRequestInput;
 
     const response = await this.aiAdvisorService.chat({
       ...data,

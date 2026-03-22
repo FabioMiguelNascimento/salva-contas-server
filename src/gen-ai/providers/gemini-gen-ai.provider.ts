@@ -5,10 +5,16 @@ import { GenerateStructuredInput } from '../gen-ai.interface';
 @Injectable()
 export class GeminiGenAIProvider {
   private readonly logger = new Logger(GeminiGenAIProvider.name);
-  private readonly client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+  private readonly client = new GoogleGenerativeAI(
+    process.env.GEMINI_API_KEY || '',
+  );
 
-  private readonly modelName = process.env.GEMINI_TRANSACTION_MODEL || 'gemini-2.5-flash';
-  private readonly fallbackModels = (process.env.GEMINI_TRANSACTION_FALLBACK_MODELS || 'gemini-1.5-flash,gemini-2.0-flash-lite')
+  private readonly modelName =
+    process.env.GEMINI_TRANSACTION_MODEL || 'gemini-2.5-flash';
+  private readonly fallbackModels = (
+    process.env.GEMINI_TRANSACTION_FALLBACK_MODELS ||
+    'gemini-1.5-flash,gemini-2.0-flash-lite'
+  )
     .split(',')
     .map((model) => model.trim())
     .filter(Boolean);
@@ -16,7 +22,9 @@ export class GeminiGenAIProvider {
     .split(',')
     .map((model) => model.trim())
     .filter(Boolean);
-  private readonly modelCooldownMs = Number(process.env.GEMINI_TRANSACTION_MODEL_COOLDOWN_MS || 15000);
+  private readonly modelCooldownMs = Number(
+    process.env.GEMINI_TRANSACTION_MODEL_COOLDOWN_MS || 15000,
+  );
 
   private readonly modelCooldownUntil = new Map<string, number>();
   private readonly modelLastSuccess = new Map<string, number>();
@@ -26,11 +34,16 @@ export class GeminiGenAIProvider {
   }
 
   private getModelsToTry(): string[] {
-    const baseModels = this.modelPool.length > 0 ? this.modelPool : [this.modelName, ...this.fallbackModels];
+    const baseModels =
+      this.modelPool.length > 0
+        ? this.modelPool
+        : [this.modelName, ...this.fallbackModels];
     const ordered = this.uniqueModels(baseModels);
     const now = Date.now();
 
-    const available = ordered.filter((model) => (this.modelCooldownUntil.get(model) || 0) <= now);
+    const available = ordered.filter(
+      (model) => (this.modelCooldownUntil.get(model) || 0) <= now,
+    );
     const blocked = ordered.filter((model) => !available.includes(model));
 
     const score = (model: string) => this.modelLastSuccess.get(model) || 0;
@@ -68,7 +81,9 @@ export class GeminiGenAIProvider {
     return defaultDelay;
   }
 
-  async generateStructuredJson(input: GenerateStructuredInput): Promise<string> {
+  async generateStructuredJson(
+    input: GenerateStructuredInput,
+  ): Promise<string> {
     const payload: any[] = [input.prompt];
 
     if (input.file) {
@@ -98,14 +113,19 @@ export class GeminiGenAIProvider {
         const result = await model.generateContent(payload);
         this.modelLastSuccess.set(modelName, Date.now());
         this.modelCooldownUntil.delete(modelName);
-        return result.response.text().replace(/```json|```/g, '').trim();
+        return result.response
+          .text()
+          .replace(/```json|```/g, '')
+          .trim();
       } catch (error: any) {
         lastError = error;
         const status = error?.status;
         if (status === 429 || status === 503) {
           const retryMs = this.getRetryDelayMs(error);
           this.modelCooldownUntil.set(modelName, Date.now() + retryMs);
-          this.logger.warn(`Gemini indisponivel (${modelName}) - status ${status}. Cooldown ${retryMs}ms.`);
+          this.logger.warn(
+            `Gemini indisponivel (${modelName}) - status ${status}. Cooldown ${retryMs}ms.`,
+          );
           continue;
         }
         throw error;

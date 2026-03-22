@@ -13,7 +13,9 @@ export class AiAdvisorService {
     private readonly toolsService: AiAdvisorToolsService,
   ) {}
 
-  async chat(input: AiAdvisorChatRequestInput & { files?: Express.Multer.File[] }) {
+  async chat(
+    input: AiAdvisorChatRequestInput & { files?: Express.Multer.File[] },
+  ) {
     const contents = this.buildConversationContents(input);
 
     if (input.files?.length) {
@@ -28,7 +30,10 @@ export class AiAdvisorService {
     const tools = this.toolsService.buildTools();
     const result = await this.runModelLoop(contents, tools, input.files);
 
-    if (this.isMonthlyQuestion(input.message) && this.isGenericAssistantResponse(result.message)) {
+    if (
+      this.isMonthlyQuestion(input.message) &&
+      this.isGenericAssistantResponse(result.message)
+    ) {
       const now = new Date();
       const month = now.getMonth() + 1;
       const year = now.getFullYear();
@@ -51,9 +56,13 @@ export class AiAdvisorService {
     return result;
   }
 
-  private buildConversationContents(input: AiAdvisorChatRequestInput & { files?: Express.Multer.File[] }) {
+  private buildConversationContents(
+    input: AiAdvisorChatRequestInput & { files?: Express.Multer.File[] },
+  ) {
     const now = new Date();
-    const today = now.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const today = now.toLocaleDateString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+    });
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
 
@@ -81,7 +90,11 @@ export class AiAdvisorService {
     ];
   }
 
-  private async runModelLoop(contents: any[], tools: any[], files?: Express.Multer.File[]) {
+  private async runModelLoop(
+    contents: any[],
+    tools: any[],
+    files?: Express.Multer.File[],
+  ) {
     const visualizations: AiVisualization[] = [];
     const calledTools: string[] = [];
 
@@ -113,7 +126,11 @@ export class AiAdvisorService {
       });
 
       for (const functionCall of functionCalls) {
-        const toolResult = await this.toolsService.executeTool(functionCall.name, functionCall.args || {}, files);
+        const toolResult = await this.toolsService.executeTool(
+          functionCall.name,
+          functionCall.args || {},
+          files,
+        );
         calledTools.push(functionCall.name);
         visualizations.push(toolResult.visualization);
 
@@ -132,9 +149,13 @@ export class AiAdvisorService {
     }
 
     return {
-      message: finalText || 'Nao consegui concluir a analise agora. Tente novamente.',
+      message:
+        finalText || 'Nao consegui concluir a analise agora. Tente novamente.',
       toolCalls: calledTools,
-      visualization: visualizations.length > 0 ? visualizations[visualizations.length - 1] : null,
+      visualization:
+        visualizations.length > 0
+          ? visualizations[visualizations.length - 1]
+          : null,
       visualizations,
     };
   }
@@ -151,6 +172,9 @@ export class AiAdvisorService {
 
   private isGenericAssistantResponse(message: string) {
     const text = message.toLowerCase().trim();
-    return text.startsWith('ola! estou aqui para te ajudar') || text.includes('o que posso fazer por voce');
+    return (
+      text.startsWith('ola! estou aqui para te ajudar') ||
+      text.includes('o que posso fazer por voce')
+    );
   }
 }

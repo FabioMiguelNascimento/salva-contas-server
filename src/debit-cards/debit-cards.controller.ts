@@ -1,12 +1,21 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
-    CreateDebitCardInput,
-    CreateDebitCardSchema,
-    GetDebitCardsInput,
-    GetDebitCardsSchema,
-    UpdateDebitCardInput,
-    UpdateDebitCardSchema,
+  CreateDebitCardInput,
+  CreateDebitCardSchema,
+  GetDebitCardsInput,
+  GetDebitCardsSchema,
+  UpdateDebitCardInput,
+  UpdateDebitCardSchema,
 } from '../schemas/debit-cards.schema';
 import { success } from '../utils/api-response-helper';
 import { CreateDebitCardUseCase } from './use-cases/create-debit-card.use-case';
@@ -27,7 +36,8 @@ export class DebitCardsController {
 
   @Post()
   async createDebitCard(
-    @Body(new ZodValidationPipe(CreateDebitCardSchema)) data: CreateDebitCardInput,
+    @Body(new ZodValidationPipe(CreateDebitCardSchema))
+    data: CreateDebitCardInput,
   ) {
     const debitCard = await this.createDebitCardUseCase.execute(data);
     return success(debitCard, 'Cartão de débito criado com sucesso');
@@ -35,7 +45,8 @@ export class DebitCardsController {
 
   @Get()
   async getDebitCards(
-    @Query(new ZodValidationPipe(GetDebitCardsSchema)) filters: GetDebitCardsInput,
+    @Query(new ZodValidationPipe(GetDebitCardsSchema))
+    filters: GetDebitCardsInput,
   ) {
     const debitCards = await this.getDebitCardsUseCase.execute(filters);
     return success(debitCards, 'Cartões de débito recuperados com sucesso');
@@ -53,7 +64,8 @@ export class DebitCardsController {
   @Put(':id')
   async updateDebitCard(
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(UpdateDebitCardSchema)) data: UpdateDebitCardInput,
+    @Body(new ZodValidationPipe(UpdateDebitCardSchema))
+    data: UpdateDebitCardInput,
   ) {
     const debitCard = await this.updateDebitCardUseCase.execute(id, data);
     return success(debitCard, 'Cartão de débito atualizado com sucesso');

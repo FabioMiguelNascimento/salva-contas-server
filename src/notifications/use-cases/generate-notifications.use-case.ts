@@ -3,7 +3,9 @@ import { NotificationsRepositoryInterface } from '../notifications.interface';
 
 @Injectable()
 export class GenerateNotificationsUseCase {
-  constructor(private readonly notificationsRepository: NotificationsRepositoryInterface) {}
+  constructor(
+    private readonly notificationsRepository: NotificationsRepositoryInterface,
+  ) {}
 
   async execute(): Promise<void> {
     // Executar todas as gerações de notificações

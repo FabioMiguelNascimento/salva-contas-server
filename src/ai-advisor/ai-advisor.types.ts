@@ -1,4 +1,8 @@
-export type AiVisualizationType = 'chart_donut' | 'chart_line' | 'table_summary' | 'transaction';
+export type AiVisualizationType =
+  | 'chart_donut'
+  | 'chart_line'
+  | 'table_summary'
+  | 'transaction';
 
 export type AiVisualization = {
   type: AiVisualizationType;

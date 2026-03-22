@@ -2,15 +2,23 @@ import { Injectable, Scope } from '@nestjs/common';
 import { ToolProcessReceiptArgsSchema } from 'src/schemas/ai-advisor.schema';
 import ProcessTransactionUseCase from 'src/transactions/use-cases/process-transaction.use-case';
 import { ToolExecutionResult } from '../../ai-advisor.types';
-import { AiAdvisorToolUseCase, ToolExecutionContext } from './tool-use-case.interface';
+import {
+  AiAdvisorToolUseCase,
+  ToolExecutionContext,
+} from './tool-use-case.interface';
 
 @Injectable({ scope: Scope.REQUEST })
 export class ProcessTransactionReceiptToolUseCase implements AiAdvisorToolUseCase {
   readonly name = 'process_transaction_receipt';
 
-  constructor(private readonly processTransactionUseCase: ProcessTransactionUseCase) {}
+  constructor(
+    private readonly processTransactionUseCase: ProcessTransactionUseCase,
+  ) {}
 
-  async execute(rawArgs: Record<string, any>, context?: ToolExecutionContext): Promise<ToolExecutionResult> {
+  async execute(
+    rawArgs: Record<string, any>,
+    context?: ToolExecutionContext,
+  ): Promise<ToolExecutionResult> {
     const args = ToolProcessReceiptArgsSchema.parse(rawArgs);
     const file = context?.files?.[args.fileIndex];
 
@@ -18,24 +26,34 @@ export class ProcessTransactionReceiptToolUseCase implements AiAdvisorToolUseCas
       throw new Error(`Arquivo nao encontrado no indice ${args.fileIndex}.`);
     }
 
-    const transaction = await this.processTransactionUseCase.execute(file, null, {
-      creditCardId: args.creditCardId ?? undefined,
-      paymentDate: args.paymentDate ?? undefined,
-      dueDate: args.dueDate ?? undefined,
-    });
+    const transaction = await this.processTransactionUseCase.execute(
+      file,
+      null,
+      {
+        creditCardId: args.creditCardId ?? undefined,
+        paymentDate: args.paymentDate ?? undefined,
+        dueDate: args.dueDate ?? undefined,
+      },
+      true,
+    );
 
-    const transactions = Array.isArray(transaction) ? transaction : [transaction];
+    const transactions = Array.isArray(transaction)
+      ? transaction
+      : [transaction];
     if (transactions.length > 1) {
       return {
         responseForModel: {
           totalTransactions: transactions.length,
           transactions,
+          requiresConfirmation: true,
         },
         visualization: {
           type: 'table_summary',
           toolName: this.name,
           title: `${transactions.length} transacoes extraidas de ${file.originalname}`,
           payload: {
+            requiresConfirmation: true,
+            proposedTransactions: transactions,
             totalTransactions: transactions.length,
             items: transactions.map((tx: any) => ({
               description: tx.description,
@@ -51,12 +69,18 @@ export class ProcessTransactionReceiptToolUseCase implements AiAdvisorToolUseCas
     const singleTransaction = transactions[0];
 
     return {
-      responseForModel: singleTransaction,
+      responseForModel: {
+        transaction: singleTransaction,
+        requiresConfirmation: true,
+      },
       visualization: {
         type: 'transaction',
         toolName: this.name,
         title: `Transacao extraida de ${file.originalname}`,
-        payload: singleTransaction,
+        payload: {
+          ...singleTransaction,
+          requiresConfirmation: true,
+        },
       },
     };
   }

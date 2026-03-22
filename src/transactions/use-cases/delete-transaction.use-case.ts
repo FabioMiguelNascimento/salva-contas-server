@@ -11,7 +11,8 @@ export class DeleteTransactionUseCase {
 
   async execute(id: string): Promise<void> {
     try {
-      const { attachmentKey } = await this.transactionsRepository.deleteTransaction(id);
+      const { attachmentKey } =
+        await this.transactionsRepository.deleteTransaction(id);
       if (attachmentKey) {
         await this.storageService.deleteFile(attachmentKey);
       }

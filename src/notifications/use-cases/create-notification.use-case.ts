@@ -5,7 +5,9 @@ import { NotificationsRepositoryInterface } from '../notifications.interface';
 
 @Injectable()
 export class CreateNotificationUseCase {
-  constructor(private readonly notificationsRepository: NotificationsRepositoryInterface) {}
+  constructor(
+    private readonly notificationsRepository: NotificationsRepositoryInterface,
+  ) {}
 
   async execute(data: CreateNotificationInput): Promise<Notification> {
     return this.notificationsRepository.createNotification(data);

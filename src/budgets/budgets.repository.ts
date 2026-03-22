@@ -59,7 +59,9 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
   }
 
   async updateBudget(id: string, data: { amount?: number }): Promise<Budget> {
-    const existing = await this.prisma.budget.findFirst({ where: { id, userId: this.userId } });
+    const existing = await this.prisma.budget.findFirst({
+      where: { id, userId: this.userId },
+    });
     if (!existing) {
       const notFoundError: any = new Error('Budget not found');
       notFoundError.code = 'P2025';
@@ -76,7 +78,9 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
   }
 
   async deleteBudget(id: string): Promise<void> {
-    const existing = await this.prisma.budget.findFirst({ where: { id, userId: this.userId } });
+    const existing = await this.prisma.budget.findFirst({
+      where: { id, userId: this.userId },
+    });
     if (!existing) {
       const notFoundError: any = new Error('Budget not found');
       notFoundError.code = 'P2025';
@@ -88,12 +92,17 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
     });
   }
 
-  async getBudgetProgress(month: number, year: number): Promise<Array<{
-    budget: Budget;
-    spent: number;
-    remaining: number;
-    percentage: number;
-  }>> {
+  async getBudgetProgress(
+    month: number,
+    year: number,
+  ): Promise<
+    Array<{
+      budget: Budget;
+      spent: number;
+      remaining: number;
+      percentage: number;
+    }>
+  > {
     const budgets = await this.prisma.budget.findMany({
       where: {
         userId: this.userId,
@@ -134,7 +143,7 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
           remaining,
           percentage,
         };
-      })
+      }),
     );
 
     return results;

@@ -24,13 +24,15 @@ export const ToolSpendingTrendArgsSchema = z.object({
   days_back: z.coerce.number().int().min(3).max(180),
 });
 
-export const ToolTransactionDetailsArgsSchema = z.object({
-  transactionId: z.string().min(1).optional(),
-  query: z.string().min(1).optional(),
-}).refine((data) => !!data.transactionId || !!data.query, {
-  message: 'transactionId or query is required',
-  path: ['transactionId'],
-});
+export const ToolTransactionDetailsArgsSchema = z
+  .object({
+    transactionId: z.string().min(1).optional(),
+    query: z.string().min(1).optional(),
+  })
+  .refine((data) => !!data.transactionId || !!data.query, {
+    message: 'transactionId or query is required',
+    path: ['transactionId'],
+  });
 
 export const ToolProcessReceiptArgsSchema = z.object({
   fileIndex: z.coerce.number().int().min(0),
@@ -46,5 +48,9 @@ export const ToolCreateTransactionArgsSchema = z.object({
   creditCardId: z.string().optional().nullable(),
 });
 
-export type AiAdvisorChatRequestInput = z.infer<typeof AiAdvisorChatRequestSchema>;
-export type AiAdvisorHistoryMessageInput = z.infer<typeof AiAdvisorHistoryMessageSchema>;
+export type AiAdvisorChatRequestInput = z.infer<
+  typeof AiAdvisorChatRequestSchema
+>;
+export type AiAdvisorHistoryMessageInput = z.infer<
+  typeof AiAdvisorHistoryMessageSchema
+>;

@@ -1,12 +1,19 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { FamilyMemberDto, InvitesRepositoryInterface } from './invites.interface';
+import {
+  FamilyMemberDto,
+  InvitesRepositoryInterface,
+} from './invites.interface';
 
 @Injectable({ scope: Scope.REQUEST })
 export class InvitesRepository implements InvitesRepositoryInterface {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createInvite(data: { fromUserId: string; token: string; expiresAt: Date; }) {
+  async createInvite(data: {
+    fromUserId: string;
+    token: string;
+    expiresAt: Date;
+  }) {
     return this.prisma.familyInvite.create({
       data: {
         fromUserId: data.fromUserId,
@@ -32,7 +39,7 @@ export class InvitesRepository implements InvitesRepositoryInterface {
     });
   }
 
-  async markInviteAccepted(data: { inviteId: string; acceptedById: string; }) {
+  async markInviteAccepted(data: { inviteId: string; acceptedById: string }) {
     await this.prisma.familyInvite.update({
       where: { id: data.inviteId },
       data: {

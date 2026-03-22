@@ -1,6 +1,22 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import { CreateCreditCardInput, CreateCreditCardSchema, GetCreditCardsInput, GetCreditCardsSchema, UpdateCreditCardInput, UpdateCreditCardSchema } from '../schemas/credit-cards.schema';
+import {
+  CreateCreditCardInput,
+  CreateCreditCardSchema,
+  GetCreditCardsInput,
+  GetCreditCardsSchema,
+  UpdateCreditCardInput,
+  UpdateCreditCardSchema,
+} from '../schemas/credit-cards.schema';
 import { success } from '../utils/api-response-helper';
 import { CreateCreditCardUseCase } from './use-cases/create-credit-card.use-case';
 import { DeleteCreditCardUseCase } from './use-cases/delete-credit-card.use-case';
@@ -22,7 +38,8 @@ export class CreditCardsController {
 
   @Post()
   async createCreditCard(
-    @Body(new ZodValidationPipe(CreateCreditCardSchema)) data: CreateCreditCardInput,
+    @Body(new ZodValidationPipe(CreateCreditCardSchema))
+    data: CreateCreditCardInput,
   ) {
     const creditCard = await this.createCreditCardUseCase.execute(data);
     return success(creditCard, 'Cartão de crédito criado com sucesso');
@@ -30,7 +47,8 @@ export class CreditCardsController {
 
   @Get()
   async getCreditCards(
-    @Query(new ZodValidationPipe(GetCreditCardsSchema)) filters: GetCreditCardsInput,
+    @Query(new ZodValidationPipe(GetCreditCardsSchema))
+    filters: GetCreditCardsInput,
   ) {
     const creditCards = await this.getCreditCardsUseCase.execute(filters);
     return success(creditCards, 'Cartões de crédito recuperados com sucesso');
@@ -48,13 +66,17 @@ export class CreditCardsController {
   @Get(':id/summary')
   async getCreditCardSummary(@Param('id') id: string) {
     const summary = await this.getCreditCardSummaryUseCase.execute(id);
-    return success(summary, 'Resumo do cartão de crédito recuperado com sucesso');
+    return success(
+      summary,
+      'Resumo do cartão de crédito recuperado com sucesso',
+    );
   }
 
   @Put(':id')
   async updateCreditCard(
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(UpdateCreditCardSchema)) data: UpdateCreditCardInput,
+    @Body(new ZodValidationPipe(UpdateCreditCardSchema))
+    data: UpdateCreditCardInput,
   ) {
     const creditCard = await this.updateCreditCardUseCase.execute(id, data);
     return success(creditCard, 'Cartão de crédito atualizado com sucesso');

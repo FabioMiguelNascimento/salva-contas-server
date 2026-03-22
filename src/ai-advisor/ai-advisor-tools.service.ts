@@ -1,5 +1,9 @@
 import { Injectable, Scope } from '@nestjs/common';
-import { AiVisualization, ToolEntry, ToolExecutionResult } from './ai-advisor.types';
+import {
+  AiVisualization,
+  ToolEntry,
+  ToolExecutionResult,
+} from './ai-advisor.types';
 import { CreateTransactionToolUseCase } from './use-cases/tools/create-transaction-tool.use-case';
 import { GetExpensesByCategoryToolUseCase } from './use-cases/tools/get-expenses-by-category-tool.use-case';
 import { GetMonthlySummaryToolUseCase } from './use-cases/tools/get-monthly-summary-tool.use-case';
@@ -36,7 +40,8 @@ export class AiAdvisorToolsService {
     const entries: ToolEntry[] = [
       {
         name: 'get_monthly_summary',
-        description: 'Retorna totais de receita, despesa e saldo para um mes/ano.',
+        description:
+          'Retorna totais de receita, despesa e saldo para um mes/ano.',
         parameters: {
           type: 'OBJECT',
           properties: {
@@ -48,7 +53,8 @@ export class AiAdvisorToolsService {
       },
       {
         name: 'get_expenses_by_category',
-        description: 'Retorna gastos agregados por categoria para um mes/ano para grafico de donut.',
+        description:
+          'Retorna gastos agregados por categoria para um mes/ano para grafico de donut.',
         parameters: {
           type: 'OBJECT',
           properties: {
@@ -60,51 +66,91 @@ export class AiAdvisorToolsService {
       },
       {
         name: 'get_spending_trend',
-        description: 'Retorna serie temporal de gastos dos ultimos X dias para grafico de linha.',
+        description:
+          'Retorna serie temporal de gastos dos ultimos X dias para grafico de linha.',
         parameters: {
           type: 'OBJECT',
           properties: {
-            days_back: { type: 'NUMBER', description: 'Quantidade de dias para tras' },
+            days_back: {
+              type: 'NUMBER',
+              description: 'Quantidade de dias para tras',
+            },
           },
           required: ['days_back'],
         },
       },
       {
         name: 'get_transaction_details',
-        description: 'Retorna detalhes de uma transacao, incluindo o anexo se existir. Aceita ID ou texto.' ,
+        description:
+          'Retorna detalhes de uma transacao, incluindo o anexo se existir. Aceita ID ou texto.',
         parameters: {
           type: 'OBJECT',
           properties: {
             transactionId: { type: 'STRING', description: 'ID da transacao' },
-            query: { type: 'STRING', description: 'Texto livre para buscar transacoes por descricao' },
+            query: {
+              type: 'STRING',
+              description: 'Texto livre para buscar transacoes por descricao',
+            },
           },
           required: ['transactionId'],
         },
       },
       {
         name: 'process_transaction_receipt',
-        description: 'Processa um comprovante (imagem) e retorna os dados de transacao extraidos.',
+        description:
+          'Processa um comprovante (imagem) e retorna os dados de transacao extraidos.',
         parameters: {
           type: 'OBJECT',
           properties: {
-            fileIndex: { type: 'NUMBER', description: 'Indice do arquivo na lista de anexos' },
-            paymentDate: { type: 'STRING', description: 'Data de pagamento (DD/MM/YYYY)', nullable: true },
-            dueDate: { type: 'STRING', description: 'Data de vencimento (DD/MM/YYYY)', nullable: true },
-            creditCardId: { type: 'STRING', description: 'ID do cartao de credito', nullable: true },
+            fileIndex: {
+              type: 'NUMBER',
+              description: 'Indice do arquivo na lista de anexos',
+            },
+            paymentDate: {
+              type: 'STRING',
+              description: 'Data de pagamento (DD/MM/YYYY)',
+              nullable: true,
+            },
+            dueDate: {
+              type: 'STRING',
+              description: 'Data de vencimento (DD/MM/YYYY)',
+              nullable: true,
+            },
+            creditCardId: {
+              type: 'STRING',
+              description: 'ID do cartao de credito',
+              nullable: true,
+            },
           },
           required: ['fileIndex'],
         },
       },
       {
         name: 'create_transaction',
-        description: 'Registra uma transacao a partir de uma descricao em texto (sem anexo).',
+        description:
+          'Registra uma transacao a partir de uma descricao em texto (sem anexo).',
         parameters: {
           type: 'OBJECT',
           properties: {
-            text: { type: 'STRING', description: 'Texto descrevendo a transacao' },
-            paymentDate: { type: 'STRING', description: 'Data de pagamento (DD/MM/YYYY)', nullable: true },
-            dueDate: { type: 'STRING', description: 'Data de vencimento (DD/MM/YYYY)', nullable: true },
-            creditCardId: { type: 'STRING', description: 'ID do cartao de credito', nullable: true },
+            text: {
+              type: 'STRING',
+              description: 'Texto descrevendo a transacao',
+            },
+            paymentDate: {
+              type: 'STRING',
+              description: 'Data de pagamento (DD/MM/YYYY)',
+              nullable: true,
+            },
+            dueDate: {
+              type: 'STRING',
+              description: 'Data de vencimento (DD/MM/YYYY)',
+              nullable: true,
+            },
+            creditCardId: {
+              type: 'STRING',
+              description: 'ID do cartao de credito',
+              nullable: true,
+            },
           },
           required: ['text'],
         },
@@ -131,7 +177,9 @@ export class AiAdvisorToolsService {
           toolResult.visualization.type === 'table_summary' &&
           toolResult.visualization.toolName === 'process_transaction_receipt'
         ) {
-          const qty = Number((toolResult.visualization.payload as any)?.totalTransactions || 0);
+          const qty = Number(
+            (toolResult.visualization.payload as any)?.totalTransactions || 0,
+          );
           totalRegisteredTransactions += qty > 0 ? qty : 1;
         } else {
           totalRegisteredTransactions += 1;
@@ -147,10 +195,14 @@ export class AiAdvisorToolsService {
     const pieces: string[] = [];
 
     if (totalRegisteredTransactions) {
-      pieces.push(`${totalRegisteredTransactions} transa${totalRegisteredTransactions === 1 ? 'cao registrada' : 'coes registradas'}`);
+      pieces.push(
+        `${totalRegisteredTransactions} transa${totalRegisteredTransactions === 1 ? 'cao registrada' : 'coes registradas'}`,
+      );
     }
     if (successfulFiles) {
-      pieces.push(`${successfulFiles} arquivo${successfulFiles === 1 ? '' : 's'} processado${successfulFiles === 1 ? '' : 's'}`);
+      pieces.push(
+        `${successfulFiles} arquivo${successfulFiles === 1 ? '' : 's'} processado${successfulFiles === 1 ? '' : 's'}`,
+      );
     }
     if (failed) pieces.push(`${failed} falhou${failed === 1 ? '' : 'am'}`);
 
@@ -165,7 +217,11 @@ export class AiAdvisorToolsService {
     };
   }
 
-  async executeTool(name: string, rawArgs: Record<string, any>, files?: Express.Multer.File[]): Promise<ToolExecutionResult> {
+  async executeTool(
+    name: string,
+    rawArgs: Record<string, any>,
+    files?: Express.Multer.File[],
+  ): Promise<ToolExecutionResult> {
     const tool = this.toolMap.get(name);
     if (!tool) {
       return {

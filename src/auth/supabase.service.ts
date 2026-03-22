@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, OnModuleInit, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  OnModuleInit,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { SignInInput, SignUpInput } from '../schemas/auth.schema';
 
@@ -17,7 +22,7 @@ export class SupabaseService implements OnModuleInit {
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
       this.adminClient = createClient(
         process.env.SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
       );
     }
   }
@@ -28,7 +33,9 @@ export class SupabaseService implements OnModuleInit {
 
   getAdminClient(): SupabaseClient {
     if (!this.adminClient) {
-      throw new Error('Supabase admin client not configured. Set SUPABASE_SERVICE_ROLE_KEY');
+      throw new Error(
+        'Supabase admin client not configured. Set SUPABASE_SERVICE_ROLE_KEY',
+      );
     }
     return this.adminClient;
   }
@@ -51,7 +58,9 @@ export class SupabaseService implements OnModuleInit {
         data: {
           name: input.name,
         },
-        emailRedirectTo: process.env.SUPABASE_REDIRECT_URL || 'https://salva-contas.vercel.app',
+        emailRedirectTo:
+          process.env.SUPABASE_REDIRECT_URL ||
+          'https://salva-contas.vercel.app',
       },
     });
 
@@ -87,7 +96,7 @@ export class SupabaseService implements OnModuleInit {
   async signOut(token: string) {
     // Precisamos setar o token antes de fazer logout
     const { error } = await this.supabase.auth.admin.signOut(token);
-    
+
     if (error) {
       // Tenta logout normal se admin falhar
       await this.supabase.auth.signOut();
@@ -116,7 +125,8 @@ export class SupabaseService implements OnModuleInit {
 
   async resetPassword(email: string) {
     const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: process.env.SUPABASE_REDIRECT_URL || 'https://salva-contas.vercel.app',
+      redirectTo:
+        process.env.SUPABASE_REDIRECT_URL || 'https://salva-contas.vercel.app',
     });
 
     if (error) {
@@ -129,7 +139,7 @@ export class SupabaseService implements OnModuleInit {
   async updatePassword(token: string, newPassword: string) {
     // Primeiro validamos o token
     const user = await this.validateToken(token);
-    
+
     if (!user) {
       throw new UnauthorizedException('Token inválido');
     }
@@ -145,7 +155,10 @@ export class SupabaseService implements OnModuleInit {
     return { message: 'Senha atualizada com sucesso' };
   }
 
-  async updateProfile(token: string, payload: { name?: string; preferences?: any }) {
+  async updateProfile(
+    token: string,
+    payload: { name?: string; preferences?: any },
+  ) {
     // valida o token primeiro
     const user = await this.validateToken(token);
     if (!user) {
@@ -156,7 +169,8 @@ export class SupabaseService implements OnModuleInit {
     const { data, error } = await this.supabase.auth.updateUser({
       data: {
         name: payload.name ?? user.user_metadata?.name,
-        preferences: payload.preferences ?? user.user_metadata?.preferences ?? undefined,
+        preferences:
+          payload.preferences ?? user.user_metadata?.preferences ?? undefined,
       },
     });
 

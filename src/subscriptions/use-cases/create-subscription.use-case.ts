@@ -4,12 +4,12 @@ import { SubscriptionsRepositoryInterface } from '../subscriptions.interface';
 
 @Injectable()
 export default class CreateSubscriptionUseCase {
-    constructor(
-        @Inject(SubscriptionsRepositoryInterface)
-        private readonly subscriptionsRepository: SubscriptionsRepositoryInterface,
-    ) {}
+  constructor(
+    @Inject(SubscriptionsRepositoryInterface)
+    private readonly subscriptionsRepository: SubscriptionsRepositoryInterface,
+  ) {}
 
-    async execute(data: CreateSubscriptionInput) {
-        return this.subscriptionsRepository.createSubscription(data);
-    }
+  async execute(data: CreateSubscriptionInput) {
+    return this.subscriptionsRepository.createSubscription(data);
+  }
 }

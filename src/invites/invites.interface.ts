@@ -13,7 +13,11 @@ export abstract class InvitesRepositoryInterface {
     expiresAt: Date;
   }): Promise<FamilyInvite>;
 
-  abstract findInviteByToken(token: string): Promise<(FamilyInvite & { fromUser: Pick<User, 'id' | 'name' | 'email'> }) | null>;
+  abstract findInviteByToken(
+    token: string,
+  ): Promise<
+    (FamilyInvite & { fromUser: Pick<User, 'id' | 'name' | 'email'> }) | null
+  >;
 
   abstract markInviteAccepted(data: {
     inviteId: string;
@@ -22,7 +26,9 @@ export abstract class InvitesRepositoryInterface {
 
   abstract setLinkedAccount(userId: string, linkedToId: string): Promise<void>;
 
-  abstract findUserById(id: string): Promise<Pick<User, 'id' | 'name' | 'email' | 'linkedToId'> | null>;
+  abstract findUserById(
+    id: string,
+  ): Promise<Pick<User, 'id' | 'name' | 'email' | 'linkedToId'> | null>;
 
   abstract findLinkedUsers(ownerId: string): Promise<FamilyMemberDto[]>;
 }

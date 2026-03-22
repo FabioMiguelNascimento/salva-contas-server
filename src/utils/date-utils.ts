@@ -1,4 +1,6 @@
-export function parseDateLocal(value: string | Date | null | undefined): Date | null {
+export function parseDateLocal(
+  value: string | Date | null | undefined,
+): Date | null {
   if (value == null) return null;
 
   if (value instanceof Date) {

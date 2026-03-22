@@ -22,11 +22,12 @@ export class GetTransactionDetailsToolUseCase implements AiAdvisorToolUseCase {
 
   async execute(rawArgs: Record<string, any>): Promise<ToolExecutionResult> {
     const args = ToolTransactionDetailsArgsSchema.parse(rawArgs);
-    const query = (args.transactionId ?? args.query ?? "").trim();
+    const query = (args.transactionId ?? args.query ?? '').trim();
 
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      query,
-    );
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        query,
+      );
 
     if (isUuid) {
       const transaction = await this.prisma.transaction.findUnique({
@@ -64,7 +65,9 @@ export class GetTransactionDetailsToolUseCase implements AiAdvisorToolUseCase {
         let attachmentUrl: string | null = null;
         if (transaction.attachmentKey) {
           try {
-            attachmentUrl = await this.storageService.getPresignedUrl(transaction.attachmentKey);
+            attachmentUrl = await this.storageService.getPresignedUrl(
+              transaction.attachmentKey,
+            );
           } catch {
             attachmentUrl = null;
           }
@@ -110,6 +113,5 @@ export class GetTransactionDetailsToolUseCase implements AiAdvisorToolUseCase {
         payload: { items, totalTransactions: items.length },
       },
     };
-
   }
 }

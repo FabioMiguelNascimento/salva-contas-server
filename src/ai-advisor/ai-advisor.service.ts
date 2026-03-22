@@ -29,10 +29,14 @@ export class AiAdvisorService {
 
     const tools = this.toolsService.buildTools();
     const result = await this.runModelLoop(contents, tools, input.files);
+    const filteredResult = this.filterVisualizationsByIntent(
+      result,
+      input.message,
+    );
 
     if (
       this.isMonthlyQuestion(input.message) &&
-      this.isGenericAssistantResponse(result.message)
+      this.isGenericAssistantResponse(filteredResult.message)
     ) {
       const now = new Date();
       const month = now.getMonth() + 1;
@@ -47,13 +51,77 @@ export class AiAdvisorService {
 
       return {
         message: `Resumo de ${month}/${year}: Receitas R$ ${summary.totalIncome.toFixed(2)}, Despesas R$ ${summary.totalExpenses.toFixed(2)}, Saldo R$ ${summary.balance.toFixed(2)}.`,
-        toolCalls: [...result.toolCalls, 'get_monthly_summary'],
+        toolCalls: [...filteredResult.toolCalls, 'get_monthly_summary'],
         visualization,
-        visualizations: [...result.visualizations, visualization],
+        visualizations: [...filteredResult.visualizations, visualization],
       };
     }
 
-    return result;
+    return filteredResult;
+  }
+
+  private filterVisualizationsByIntent(
+    result: {
+      message: string;
+      toolCalls: string[];
+      visualization: AiVisualization | null;
+      visualizations: AiVisualization[];
+    },
+    userMessage: string,
+  ) {
+    const visualizations = (result.visualizations || []).filter((visual) =>
+      this.shouldKeepVisualizationForMessage(visual, userMessage),
+    );
+
+    return {
+      ...result,
+      visualization:
+        visualizations.length > 0
+          ? visualizations[visualizations.length - 1]
+          : null,
+      visualizations,
+    };
+  }
+
+  private shouldKeepVisualizationForMessage(
+    visual: AiVisualization,
+    message: string,
+  ) {
+    if ((visual.payload as any)?.requiresConfirmation) {
+      return true;
+    }
+
+    const text = message.toLowerCase();
+
+    if (visual.type === 'chart_donut') {
+      return this.isCategoryQuestion(text);
+    }
+
+    if (visual.type === 'chart_line') {
+      return this.isTrendQuestion(text);
+    }
+
+    return true;
+  }
+
+  private isCategoryQuestion(message: string) {
+    return (
+      message.includes('categoria') ||
+      message.includes('categorias') ||
+      message.includes('despesas por categoria') ||
+      message.includes('gastos por categoria') ||
+      message.includes('onde gasto') ||
+      message.includes('maior despesa')
+    );
+  }
+
+  private isTrendQuestion(message: string) {
+    return (
+      message.includes('tendencia') ||
+      message.includes('evolucao') ||
+      message.includes('ultimos dias') ||
+      message.includes('ao longo')
+    );
   }
 
   private buildConversationContents(
@@ -71,7 +139,7 @@ export class AiAdvisorService {
         role: 'user',
         parts: [
           {
-            text: 'Voce e o Boletinho, um assistente financeiro. Seja objetivo, amigavel e em portugues do Brasil. Quando receber dados de ferramentas, resuma em linguagem simples e acione insights acionaveis. Se o usuario enviar um comprovante (imagem), processe automaticamente e nao peca mais descricao. Nunca responda apenas com saudacao generica; responda de forma especifica ao pedido atual.',
+            text: 'Voce e o Boletinho, um assistente financeiro. Seja objetivo, amigavel e em portugues do Brasil. Quando receber dados de ferramentas, resuma em linguagem simples e acione insights acionaveis. Se o usuario enviar um comprovante (imagem), processe automaticamente e nao peca mais descricao. Nunca responda apenas com saudacao generica; responda de forma especifica ao pedido atual. So chame get_expenses_by_category quando a pergunta mencionar categoria(s), maior categoria ou distribuicao de gastos. So chame get_spending_trend quando a pergunta pedir tendencia, evolucao temporal ou ultimos dias.',
           },
         ],
       },
@@ -97,6 +165,10 @@ export class AiAdvisorService {
   ) {
     const visualizations: AiVisualization[] = [];
     const calledTools: string[] = [];
+    const toolResponseCache = new Map<
+      string,
+      { responseForModel: any; visualization: AiVisualization }
+    >();
 
     let finalText = '';
 
@@ -115,24 +187,46 @@ export class AiAdvisorService {
         .map((part: any) => part.functionCall)
         .filter(Boolean);
 
-      if (!functionCalls.length) {
+      const normalizedFunctionCalls = functionCalls.map((call: any) => ({
+        name: call?.name,
+        args: call?.args ?? call?.arguments ?? {},
+      }));
+
+      if (!normalizedFunctionCalls.length) {
         finalText = text || 'Pronto. Aqui esta sua analise.';
         break;
       }
 
       contents.push({
         role: 'model',
-        parts: functionCalls.map((call: any) => ({ functionCall: call })),
+        parts: normalizedFunctionCalls.map((call: any) => ({
+          functionCall: call,
+        })),
       });
 
-      for (const functionCall of functionCalls) {
-        const toolResult = await this.toolsService.executeTool(
-          functionCall.name,
-          functionCall.args || {},
-          files,
-        );
-        calledTools.push(functionCall.name);
-        visualizations.push(toolResult.visualization);
+      for (const functionCall of normalizedFunctionCalls) {
+        const signature = `${functionCall.name}:${JSON.stringify(
+          functionCall.args ?? {},
+        )}`;
+
+        let toolResult = toolResponseCache.get(signature);
+
+        if (!toolResult) {
+          const executed = await this.toolsService.executeTool(
+            functionCall.name,
+            functionCall.args,
+            files,
+          );
+
+          toolResult = {
+            responseForModel: executed.responseForModel,
+            visualization: executed.visualization,
+          };
+
+          toolResponseCache.set(signature, toolResult);
+          calledTools.push(functionCall.name);
+          visualizations.push(executed.visualization);
+        }
 
         contents.push({
           role: 'user',
@@ -148,16 +242,38 @@ export class AiAdvisorService {
       }
     }
 
+    const uniqueVisualizations = this.deduplicateVisualizations(visualizations);
+
     return {
       message:
-        finalText || 'Nao consegui concluir a analise agora. Tente novamente.',
+        finalText ||
+        (uniqueVisualizations.length > 0
+          ? 'Aqui estao os dados solicitados.'
+          : 'Nao consegui concluir a analise agora. Tente novamente.'),
       toolCalls: calledTools,
       visualization:
-        visualizations.length > 0
-          ? visualizations[visualizations.length - 1]
+        uniqueVisualizations.length > 0
+          ? uniqueVisualizations[uniqueVisualizations.length - 1]
           : null,
-      visualizations,
+      visualizations: uniqueVisualizations,
     };
+  }
+
+  private deduplicateVisualizations(visualizations: AiVisualization[]) {
+    const seen = new Set<string>();
+
+    return visualizations.filter((visual) => {
+      const signature = `${visual.toolName}:${JSON.stringify(
+        visual.payload ?? {},
+      )}`;
+
+      if (seen.has(signature)) {
+        return false;
+      }
+
+      seen.add(signature);
+      return true;
+    });
   }
 
   private isMonthlyQuestion(message: string) {

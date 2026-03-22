@@ -19,7 +19,25 @@ export class GetMonthlySummaryToolUseCase implements AiAdvisorToolUseCase {
   }
 
   async execute(rawArgs: Record<string, any>): Promise<ToolExecutionResult> {
-    const args = ToolMonthlySummaryArgsSchema.parse(rawArgs);
+    const now = new Date();
+    const defaultMonth = now.getMonth() + 1;
+    const defaultYear = now.getFullYear();
+
+    const monthCandidate = Number(rawArgs?.month);
+    const yearCandidate = Number(rawArgs?.year);
+
+    const normalizedArgs = {
+      month:
+        Number.isInteger(monthCandidate) && monthCandidate >= 1 && monthCandidate <= 12
+          ? monthCandidate
+          : defaultMonth,
+      year:
+        Number.isInteger(yearCandidate) && yearCandidate >= 2000 && yearCandidate <= 2100
+          ? yearCandidate
+          : defaultYear,
+    };
+
+    const args = ToolMonthlySummaryArgsSchema.parse(normalizedArgs);
     const summary = await this.getMonthlySummary(args.month, args.year);
 
     return {

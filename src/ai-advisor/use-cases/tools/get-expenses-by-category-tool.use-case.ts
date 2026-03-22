@@ -19,7 +19,25 @@ export class GetExpensesByCategoryToolUseCase implements AiAdvisorToolUseCase {
   }
 
   async execute(rawArgs: Record<string, any>): Promise<ToolExecutionResult> {
-    const args = ToolExpensesByCategoryArgsSchema.parse(rawArgs);
+    const now = new Date();
+    const defaultMonth = now.getMonth() + 1;
+    const defaultYear = now.getFullYear();
+
+    const monthCandidate = Number(rawArgs?.month);
+    const yearCandidate = Number(rawArgs?.year);
+
+    const normalizedArgs = {
+      month:
+        Number.isInteger(monthCandidate) && monthCandidate >= 1 && monthCandidate <= 12
+          ? monthCandidate
+          : defaultMonth,
+      year:
+        Number.isInteger(yearCandidate) && yearCandidate >= 2000 && yearCandidate <= 2100
+          ? yearCandidate
+          : defaultYear,
+    };
+
+    const args = ToolExpensesByCategoryArgsSchema.parse(normalizedArgs);
 
     const startDate = new Date(args.year, args.month - 1, 1);
     const endDate = new Date(args.year, args.month, 1);

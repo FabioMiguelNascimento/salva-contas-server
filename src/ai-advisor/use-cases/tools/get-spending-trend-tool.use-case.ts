@@ -19,7 +19,19 @@ export class GetSpendingTrendToolUseCase implements AiAdvisorToolUseCase {
   }
 
   async execute(rawArgs: Record<string, any>): Promise<ToolExecutionResult> {
-    const args = ToolSpendingTrendArgsSchema.parse(rawArgs);
+    const defaultDaysBack = 30;
+    const daysBackCandidate = Number(rawArgs?.days_back);
+
+    const normalizedArgs = {
+      days_back:
+        Number.isInteger(daysBackCandidate) &&
+        daysBackCandidate >= 3 &&
+        daysBackCandidate <= 180
+          ? daysBackCandidate
+          : defaultDaysBack,
+    };
+
+    const args = ToolSpendingTrendArgsSchema.parse(normalizedArgs);
     const daysBack = args.days_back;
 
     const today = new Date();

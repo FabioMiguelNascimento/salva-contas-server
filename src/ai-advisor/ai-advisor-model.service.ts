@@ -89,7 +89,10 @@ export class AiAdvisorModelService {
                 { text: parsed.message || '' },
                 ...(Array.isArray(parsed.functionCalls)
                   ? parsed.functionCalls.map((fn: any) => ({
-                      functionCall: fn,
+                      functionCall: {
+                        name: fn?.name,
+                        args: fn?.args ?? fn?.arguments ?? {},
+                      },
                     }))
                   : []),
               ],

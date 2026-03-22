@@ -235,10 +235,92 @@ export class AiAdvisorToolsService {
       };
     }
 
-    return tool.execute(rawArgs, { files });
+    const safeArgs = this.normalizeArgsForTool(name, rawArgs);
+    return tool.execute(safeArgs, { files });
   }
 
   getMonthlySummary(month: number, year: number) {
     return this.getMonthlySummaryTool.getMonthlySummary(month, year);
+  }
+
+  private normalizeArgsForTool(name: string, rawArgs: Record<string, any>) {
+    const sanitizedArgs = this.sanitizeArgs(rawArgs);
+
+    switch (name) {
+      case 'get_monthly_summary':
+      case 'get_expenses_by_category':
+        return {
+          ...sanitizedArgs,
+          month: this.toIntegerOrUndefined(sanitizedArgs.month),
+          year: this.toIntegerOrUndefined(sanitizedArgs.year),
+        };
+      case 'get_spending_trend':
+        return {
+          ...sanitizedArgs,
+          days_back: this.toIntegerOrUndefined(sanitizedArgs.days_back),
+        };
+      case 'process_transaction_receipt':
+        return {
+          ...sanitizedArgs,
+          fileIndex: this.toIntegerOrUndefined(sanitizedArgs.fileIndex),
+        };
+      default:
+        return sanitizedArgs;
+    }
+  }
+
+  private sanitizeArgs(value: unknown): Record<string, any> {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return {};
+    }
+
+    return this.sanitizeValue(value) as Record<string, any>;
+  }
+
+  private sanitizeValue(value: unknown): unknown {
+    if (value == null) return value;
+
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : undefined;
+    }
+
+    if (typeof value === 'string') {
+      const lowered = value.trim().toLowerCase();
+      if (lowered === 'nan' || lowered === 'infinity' || lowered === '-infinity') {
+        return undefined;
+      }
+      return value;
+    }
+
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => this.sanitizeValue(item))
+        .filter((item) => item !== undefined);
+    }
+
+    if (typeof value === 'object') {
+      const entries = Object.entries(value as Record<string, unknown>)
+        .map(([key, item]) => [key, this.sanitizeValue(item)] as const)
+        .filter(([, item]) => item !== undefined);
+
+      return Object.fromEntries(entries);
+    }
+
+    return value;
+  }
+
+  private toIntegerOrUndefined(value: unknown) {
+    if (typeof value === 'number' && Number.isInteger(value)) {
+      return value;
+    }
+
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Number(value);
+      if (Number.isInteger(parsed)) {
+        return parsed;
+      }
+    }
+
+    return undefined;
   }
 }

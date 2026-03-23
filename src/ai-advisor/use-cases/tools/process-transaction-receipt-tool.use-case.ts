@@ -3,8 +3,8 @@ import { ToolProcessReceiptArgsSchema } from 'src/schemas/ai-advisor.schema';
 import ProcessTransactionUseCase from 'src/transactions/use-cases/process-transaction.use-case';
 import { ToolExecutionResult } from '../../ai-advisor.types';
 import {
-  AiAdvisorToolUseCase,
-  ToolExecutionContext,
+    AiAdvisorToolUseCase,
+    ToolExecutionContext,
 } from './tool-use-case.interface';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -19,11 +19,58 @@ export class ProcessTransactionReceiptToolUseCase implements AiAdvisorToolUseCas
     rawArgs: Record<string, any>,
     context?: ToolExecutionContext,
   ): Promise<ToolExecutionResult> {
-    const args = ToolProcessReceiptArgsSchema.parse(rawArgs);
+    const files = context?.files ?? [];
+
+    if (!files.length) {
+      return {
+        responseForModel: {
+          error: 'Nenhum anexo foi enviado.',
+          hint: 'Anexe um comprovante e tente novamente para eu extrair a transacao automaticamente.',
+        },
+        visualization: {
+          type: 'table_summary',
+          toolName: this.name,
+          title: 'Comprovante necessario',
+          payload: {
+            items: [],
+            totalTransactions: 0,
+            error: 'Nenhum anexo foi enviado.',
+            hint: 'Anexe um comprovante e tente novamente para eu extrair a transacao automaticamente.',
+          },
+        },
+      };
+    }
+
+    const fileIndexCandidate = Number(rawArgs?.fileIndex);
+    const normalizedArgs = {
+      ...rawArgs,
+      fileIndex:
+        Number.isInteger(fileIndexCandidate) && fileIndexCandidate >= 0
+          ? fileIndexCandidate
+          : 0,
+    };
+
+    const args = ToolProcessReceiptArgsSchema.parse(normalizedArgs);
     const file = context?.files?.[args.fileIndex];
 
     if (!file) {
-      throw new Error(`Arquivo nao encontrado no indice ${args.fileIndex}.`);
+      return {
+        responseForModel: {
+          error: `Arquivo nao encontrado no indice ${args.fileIndex}.`,
+          hint: `Foram enviados ${files.length} anexo(s).`,
+        },
+        visualization: {
+          type: 'table_summary',
+          toolName: this.name,
+          title: 'Indice de anexo invalido',
+          payload: {
+            items: [],
+            totalTransactions: 0,
+            error: `Arquivo nao encontrado no indice ${args.fileIndex}.`,
+            hint: `Foram enviados ${files.length} anexo(s).`,
+          },
+        },
+      };
     }
 
     const transaction = await this.processTransactionUseCase.execute(

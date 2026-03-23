@@ -11,7 +11,7 @@ export class AiAdvisorService {
   constructor(
     private readonly modelService: AiAdvisorModelService,
     private readonly toolsService: AiAdvisorToolsService,
-  ) {}
+  ) { }
 
   async chat(
     input: AiAdvisorChatRequestInput & { files?: Express.Multer.File[] },
@@ -29,99 +29,8 @@ export class AiAdvisorService {
 
     const tools = this.toolsService.buildTools();
     const result = await this.runModelLoop(contents, tools, input.files);
-    const filteredResult = this.filterVisualizationsByIntent(
-      result,
-      input.message,
-    );
 
-    if (
-      this.isMonthlyQuestion(input.message) &&
-      this.isGenericAssistantResponse(filteredResult.message)
-    ) {
-      const now = new Date();
-      const month = now.getMonth() + 1;
-      const year = now.getFullYear();
-      const summary = await this.toolsService.getMonthlySummary(month, year);
-      const visualization: AiVisualization = {
-        type: 'table_summary',
-        toolName: 'get_monthly_summary',
-        title: `Resumo de ${month}/${year}`,
-        payload: summary,
-      };
-
-      return {
-        message: `Resumo de ${month}/${year}: Receitas R$ ${summary.totalIncome.toFixed(2)}, Despesas R$ ${summary.totalExpenses.toFixed(2)}, Saldo R$ ${summary.balance.toFixed(2)}.`,
-        toolCalls: [...filteredResult.toolCalls, 'get_monthly_summary'],
-        visualization,
-        visualizations: [...filteredResult.visualizations, visualization],
-      };
-    }
-
-    return filteredResult;
-  }
-
-  private filterVisualizationsByIntent(
-    result: {
-      message: string;
-      toolCalls: string[];
-      visualization: AiVisualization | null;
-      visualizations: AiVisualization[];
-    },
-    userMessage: string,
-  ) {
-    const visualizations = (result.visualizations || []).filter((visual) =>
-      this.shouldKeepVisualizationForMessage(visual, userMessage),
-    );
-
-    return {
-      ...result,
-      visualization:
-        visualizations.length > 0
-          ? visualizations[visualizations.length - 1]
-          : null,
-      visualizations,
-    };
-  }
-
-  private shouldKeepVisualizationForMessage(
-    visual: AiVisualization,
-    message: string,
-  ) {
-    if ((visual.payload as any)?.requiresConfirmation) {
-      return true;
-    }
-
-    const text = message.toLowerCase();
-
-    if (visual.type === 'chart_donut') {
-      return this.isCategoryQuestion(text);
-    }
-
-    if (visual.type === 'chart_line') {
-      return this.isTrendQuestion(text);
-    }
-
-    return true;
-  }
-
-  private isCategoryQuestion(message: string) {
-    return (
-      message.includes('categoria') ||
-      message.includes('categorias') ||
-      message.includes('despesas por categoria') ||
-      message.includes('gastos por categoria') ||
-      message.includes('onde gasto') ||
-      message.includes('maior despesa')
-    );
-  }
-
-  private isTrendQuestion(message: string) {
-    return (
-      message.includes('tendencia') ||
-      message.includes('evolucao') ||
-      message.includes('ultimos dias') ||
-      message.includes('ao longo')
-    );
+    return result;
   }
 
   private buildConversationContents(
@@ -139,7 +48,7 @@ export class AiAdvisorService {
         role: 'user',
         parts: [
           {
-            text: 'Voce e o Boletinho, um assistente financeiro. Seja objetivo, amigavel e em portugues do Brasil. Quando receber dados de ferramentas, resuma em linguagem simples e acione insights acionaveis. Se o usuario enviar um comprovante (imagem), processe automaticamente e nao peca mais descricao. Nunca responda apenas com saudacao generica; responda de forma especifica ao pedido atual. So chame get_expenses_by_category quando a pergunta mencionar categoria(s), maior categoria ou distribuicao de gastos. So chame get_spending_trend quando a pergunta pedir tendencia, evolucao temporal ou ultimos dias.',
+            text: 'Voce e o Boletinho, um assistente financeiro. Seja objetivo, amigavel e em portugues do Brasil. Quando receber dados de ferramentas, resuma em linguagem simples e acione insights acionaveis. Se o usuario enviar um comprovante (imagem), processe automaticamente e nao peca mais descricao. Nunca responda apenas com saudacao generica; responda de forma especifica ao pedido atual. Para registrar por texto sem anexo, use create_transaction. Para extrair dados de comprovante com anexo, use process_transaction_receipt. So chame get_expenses_by_category quando a pergunta mencionar categoria(s), maior categoria ou distribuicao de gastos. So chame get_spending_trend quando a pergunta pedir tendencia, evolucao temporal ou ultimos dias.',
           },
         ],
       },
@@ -246,10 +155,7 @@ export class AiAdvisorService {
 
     return {
       message:
-        finalText ||
-        (uniqueVisualizations.length > 0
-          ? 'Aqui estao os dados solicitados.'
-          : 'Nao consegui concluir a analise agora. Tente novamente.'),
+        finalText,
       toolCalls: calledTools,
       visualization:
         uniqueVisualizations.length > 0
@@ -274,23 +180,5 @@ export class AiAdvisorService {
       seen.add(signature);
       return true;
     });
-  }
-
-  private isMonthlyQuestion(message: string) {
-    const text = message.toLowerCase();
-    return (
-      text.includes('este mes') ||
-      text.includes('desse mes') ||
-      text.includes('resumo do mes') ||
-      text.includes('resumo desse mes')
-    );
-  }
-
-  private isGenericAssistantResponse(message: string) {
-    const text = message.toLowerCase().trim();
-    return (
-      text.startsWith('ola! estou aqui para te ajudar') ||
-      text.includes('o que posso fazer por voce')
-    );
   }
 }

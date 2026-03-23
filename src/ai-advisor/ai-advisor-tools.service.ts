@@ -92,7 +92,6 @@ export class AiAdvisorToolsService {
               description: 'Texto livre para buscar transacoes por descricao',
             },
           },
-          required: ['transactionId'],
         },
       },
       {
@@ -236,7 +235,28 @@ export class AiAdvisorToolsService {
     }
 
     const safeArgs = this.normalizeArgsForTool(name, rawArgs);
-    return tool.execute(safeArgs, { files });
+
+    try {
+      return tool.execute(safeArgs, { files });
+    } catch (error: any) {
+      const message =
+        this.getToolFallbackMessage(name, error?.message) ??
+        'Nao consegui executar esta acao agora. Tente novamente.';
+
+      return {
+        responseForModel: { error: message },
+        visualization: {
+          type: 'table_summary',
+          toolName: name,
+          title: 'Ajuste necessario',
+          payload: {
+            items: [],
+            totalTransactions: 0,
+            error: message,
+          },
+        },
+      };
+    }
   }
 
   getMonthlySummary(month: number, year: number) {
@@ -322,5 +342,17 @@ export class AiAdvisorToolsService {
     }
 
     return undefined;
+  }
+
+  private getToolFallbackMessage(name: string, originalMessage?: string) {
+    if (name === 'process_transaction_receipt') {
+      return 'Para processar comprovante, anexe uma imagem e tente novamente.';
+    }
+
+    if (name === 'get_transaction_details') {
+      return 'Para buscar transacao, informe um ID valido ou uma descricao para pesquisa.';
+    }
+
+    return originalMessage;
   }
 }

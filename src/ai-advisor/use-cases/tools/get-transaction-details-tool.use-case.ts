@@ -21,7 +21,36 @@ export class GetTransactionDetailsToolUseCase implements AiAdvisorToolUseCase {
   }
 
   async execute(rawArgs: Record<string, any>): Promise<ToolExecutionResult> {
-    const args = ToolTransactionDetailsArgsSchema.parse(rawArgs);
+    const normalizedArgs = {
+      transactionId:
+        typeof rawArgs?.transactionId === 'string'
+          ? rawArgs.transactionId.trim()
+          : undefined,
+      query:
+        typeof rawArgs?.query === 'string' ? rawArgs.query.trim() : undefined,
+    };
+
+    if (!normalizedArgs.transactionId && !normalizedArgs.query) {
+      return {
+        responseForModel: {
+          error: 'Nenhum identificador de transacao foi informado.',
+          hint: 'Passe o ID da transacao ou um texto de busca (descricao).',
+        },
+        visualization: {
+          type: 'table_summary',
+          toolName: this.name,
+          title: 'Como buscar transacao',
+          payload: {
+            items: [],
+            totalTransactions: 0,
+            error: 'Nenhum identificador de transacao foi informado.',
+            hint: 'Passe o ID da transacao ou um texto de busca (descricao).',
+          },
+        },
+      };
+    }
+
+    const args = ToolTransactionDetailsArgsSchema.parse(normalizedArgs);
     const query = (args.transactionId ?? args.query ?? '').trim();
 
     const isUuid =
@@ -100,6 +129,7 @@ export class GetTransactionDetailsToolUseCase implements AiAdvisorToolUseCase {
       id: tx.id,
       description: tx.description,
       amount: Number(tx.amount),
+      type: tx.type,
       category: tx.categoryName ?? 'Sem categoria',
       status: tx.status,
       createdAt: tx.createdAt,
@@ -107,13 +137,35 @@ export class GetTransactionDetailsToolUseCase implements AiAdvisorToolUseCase {
       dueDate: tx.dueDate,
     }));
 
+    const totals = items.reduce(
+      (acc, item) => {
+        const value = Number(item.amount || 0);
+        if (item.type === 'income') {
+          acc.totalIncome += value;
+        } else {
+          acc.totalExpenses += value;
+        }
+        acc.totalAmount += value;
+        return acc;
+      },
+      { totalIncome: 0, totalExpenses: 0, totalAmount: 0 },
+    );
+
+    const summary = {
+      totalTransactions: items.length,
+      totalAmount: Number(totals.totalAmount.toFixed(2)),
+      totalIncome: Number(totals.totalIncome.toFixed(2)),
+      totalExpenses: Number(totals.totalExpenses.toFixed(2)),
+      balance: Number((totals.totalIncome - totals.totalExpenses).toFixed(2)),
+    };
+
     return {
-      responseForModel: { query, items },
+      responseForModel: { query, items, ...summary },
       visualization: {
         type: 'table_summary',
         toolName: this.name,
         title: `Transacoes encontradas para "${query}" (${items.length})`,
-        payload: { items, totalTransactions: items.length },
+        payload: { items, query, ...summary },
       },
     };
   }

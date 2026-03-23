@@ -29,6 +29,14 @@ export const VaultAmountSchema = z.object({
   amount: z.number().positive('O valor deve ser maior que zero'),
 });
 
+export const GetVaultHistorySchema = z.object({
+  month: z.coerce.number().min(1).max(12).optional(),
+  year: z.coerce.number().min(1900).max(2100).optional(),
+  limit: z.coerce.number().min(1).max(100).optional().default(20),
+  cursor: z.string().trim().min(1).optional(),
+});
+
 export type CreateVaultInput = z.infer<typeof CreateVaultSchema>;
 export type UpdateVaultInput = z.infer<typeof UpdateVaultSchema>;
 export type VaultAmountInput = z.infer<typeof VaultAmountSchema>;
+export type GetVaultHistoryInput = z.infer<typeof GetVaultHistorySchema>;

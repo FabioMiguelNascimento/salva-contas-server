@@ -6,12 +6,15 @@ import {
     Param,
     Patch,
     Post,
+    Query,
 } from '@nestjs/common';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import { success } from 'src/utils/api-response-helper';
 import {
     CreateVaultInput,
     CreateVaultSchema,
+    GetVaultHistoryInput,
+    GetVaultHistorySchema,
     UpdateVaultInput,
     UpdateVaultSchema,
     VaultAmountInput,
@@ -77,5 +80,15 @@ export class VaultsController {
   ) {
     const vault = await this.vaultsService.addYield(id, data);
     return success(vault, 'Rendimento registrado com sucesso');
+  }
+
+  @Get(':id/history')
+  async getHistory(
+    @Param('id') id: string,
+    @Query(new ZodValidationPipe(GetVaultHistorySchema))
+    query: GetVaultHistoryInput,
+  ) {
+    const history = await this.vaultsService.getHistory(id, query);
+    return success(history, 'Histórico do cofrinho recuperado com sucesso');
   }
 }

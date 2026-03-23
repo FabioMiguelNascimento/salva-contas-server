@@ -36,6 +36,12 @@ enum FamilyInviteStatus {
   cancelled
 }
 
+enum VaultHistoryType {
+  deposit
+  withdraw
+  yield
+}
+
 model User {
   id         String   @id
   email      String?  @unique
@@ -48,6 +54,7 @@ model User {
   invitesSent      FamilyInvite[] @relation("InviteFromUser")
   invitesAccepted  FamilyInvite[] @relation("InviteAcceptedByUser")
   vaults           Vault[]
+  vaultHistoryEvents VaultHistoryEvent[]
 
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -141,11 +148,30 @@ model Vault {
   userId        String        @map("user_id")
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions  Transaction[]
+  historyEvents VaultHistoryEvent[]
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
   @@index([userId], map: "idx_vaults_user")
   @@map("vaults")
+}
+
+model VaultHistoryEvent {
+  id           String          @id @default(uuid())
+  vaultId       String          @map("vault_id")
+  vault         Vault           @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  userId        String          @map("user_id")
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          VaultHistoryType
+  amount        Decimal         @db.Decimal(10, 2)
+  balanceAfter  Decimal         @map("balance_after") @db.Decimal(10, 2)
+  happenedAt    DateTime        @map("happened_at")
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  @@index([vaultId, happenedAt, id], map: "idx_vault_history_vault_happened")
+  @@index([userId, happenedAt], map: "idx_vault_history_user_happened")
+  @@index([vaultId, type], map: "idx_vault_history_vault_type")
+  @@map("vault_history_events")
 }
 
 model TransactionSplit {

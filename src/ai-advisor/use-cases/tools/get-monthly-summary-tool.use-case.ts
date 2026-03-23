@@ -28,11 +28,15 @@ export class GetMonthlySummaryToolUseCase implements AiAdvisorToolUseCase {
 
     const normalizedArgs = {
       month:
-        Number.isInteger(monthCandidate) && monthCandidate >= 1 && monthCandidate <= 12
+        Number.isInteger(monthCandidate) &&
+        monthCandidate >= 1 &&
+        monthCandidate <= 12
           ? monthCandidate
           : defaultMonth,
       year:
-        Number.isInteger(yearCandidate) && yearCandidate >= 2000 && yearCandidate <= 2100
+        Number.isInteger(yearCandidate) &&
+        yearCandidate >= 2000 &&
+        yearCandidate <= 2100
           ? yearCandidate
           : defaultYear,
     };

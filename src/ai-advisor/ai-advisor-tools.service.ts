@@ -306,7 +306,11 @@ export class AiAdvisorToolsService {
 
     if (typeof value === 'string') {
       const lowered = value.trim().toLowerCase();
-      if (lowered === 'nan' || lowered === 'infinity' || lowered === '-infinity') {
+      if (
+        lowered === 'nan' ||
+        lowered === 'infinity' ||
+        lowered === '-infinity'
+      ) {
         return undefined;
       }
       return value;

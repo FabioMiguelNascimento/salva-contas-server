@@ -28,10 +28,12 @@ export class ConfirmTransactionUseCase {
         continue;
       }
 
-      const createdTx =
-        await this.transactionsRepository.createTransaction(entry, {
+      const createdTx = await this.transactionsRepository.createTransaction(
+        entry,
+        {
           skipCardRecalc: true,
-        });
+        },
+      );
       created.push(createdTx);
 
       const splits = (entry as any)?.splits as
@@ -50,9 +52,7 @@ export class ConfirmTransactionUseCase {
     }
 
     if (cardIdsToRecalc.size > 0) {
-      await this.transactionsRepository.recalcCardLimits([
-        ...cardIdsToRecalc,
-      ]);
+      await this.transactionsRepository.recalcCardLimits([...cardIdsToRecalc]);
     }
 
     return created.length === 1 ? created[0] : created;

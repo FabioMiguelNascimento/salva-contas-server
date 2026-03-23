@@ -2,16 +2,16 @@ import { Injectable, Scope } from '@nestjs/common';
 import { UserContext } from 'src/auth/user-context.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
-    AIReceiptData,
-    GetTransactionsInput,
-    SplitInput,
-    UpdateTransactionInput,
+  AIReceiptData,
+  GetTransactionsInput,
+  SplitInput,
+  UpdateTransactionInput,
 } from 'src/schemas/transactions.schema';
 import { parseDateLocal } from 'src/utils/date-utils';
 import {
-    CreateTransactionOptions,
-    TransactionsRepositoryInterface,
-    TransactionWithCount,
+  CreateTransactionOptions,
+  TransactionsRepositoryInterface,
+  TransactionWithCount,
 } from './transactions.interface';
 
 const CARD_RECALC_CONCURRENCY = 4;
@@ -84,7 +84,9 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     }
   }
 
-  private async resolveCategoryId(normalizedCategory: string): Promise<string | null> {
+  private async resolveCategoryId(
+    normalizedCategory: string,
+  ): Promise<string | null> {
     if (this.categoryIdCache.has(normalizedCategory)) {
       return this.categoryIdCache.get(normalizedCategory) ?? null;
     }
@@ -137,7 +139,8 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     if (this.createdByNameCache.has(transaction.createdById)) {
       return {
         ...transaction,
-        createdByName: this.createdByNameCache.get(transaction.createdById) ?? null,
+        createdByName:
+          this.createdByNameCache.get(transaction.createdById) ?? null,
       };
     }
 
@@ -203,7 +206,8 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     const dueDate = parseDateLocal((data as any).dueDate);
     const paymentDate = parseDateLocal((data as any).paymentDate);
 
-    const categoryIdToConnect = await this.resolveCategoryId(normalizedCategory);
+    const categoryIdToConnect =
+      await this.resolveCategoryId(normalizedCategory);
 
     const createData: any = {
       ...transactionData,

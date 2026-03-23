@@ -3,8 +3,8 @@ import { ToolProcessReceiptArgsSchema } from 'src/schemas/ai-advisor.schema';
 import ProcessTransactionUseCase from 'src/transactions/use-cases/process-transaction.use-case';
 import { ToolExecutionResult } from '../../ai-advisor.types';
 import {
-    AiAdvisorToolUseCase,
-    ToolExecutionContext,
+  AiAdvisorToolUseCase,
+  ToolExecutionContext,
 } from './tool-use-case.interface';
 
 @Injectable({ scope: Scope.REQUEST })

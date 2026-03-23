@@ -11,7 +11,7 @@ export class AiAdvisorService {
   constructor(
     private readonly modelService: AiAdvisorModelService,
     private readonly toolsService: AiAdvisorToolsService,
-  ) { }
+  ) {}
 
   async chat(
     input: AiAdvisorChatRequestInput & { files?: Express.Multer.File[] },
@@ -154,8 +154,7 @@ export class AiAdvisorService {
     const uniqueVisualizations = this.deduplicateVisualizations(visualizations);
 
     return {
-      message:
-        finalText,
+      message: finalText,
       toolCalls: calledTools,
       visualization:
         uniqueVisualizations.length > 0

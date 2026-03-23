@@ -2,10 +2,14 @@ export abstract class DashboardRepositoryInterface {
   abstract getMetrics(
     month?: number,
     year?: number,
+    startDate?: Date,
+    endDate?: Date,
   ): Promise<{
     totalIncome: number;
     totalExpenses: number;
     netBalance: number;
+    availableBalance: number;
+    savedAmount: number;
     categoryBreakdown: Array<{
       category: string;
       categoryId?: string | null;
@@ -23,6 +27,8 @@ export abstract class DashboardRepositoryInterface {
   abstract getSnapshot(filters?: {
     month?: number;
     year?: number;
+    startDate?: string;
+    endDate?: string;
     status?: 'paid' | 'pending';
     type?: 'expense' | 'income';
     categoryId?: string;
@@ -31,6 +37,8 @@ export abstract class DashboardRepositoryInterface {
       totalIncome: number;
       totalExpenses: number;
       netBalance: number;
+      availableBalance: number;
+      savedAmount: number;
       incomeChangePercent: number;
       expensesChangePercent: number;
       balanceChangePercent: number;
@@ -64,5 +72,6 @@ export abstract class DashboardRepositoryInterface {
     categories: any[];
     creditCards: any[];
     debitCards: any[];
+    vaults: any[];
   }>;
 }

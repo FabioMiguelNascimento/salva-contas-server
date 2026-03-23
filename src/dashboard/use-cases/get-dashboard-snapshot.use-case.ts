@@ -14,6 +14,8 @@ export class GetDashboardSnapshotUseCase {
   async execute(filters?: {
     month?: number;
     year?: number;
+    startDate?: string;
+    endDate?: string;
     status?: 'paid' | 'pending';
     type?: 'expense' | 'income';
     categoryId?: string;

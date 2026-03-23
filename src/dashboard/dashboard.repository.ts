@@ -18,17 +18,48 @@ export class DashboardRepository extends DashboardRepositoryInterface {
     return this.userContext.userId;
   }
 
-  async getMetrics(month?: number, year?: number) {
-    const currentMonth = month || new Date().getMonth() + 1;
-    const currentYear = year || new Date().getFullYear();
+  private parseDateOnlyInput(value: string): Date {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
 
-    const currentPeriodStart = new Date(currentYear, currentMonth - 1, 1);
-    const currentPeriodEnd = new Date(currentYear, currentMonth, 1);
+  async getMetrics(
+    month?: number,
+    year?: number,
+    startDate?: Date,
+    endDate?: Date,
+  ) {
+    let currentPeriodStart: Date;
+    let currentPeriodEnd: Date;
+    let previousPeriodStart: Date;
+    let previousPeriodEnd: Date;
 
-    const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-    const previousYear = currentMonth === 1 ? currentYear - 1 : currentYear;
-    const previousPeriodStart = new Date(previousYear, previousMonth - 1, 1);
-    const previousPeriodEnd = new Date(previousYear, previousMonth, 1);
+    if (startDate && endDate) {
+      currentPeriodStart = new Date(startDate);
+      currentPeriodStart.setHours(0, 0, 0, 0);
+
+      currentPeriodEnd = new Date(endDate);
+      currentPeriodEnd.setHours(0, 0, 0, 0);
+      currentPeriodEnd.setDate(currentPeriodEnd.getDate() + 1);
+
+      const periodDurationMs =
+        currentPeriodEnd.getTime() - currentPeriodStart.getTime();
+      previousPeriodStart = new Date(
+        currentPeriodStart.getTime() - periodDurationMs,
+      );
+      previousPeriodEnd = new Date(currentPeriodEnd.getTime() - periodDurationMs);
+    } else {
+      const currentMonth = month || new Date().getMonth() + 1;
+      const currentYear = year || new Date().getFullYear();
+
+      currentPeriodStart = new Date(currentYear, currentMonth - 1, 1);
+      currentPeriodEnd = new Date(currentYear, currentMonth, 1);
+
+      const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+      const previousYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+      previousPeriodStart = new Date(previousYear, previousMonth - 1, 1);
+      previousPeriodEnd = new Date(previousYear, previousMonth, 1);
+    }
 
     const currentTransactions = await this.prisma.transaction.findMany({
       where: {
@@ -176,10 +207,32 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       }
     }
 
+    const savedAmountAgg = await this.prisma.vault.aggregate({
+      where: { userId: this.userId },
+      _sum: { currentAmount: true },
+    });
+
+    const manualYieldAmount = currentTransactions.reduce((sum, transaction) => {
+      if (
+        transaction.vaultId &&
+        transaction.type === 'income' &&
+        transaction.description.startsWith('Rendimento manual no cofrinho:')
+      ) {
+        return sum + Number(transaction.amount);
+      }
+
+      return sum;
+    }, 0);
+
+    const savedAmount = Number(savedAmountAgg._sum.currentAmount || 0);
+    const availableBalance = totalIncome - totalExpenses - manualYieldAmount;
+
     return {
       totalIncome,
       totalExpenses,
       netBalance: totalIncome - totalExpenses,
+      availableBalance,
+      savedAmount,
       incomeChangePercent,
       expensesChangePercent,
       balanceChangePercent,
@@ -200,17 +253,48 @@ export class DashboardRepository extends DashboardRepositoryInterface {
   async getSnapshot(filters?: {
     month?: number;
     year?: number;
+    startDate?: string;
+    endDate?: string;
     status?: 'paid' | 'pending';
     type?: 'expense' | 'income';
     categoryId?: string;
   }) {
     const month = filters?.month;
     const year = filters?.year;
+    const rangeStartInput = filters?.startDate;
+    const rangeEndInput = filters?.endDate;
 
-    const resolvedMonth = month || new Date().getMonth() + 1;
-    const resolvedYear = year || new Date().getFullYear();
+    const rangeStart = rangeStartInput
+      ? this.parseDateOnlyInput(rangeStartInput)
+      : null;
+    const rangeEnd = rangeEndInput
+      ? this.parseDateOnlyInput(rangeEndInput)
+      : null;
+
+    if (rangeStart) {
+      rangeStart.setHours(0, 0, 0, 0);
+    }
+
+    if (rangeEnd) {
+      rangeEnd.setHours(0, 0, 0, 0);
+      rangeEnd.setDate(rangeEnd.getDate() + 1);
+    }
+
+    const resolvedMonth =
+      month ||
+      (rangeEndInput
+        ? this.parseDateOnlyInput(rangeEndInput).getMonth() + 1
+        : new Date().getMonth() + 1);
+    const resolvedYear =
+      year ||
+      (rangeEndInput
+        ? this.parseDateOnlyInput(rangeEndInput).getFullYear()
+        : new Date().getFullYear());
     const monthStart = new Date(resolvedYear, resolvedMonth - 1, 1);
     const nextMonthStart = new Date(resolvedYear, resolvedMonth, 1);
+
+    const periodStart = rangeStart ?? (month && year ? monthStart : null);
+    const periodEnd = rangeEnd ?? (month && year ? nextMonthStart : null);
 
     const transactionWhere: any = {
       AND: [{ userId: this.userId }],
@@ -224,28 +308,28 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       transactionWhere.AND.push({ status: filters.status });
     }
 
-    if (month && year) {
+    if (periodStart && periodEnd) {
       transactionWhere.AND.push({
         OR: [
           {
             paymentDate: {
-              gte: monthStart,
-              lt: nextMonthStart,
+              gte: periodStart,
+              lt: periodEnd,
             },
           },
           {
             paymentDate: null,
             dueDate: {
-              gte: monthStart,
-              lt: nextMonthStart,
+              gte: periodStart,
+              lt: periodEnd,
             },
           },
           {
             paymentDate: null,
             dueDate: null,
             createdAt: {
-              gte: monthStart,
-              lt: nextMonthStart,
+              gte: periodStart,
+              lt: periodEnd,
             },
           },
         ],
@@ -270,7 +354,12 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       }
     }
 
-    const metricsPromise = this.getMetrics(month, year);
+    const metricsPromise = this.getMetrics(
+      month,
+      year,
+      rangeStartInput ? this.parseDateOnlyInput(rangeStartInput) : undefined,
+      rangeEndInput ? this.parseDateOnlyInput(rangeEndInput) : undefined,
+    );
 
     const transactionsPromise = this.prisma.transaction.findMany({
       where: transactionWhere,
@@ -325,6 +414,13 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       take: 20,
     });
 
+    const vaultsPromise = this.prisma.vault.findMany({
+      where: {
+        userId: this.userId,
+      },
+      orderBy: [{ createdAt: 'desc' }],
+    });
+
     const [
       metrics,
       transactionsRaw,
@@ -333,6 +429,7 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       categories,
       creditCardsRaw,
       debitCards,
+      vaults,
     ] = await Promise.all([
       metricsPromise,
       transactionsPromise,
@@ -341,6 +438,7 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       categoriesPromise,
       creditCardsRawPromise,
       debitCardsPromise,
+      vaultsPromise,
     ]);
 
     const createdByIds = [
@@ -463,6 +561,7 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       categories,
       creditCards,
       debitCards,
+      vaults,
     };
   }
 }

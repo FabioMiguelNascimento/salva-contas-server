@@ -47,6 +47,7 @@ model User {
 
   invitesSent      FamilyInvite[] @relation("InviteFromUser")
   invitesAccepted  FamilyInvite[] @relation("InviteAcceptedByUser")
+  vaults           Vault[]
 
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -118,12 +119,33 @@ model Transaction {
   debitCardId String?      @map("debit_card_id")
   debitCard   DebitCard?   @relation(fields: [debitCardId], references: [id])
 
+  vaultId     String?      @map("vault_id")
+  vault       Vault?       @relation(fields: [vaultId], references: [id])
+
   attachments  Attachment[]
   splits       TransactionSplit[]
 
   @@index([userId, creditCardId, type], map: "idx_transactions_card_expense")
+  @@index([vaultId], map: "idx_transactions_vault")
   @@index([userId, description, amount, categoryName, type, status, dueDate, paymentDate, creditCardId, debitCardId], map: "idx_transactions_confirm_duplicate")
   @@map("transactions")
+}
+
+model Vault {
+  id            String        @id @default(uuid())
+  name          String
+  targetAmount  Decimal?      @map("target_amount") @db.Decimal(10, 2)
+  currentAmount Decimal       @default(0) @map("current_amount") @db.Decimal(10, 2)
+  color         String?
+  icon          String?
+  userId        String        @map("user_id")
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  @@index([userId], map: "idx_vaults_user")
+  @@map("vaults")
 }
 
 model TransactionSplit {

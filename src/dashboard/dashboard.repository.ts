@@ -33,20 +33,42 @@ export class DashboardRepository extends DashboardRepositoryInterface {
     const currentTransactions = await this.prisma.transaction.findMany({
       where: {
         userId: this.userId,
-        createdAt: {
-          gte: currentPeriodStart,
-          lt: currentPeriodEnd,
-        },
+        OR: [
+          {
+            paymentDate: {
+              gte: currentPeriodStart,
+              lt: currentPeriodEnd,
+            },
+          },
+          {
+            paymentDate: null,
+            createdAt: {
+              gte: currentPeriodStart,
+              lt: currentPeriodEnd,
+            },
+          },
+        ],
       },
     });
 
     const previousTransactions = await this.prisma.transaction.findMany({
       where: {
         userId: this.userId,
-        createdAt: {
-          gte: previousPeriodStart,
-          lt: previousPeriodEnd,
-        },
+        OR: [
+          {
+            paymentDate: {
+              gte: previousPeriodStart,
+              lt: previousPeriodEnd,
+            },
+          },
+          {
+            paymentDate: null,
+            createdAt: {
+              gte: previousPeriodStart,
+              lt: previousPeriodEnd,
+            },
+          },
+        ],
       },
     });
 
@@ -191,17 +213,43 @@ export class DashboardRepository extends DashboardRepositoryInterface {
     const nextMonthStart = new Date(resolvedYear, resolvedMonth, 1);
 
     const transactionWhere: any = {
-      userId: this.userId,
+      AND: [{ userId: this.userId }],
     };
 
-    if (filters?.type) transactionWhere.type = filters.type;
-    if (filters?.status) transactionWhere.status = filters.status;
+    if (filters?.type) {
+      transactionWhere.AND.push({ type: filters.type });
+    }
+
+    if (filters?.status) {
+      transactionWhere.AND.push({ status: filters.status });
+    }
 
     if (month && year) {
-      transactionWhere.createdAt = {
-        gte: monthStart,
-        lt: nextMonthStart,
-      };
+      transactionWhere.AND.push({
+        OR: [
+          {
+            paymentDate: {
+              gte: monthStart,
+              lt: nextMonthStart,
+            },
+          },
+          {
+            paymentDate: null,
+            dueDate: {
+              gte: monthStart,
+              lt: nextMonthStart,
+            },
+          },
+          {
+            paymentDate: null,
+            dueDate: null,
+            createdAt: {
+              gte: monthStart,
+              lt: nextMonthStart,
+            },
+          },
+        ],
+      });
     }
 
     if (filters?.categoryId) {
@@ -210,12 +258,14 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       });
       if (category) {
         if (category.isGlobal) {
-          transactionWhere.OR = [
-            { categoryId: filters.categoryId },
-            { categoryName: category.name },
-          ];
+          transactionWhere.AND.push({
+            OR: [
+              { categoryId: filters.categoryId },
+              { categoryName: category.name },
+            ],
+          });
         } else {
-          transactionWhere.categoryId = filters.categoryId;
+          transactionWhere.AND.push({ categoryId: filters.categoryId });
         }
       }
     }
@@ -230,8 +280,8 @@ export class DashboardRepository extends DashboardRepositoryInterface {
         debitCard: true,
         splits: { include: { creditCard: true } },
       },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
+      orderBy: [{ paymentDate: 'desc' }, { createdAt: 'desc' }],
+      take: 1000,
     });
 
     const subscriptionsPromise = this.prisma.subscription.findMany({
@@ -336,10 +386,21 @@ export class DashboardRepository extends DashboardRepositoryInterface {
             userId: this.userId,
             categoryId: budget.categoryId,
             type: 'expense',
-            createdAt: {
-              gte: monthStart,
-              lt: nextMonthStart,
-            },
+            OR: [
+              {
+                paymentDate: {
+                  gte: monthStart,
+                  lt: nextMonthStart,
+                },
+              },
+              {
+                paymentDate: null,
+                createdAt: {
+                  gte: monthStart,
+                  lt: nextMonthStart,
+                },
+              },
+            ],
           },
           _sum: {
             amount: true,

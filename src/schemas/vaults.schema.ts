@@ -36,7 +36,26 @@ export const GetVaultHistorySchema = z.object({
   cursor: z.string().trim().min(1).optional(),
 });
 
+export const VaultAiActionSchema = z.object({
+  type: z.enum(['deposit', 'withdraw', 'yield']),
+  amount: z.number().positive('O valor deve ser maior que zero'),
+  note: z.string().trim().optional(),
+});
+
+export const VaultAiCommandSchema = z
+  .object({
+    text: z.string().trim().optional(),
+    command: z.string().trim().optional(),
+    message: z.string().trim().optional(),
+  })
+  .refine((value) => Boolean(value.text || value.command || value.message), {
+    message: 'Comando de texto é obrigatório',
+    path: ['text'],
+  });
+
 export type CreateVaultInput = z.infer<typeof CreateVaultSchema>;
 export type UpdateVaultInput = z.infer<typeof UpdateVaultSchema>;
 export type VaultAmountInput = z.infer<typeof VaultAmountSchema>;
 export type GetVaultHistoryInput = z.infer<typeof GetVaultHistorySchema>;
+export type VaultAiActionInput = z.infer<typeof VaultAiActionSchema>;
+export type VaultAiCommandInput = z.infer<typeof VaultAiCommandSchema>;

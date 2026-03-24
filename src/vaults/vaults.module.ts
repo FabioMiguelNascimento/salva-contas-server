@@ -1,12 +1,20 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { VaultsController } from './vaults.controller';
+import { VaultsRepositoryInterface } from './vaults.interface';
+import { VaultsRepository } from './vaults.repository';
 import { VaultsService } from './vaults.service';
 
 @Module({
   imports: [PrismaModule],
   controllers: [VaultsController],
-  providers: [VaultsService],
+  providers: [
+    VaultsService,
+    {
+      provide: VaultsRepositoryInterface,
+      useClass: VaultsRepository,
+    },
+  ],
   exports: [VaultsService],
 })
 export class VaultsModule {}

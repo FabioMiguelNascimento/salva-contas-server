@@ -47,7 +47,9 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       previousPeriodStart = new Date(
         currentPeriodStart.getTime() - periodDurationMs,
       );
-      previousPeriodEnd = new Date(currentPeriodEnd.getTime() - periodDurationMs);
+      previousPeriodEnd = new Date(
+        currentPeriodEnd.getTime() - periodDurationMs,
+      );
     } else {
       const currentMonth = month || new Date().getMonth() + 1;
       const currentYear = year || new Date().getFullYear();

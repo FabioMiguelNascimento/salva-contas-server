@@ -1,24 +1,24 @@
 import {
-    Body,
-    Controller,
-    Delete,
-    Get,
-    Param,
-    Patch,
-    Post,
-    Query,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
 } from '@nestjs/common';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import { success } from 'src/utils/api-response-helper';
 import {
-    CreateVaultInput,
-    CreateVaultSchema,
-    GetVaultHistoryInput,
-    GetVaultHistorySchema,
-    UpdateVaultInput,
-    UpdateVaultSchema,
-    VaultAmountInput,
-    VaultAmountSchema,
+  CreateVaultInput,
+  CreateVaultSchema,
+  GetVaultHistoryInput,
+  GetVaultHistorySchema,
+  UpdateVaultInput,
+  UpdateVaultSchema,
+  VaultAmountInput,
+  VaultAmountSchema,
 } from '../schemas/vaults.schema';
 import { VaultsService } from './vaults.service';
 

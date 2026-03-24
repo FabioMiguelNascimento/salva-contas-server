@@ -11,6 +11,7 @@ import { GetSpendingTrendToolUseCase } from './use-cases/tools/get-spending-tren
 import { GetTransactionDetailsToolUseCase } from './use-cases/tools/get-transaction-details-tool.use-case';
 import { ProcessTransactionReceiptToolUseCase } from './use-cases/tools/process-transaction-receipt-tool.use-case';
 import { AiAdvisorToolUseCase } from './use-cases/tools/tool-use-case.interface';
+import { VaultAiActionToolUseCase } from './use-cases/tools/vault-ai-action-tool.use-case';
 
 @Injectable({ scope: Scope.REQUEST })
 export class AiAdvisorToolsService {
@@ -23,6 +24,7 @@ export class AiAdvisorToolsService {
     private readonly getTransactionDetailsTool: GetTransactionDetailsToolUseCase,
     private readonly processTransactionReceiptTool: ProcessTransactionReceiptToolUseCase,
     private readonly createTransactionTool: CreateTransactionToolUseCase,
+    private readonly vaultAiActionTool: VaultAiActionToolUseCase,
   ) {
     const tools: AiAdvisorToolUseCase[] = [
       this.getMonthlySummaryTool,
@@ -31,6 +33,7 @@ export class AiAdvisorToolsService {
       this.getTransactionDetailsTool,
       this.processTransactionReceiptTool,
       this.createTransactionTool,
+      this.vaultAiActionTool,
     ];
 
     this.toolMap = new Map(tools.map((tool) => [tool.name, tool]));
@@ -149,6 +152,22 @@ export class AiAdvisorToolsService {
               type: 'STRING',
               description: 'ID do cartao de credito',
               nullable: true,
+            },
+          },
+          required: ['text'],
+        },
+      },
+      {
+        name: 'vault_ai_action',
+        description:
+          'Executa uma acao de cofrinho (depositar/resgatar/rendimento) com base no texto. Nao usa HTTP externo.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            text: {
+              type: 'STRING',
+              description:
+                'Comando em linguagem natural, ex: "Adicione 500 no cofrinho sobre nos"',
             },
           },
           required: ['text'],

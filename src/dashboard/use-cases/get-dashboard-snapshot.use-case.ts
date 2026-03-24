@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
-    GetDashboardSnapshotResponse,
-    getDashboardSnapshotResponseSchema,
+  GetDashboardSnapshotResponse,
+  getDashboardSnapshotResponseSchema,
 } from 'src/schemas/dashboard.schema';
 import { DashboardRepositoryInterface } from '../dashboard.interface';
 

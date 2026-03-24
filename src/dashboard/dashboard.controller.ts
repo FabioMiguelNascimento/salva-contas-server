@@ -1,9 +1,9 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import {
-    GetDashboardMetricsDto,
-    getDashboardMetricsSchema,
-    GetDashboardSnapshotDto,
-    getDashboardSnapshotSchema,
+  GetDashboardMetricsDto,
+  getDashboardMetricsSchema,
+  GetDashboardSnapshotDto,
+  getDashboardSnapshotSchema,
 } from 'src/schemas/dashboard.schema';
 import { success } from 'src/utils/api-response-helper';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';

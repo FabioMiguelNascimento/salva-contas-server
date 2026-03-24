@@ -26,18 +26,19 @@ export type GetDashboardMetricsResponse = z.infer<
   typeof getDashboardMetricsResponseSchema
 >;
 
-export const getDashboardMetricsSchema = z.object({
-  month: z.coerce.number().min(1).max(12).optional(),
-  year: z.coerce.number().min(2000).max(2100).optional(),
-  startDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  endDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-})
+export const getDashboardMetricsSchema = z
+  .object({
+    month: z.coerce.number().min(1).max(12).optional(),
+    year: z.coerce.number().min(2000).max(2100).optional(),
+    startDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    endDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+  })
   .refine(
     (data) =>
       (Boolean(data.startDate) && Boolean(data.endDate)) ||
@@ -58,21 +59,22 @@ export const getDashboardMetricsSchema = z.object({
 
 export type GetDashboardMetricsDto = z.infer<typeof getDashboardMetricsSchema>;
 
-export const getDashboardSnapshotSchema = z.object({
-  month: z.coerce.number().min(1).max(12).optional(),
-  year: z.coerce.number().min(2000).max(2100).optional(),
-  startDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  endDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  status: z.enum(['paid', 'pending']).optional(),
-  type: z.enum(['expense', 'income']).optional(),
-  categoryId: z.string().uuid().optional(),
-})
+export const getDashboardSnapshotSchema = z
+  .object({
+    month: z.coerce.number().min(1).max(12).optional(),
+    year: z.coerce.number().min(2000).max(2100).optional(),
+    startDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    endDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    status: z.enum(['paid', 'pending']).optional(),
+    type: z.enum(['expense', 'income']).optional(),
+    categoryId: z.string().uuid().optional(),
+  })
   .refine(
     (data) =>
       (Boolean(data.startDate) && Boolean(data.endDate)) ||

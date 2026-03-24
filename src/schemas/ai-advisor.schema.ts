@@ -48,6 +48,10 @@ export const ToolCreateTransactionArgsSchema = z.object({
   creditCardId: z.string().optional().nullable(),
 });
 
+export const ToolVaultAiActionArgsSchema = z.object({
+  text: z.string().trim().min(1),
+});
+
 export type AiAdvisorChatRequestInput = z.infer<
   typeof AiAdvisorChatRequestSchema
 >;

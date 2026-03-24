@@ -548,9 +548,20 @@ export class DashboardRepository extends DashboardRepositoryInterface {
           Number(txAgg._sum.amount || 0) + Number(splitAgg._sum.amount || 0);
 
         return {
-          ...card,
+          id: card.id,
+          userId: card.userId,
+          createdById: card.createdById,
+          name: card.name,
+          flag: card.flag,
+          lastFourDigits: card.lastFourDigits,
+          limit: Number(card.limit),
           availableLimit: Number(card.limit) - debt,
-        };
+          closingDay: card.closingDay,
+          dueDay: card.dueDay,
+          status: card.status,
+          createdAt: card.createdAt ?? null,
+          updatedAt: card.updatedAt ?? null,
+        } as any;
       }),
     );
 

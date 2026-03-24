@@ -76,6 +76,8 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
         });
         const debt =
           Number(txAgg._sum.amount || 0) + Number(splitAgg._sum.amount || 0);
+
+        // Keep Prisma Decimal for repository objects; conversion is done in consumer layer where needed
         card.availableLimit = new Prisma.Decimal(Number(card.limit) - debt);
       }),
     );
@@ -91,6 +93,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
     const result: CreditCardWithUsage[] = [];
 
     for (const card of creditCards) {
+      const limitNumber = Number(card.limit);
       const { invoiceStartDate, invoiceEndDate, dueDate } =
         this.calculateInvoiceDates(card.closingDay, card.dueDay);
 
@@ -106,6 +109,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
         },
         _sum: { amount: true },
       });
+
 
       const pendingResult = await this.prisma.transaction.aggregate({
         where: {
@@ -128,7 +132,9 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
       const usedLimit = totalDebt;
 
       result.push({
-        ...card,
+        ...(card as any),
+        limit: Number(card.limit),
+        availableLimit: Number(card.availableLimit),
         currentInvoiceAmount,
         pendingAmount,
         totalDebt,
@@ -136,7 +142,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
         invoiceStartDate,
         invoiceEndDate,
         dueDate,
-      });
+      } as any);
     }
 
     return result;

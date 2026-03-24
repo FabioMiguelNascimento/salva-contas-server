@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalDate } from './schema-utils';
 
 export const getDashboardMetricsResponseSchema = z.object({
   totalIncome: z.number(),
@@ -142,9 +143,25 @@ export const getDashboardSnapshotResponseSchema = z.object({
   creditCards: z.array(
     z.object({
       id: z.string().uuid(),
+      userId: z.string().uuid().optional(),
+      createdById: z.string().uuid().optional(),
       name: z.string().min(1),
+      flag: z.enum([
+        'visa',
+        'mastercard',
+        'american_express',
+        'elo',
+        'hipercard',
+        'other',
+      ]),
+      lastFourDigits: z.string().length(4).nullable().optional(),
       limit: z.number().min(0),
       availableLimit: z.number(), // Can be negative if over limit
+      closingDay: z.number().min(1).max(31),
+      dueDay: z.number().min(1).max(31),
+      status: z.enum(['active', 'blocked', 'expired', 'cancelled']),
+      createdAt: optionalDate,
+      updatedAt: optionalDate,
     }),
   ),
   debitCards: z.array(z.any()),

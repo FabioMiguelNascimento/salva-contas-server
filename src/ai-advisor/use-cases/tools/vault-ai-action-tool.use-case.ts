@@ -1,6 +1,6 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { ToolVaultAiActionArgsSchema } from 'src/schemas/ai-advisor.schema';
-import { VaultsService } from 'src/vaults/vaults.service';
+import { ExecuteVaultAiCommandUseCase } from 'src/vaults/use-cases/execute-vault-ai-command.use-case';
 import { ToolExecutionResult } from '../../ai-advisor.types';
 import { AiAdvisorToolUseCase } from './tool-use-case.interface';
 
@@ -8,12 +8,14 @@ import { AiAdvisorToolUseCase } from './tool-use-case.interface';
 export class VaultAiActionToolUseCase implements AiAdvisorToolUseCase {
   readonly name = 'vault_ai_action';
 
-  constructor(private readonly vaultsService: VaultsService) {}
+  constructor(
+    private readonly executeVaultAiCommandUseCase: ExecuteVaultAiCommandUseCase,
+  ) {}
 
   async execute(rawArgs: Record<string, any>): Promise<ToolExecutionResult> {
     const args = ToolVaultAiActionArgsSchema.parse(rawArgs);
 
-    const result = await this.vaultsService.executeAiCommand({
+    const result = await this.executeVaultAiCommandUseCase.execute({
       text: args.text,
     });
 

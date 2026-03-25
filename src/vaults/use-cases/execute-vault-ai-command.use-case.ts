@@ -2,25 +2,15 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  Scope,
 } from '@nestjs/common';
-import {
-  CreateVaultInput,
-  GetVaultHistoryInput,
-  UpdateVaultInput,
-  VaultAiActionInput,
-  VaultAiCommandInput,
-  VaultAmountInput,
-} from 'src/schemas/vaults.schema';
-import { VaultsRepositoryInterface } from './vaults.interface';
+import { VaultAiCommandInput } from 'src/schemas/vaults.schema';
+import { VaultsRepositoryInterface } from '../vaults.interface';
 
 type VaultHistoryEventType = 'deposit' | 'withdraw' | 'yield';
 
-@Injectable({ scope: Scope.REQUEST })
-export class VaultsService {
-  constructor(
-    private readonly vaultsRepository: VaultsRepositoryInterface,
-  ) {}
+@Injectable()
+export class ExecuteVaultAiCommandUseCase {
+  constructor(private readonly vaultsRepository: VaultsRepositoryInterface) {}
 
   private async findVaultByNameOrThrow(name: string) {
     const normalized = name.trim().toLowerCase();
@@ -51,7 +41,7 @@ export class VaultsService {
     return vault;
   }
 
-  async executeAiCommand(input: VaultAiCommandInput) {
+  async execute(input: VaultAiCommandInput) {
     const rawText =
       input.text?.trim() ||
       input.command?.trim() ||
@@ -158,73 +148,5 @@ export class VaultsService {
       actionType: type,
       actionAmount,
     };
-  }
-
-  findAll() {
-    return this.vaultsRepository.findAll();
-  }
-
-  create(data: CreateVaultInput) {
-    return this.vaultsRepository.create(data);
-  }
-
-  getHistory(id: string, query: GetVaultHistoryInput) {
-    return this.vaultsRepository.getHistory(id, query);
-  }
-
-  update(id: string, data: UpdateVaultInput) {
-    return this.vaultsRepository.update(id, data);
-  }
-
-  async getSummary() {
-    const vaults = await this.vaultsRepository.findAll();
-    const totalSaved = vaults.reduce((sum, vault) => sum + (vault.currentAmount?.toNumber() ?? 0), 0);
-    const totalTarget = vaults.reduce((sum, vault) => sum + (vault.targetAmount?.toNumber() ?? 0), 0);
-
-    const metrics = {
-      financials: {
-        income: totalSaved,
-        expenses: 0,
-        balance: totalSaved,
-        availableBalance: totalSaved,
-        savedAmount: totalSaved,
-      },
-      pendingBills: {
-        count: 0,
-        totalAmount: 0,
-        overdue: 0,
-      },
-      categoryBreakdown: [],
-      lastUpdated: new Date().toISOString(),
-    };
-
-    return {
-      vaults,
-      metrics,
-      totals: {
-        totalVaults: vaults.length,
-        totalTarget,
-      },
-    };
-  }
-
-  async remove(id: string) {
-    await this.vaultsRepository.delete(id);
-  }
-
-  deposit(id: string, input: VaultAmountInput) {
-    return this.vaultsRepository.deposit(id, input);
-  }
-
-  withdraw(id: string, input: VaultAmountInput) {
-    return this.vaultsRepository.withdraw(id, input);
-  }
-
-  addYield(id: string, input: VaultAmountInput) {
-    return this.vaultsRepository.addYield(id, input);
-  }
-
-  aiAction(id: string, input: VaultAiActionInput) {
-    return this.vaultsRepository.aiAction(id, input);
   }
 }

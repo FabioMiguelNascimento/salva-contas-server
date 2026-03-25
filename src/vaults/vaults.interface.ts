@@ -18,6 +18,5 @@ export abstract class VaultsRepositoryInterface {
   abstract withdraw(id: string, input: VaultAmountInput): Promise<Vault>;
   abstract addYield(id: string, input: VaultAmountInput): Promise<Vault>;
   abstract getHistory(id: string, query: GetVaultHistoryInput): Promise<any>;
-  abstract aiAction(id: string, input: VaultAiActionInput): Promise<Vault>;
 }
 

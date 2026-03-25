@@ -18,6 +18,10 @@ export class VaultsRepository {
     return this.userContext.userId;
   }
 
+  async findAll() {
+    return this.prisma.vault.findMany({ where: { userId: this.userId }, orderBy: { createdAt: 'desc' } });
+  }
+
   getVaultById(id: string) {
     return this.prisma.vault.findFirst({ where: { id, userId: this.userId } });
   }

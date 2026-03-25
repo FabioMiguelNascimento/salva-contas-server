@@ -1,24 +1,24 @@
 import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
+    Body,
+    Controller,
+    Delete,
+    Get,
+    Param,
+    Patch,
+    Post,
+    Query,
 } from '@nestjs/common';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import { success } from 'src/utils/api-response-helper';
 import {
-  CreateVaultInput,
-  CreateVaultSchema,
-  GetVaultHistoryInput,
-  GetVaultHistorySchema,
-  UpdateVaultInput,
-  UpdateVaultSchema,
-  VaultAmountInput,
-  VaultAmountSchema,
+    CreateVaultInput,
+    CreateVaultSchema,
+    GetVaultHistoryInput,
+    GetVaultHistorySchema,
+    UpdateVaultInput,
+    UpdateVaultSchema,
+    VaultAmountInput,
+    VaultAmountSchema,
 } from '../schemas/vaults.schema';
 import { VaultsService } from './vaults.service';
 
@@ -30,6 +30,12 @@ export class VaultsController {
   async findAll() {
     const vaults = await this.vaultsService.findAll();
     return success(vaults, 'Cofrinhos recuperados com sucesso');
+  }
+
+  @Get('summary')
+  async getSummary() {
+    const summary = await this.vaultsService.getSummary();
+    return success(summary, 'Resumo dos cofrinhos recuperado com sucesso');
   }
 
   @Post()

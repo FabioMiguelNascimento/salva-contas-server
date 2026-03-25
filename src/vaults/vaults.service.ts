@@ -1,16 +1,16 @@
 import {
-    BadRequestException,
-    Injectable,
-    NotFoundException,
-    Scope,
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  Scope,
 } from '@nestjs/common';
 import {
-    CreateVaultInput,
-    GetVaultHistoryInput,
-    UpdateVaultInput,
-    VaultAiActionInput,
-    VaultAiCommandInput,
-    VaultAmountInput,
+  CreateVaultInput,
+  GetVaultHistoryInput,
+  UpdateVaultInput,
+  VaultAiActionInput,
+  VaultAiCommandInput,
+  VaultAmountInput,
 } from 'src/schemas/vaults.schema';
 import { VaultsRepositoryInterface } from './vaults.interface';
 
@@ -174,6 +174,38 @@ export class VaultsService {
 
   update(id: string, data: UpdateVaultInput) {
     return this.vaultsRepository.update(id, data);
+  }
+
+  async getSummary() {
+    const vaults = await this.vaultsRepository.findAll();
+    const totalSaved = vaults.reduce((sum, vault) => sum + (vault.currentAmount?.toNumber() ?? 0), 0);
+    const totalTarget = vaults.reduce((sum, vault) => sum + (vault.targetAmount?.toNumber() ?? 0), 0);
+
+    const metrics = {
+      financials: {
+        income: totalSaved,
+        expenses: 0,
+        balance: totalSaved,
+        availableBalance: totalSaved,
+        savedAmount: totalSaved,
+      },
+      pendingBills: {
+        count: 0,
+        totalAmount: 0,
+        overdue: 0,
+      },
+      categoryBreakdown: [],
+      lastUpdated: new Date().toISOString(),
+    };
+
+    return {
+      vaults,
+      metrics,
+      totals: {
+        totalVaults: vaults.length,
+        totalTarget,
+      },
+    };
   }
 
   async remove(id: string) {

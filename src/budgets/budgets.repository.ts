@@ -2,7 +2,7 @@ import { Injectable, Scope } from '@nestjs/common';
 import { Budget } from 'generated/prisma/client';
 import { UserContext } from '../auth/user-context.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { BudgetsRepositoryInterface } from './budgets.interface';
+import { BudgetMetrics, BudgetsRepositoryInterface } from './budgets.interface';
 
 @Injectable({ scope: Scope.REQUEST })
 export class BudgetsRepository implements BudgetsRepositoryInterface {
@@ -17,6 +17,22 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
 
   private get actorUserId(): string {
     return this.userContext.actorUserId;
+  }
+
+  async getMetrics(month: number, year: number): Promise<BudgetMetrics> {
+    const progress = await this.getBudgetProgress(month, year);
+    
+    const totalBudgeted = progress.reduce((sum, item) => sum + Number(item.budget.amount), 0);
+    const totalSpent = progress.reduce((sum, item) => sum + item.spent, 0);
+    const remaining = totalBudgeted - totalSpent;
+    const percentage = totalBudgeted > 0 ? (totalSpent / totalBudgeted) * 100 : 0;
+
+    return {
+      totalBudgeted,
+      totalSpent,
+      remaining,
+      percentage,
+    };
   }
 
   async createBudget(data: {

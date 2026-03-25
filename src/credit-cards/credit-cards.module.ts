@@ -7,6 +7,7 @@ import { CreateCreditCardUseCase } from './use-cases/create-credit-card.use-case
 import { DeleteCreditCardUseCase } from './use-cases/delete-credit-card.use-case';
 import { GetCreditCardByIdUseCase } from './use-cases/get-credit-card-by-id.use-case';
 import { GetCreditCardSummaryUseCase } from './use-cases/get-credit-card-summary.use-case';
+import { GetCreditCardMetricsUseCase } from './use-cases/get-credit-card-metrics.use-case';
 import { GetCreditCardsUseCase } from './use-cases/get-credit-cards.use-case';
 import { UpdateCreditCardUseCase } from './use-cases/update-credit-card.use-case';
 
@@ -24,6 +25,7 @@ import { UpdateCreditCardUseCase } from './use-cases/update-credit-card.use-case
     UpdateCreditCardUseCase,
     DeleteCreditCardUseCase,
     GetCreditCardSummaryUseCase,
+    GetCreditCardMetricsUseCase,
   ],
   exports: [],
 })

@@ -8,6 +8,7 @@ import SubscriptionsRepository from './subscriptions.repository';
 import { CancelSubscriptionUseCase } from './use-cases/cancel-subscription.use-case';
 import CreateSubscriptionUseCase from './use-cases/create-subscription.use-case';
 import GetAllSubscriptionsUseCase from './use-cases/get-all-subscriptions.use-case';
+import { GetSubscriptionMetricsUseCase } from './use-cases/get-subscription-metrics.use-case';
 import { UpdateSubscriptionUseCase } from './use-cases/update-subscription.use-case';
 
 @Module({
@@ -19,6 +20,7 @@ import { UpdateSubscriptionUseCase } from './use-cases/update-subscription.use-c
     GetAllSubscriptionsUseCase,
     UpdateSubscriptionUseCase,
     CancelSubscriptionUseCase,
+    GetSubscriptionMetricsUseCase,
     {
       provide: SubscriptionsRepositoryInterface,
       useClass: SubscriptionsRepository,

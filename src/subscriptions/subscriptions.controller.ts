@@ -23,6 +23,8 @@ import CreateSubscriptionUseCase from './use-cases/create-subscription.use-case'
 import GetAllSubscriptionsUseCase from './use-cases/get-all-subscriptions.use-case';
 import { UpdateSubscriptionUseCase } from './use-cases/update-subscription.use-case';
 
+import { GetSubscriptionMetricsUseCase } from './use-cases/get-subscription-metrics.use-case';
+
 @Controller('subscriptions')
 export class SubscriptionsController {
   constructor(
@@ -30,7 +32,14 @@ export class SubscriptionsController {
     private readonly getAllSubscriptionsUseCase: GetAllSubscriptionsUseCase,
     private readonly updateSubscriptionUseCase: UpdateSubscriptionUseCase,
     private readonly cancelSubscriptionUseCase: CancelSubscriptionUseCase,
+    private readonly getSubscriptionMetricsUseCase: GetSubscriptionMetricsUseCase,
   ) {}
+
+  @Get('metrics')
+  async getMetrics() {
+    const metrics = await this.getSubscriptionMetricsUseCase.execute();
+    return success(metrics, 'Métricas recuperadas com sucesso');
+  }
 
   @Post()
   async createSubscription(

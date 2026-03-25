@@ -25,6 +25,8 @@ import { GetCreditCardSummaryUseCase } from './use-cases/get-credit-card-summary
 import { GetCreditCardsUseCase } from './use-cases/get-credit-cards.use-case';
 import { UpdateCreditCardUseCase } from './use-cases/update-credit-card.use-case';
 
+import { GetCreditCardMetricsUseCase } from './use-cases/get-credit-card-metrics.use-case';
+
 @Controller('credit-cards')
 export class CreditCardsController {
   constructor(
@@ -34,7 +36,14 @@ export class CreditCardsController {
     private readonly updateCreditCardUseCase: UpdateCreditCardUseCase,
     private readonly deleteCreditCardUseCase: DeleteCreditCardUseCase,
     private readonly getCreditCardSummaryUseCase: GetCreditCardSummaryUseCase,
+    private readonly getCreditCardMetricsUseCase: GetCreditCardMetricsUseCase,
   ) {}
+
+  @Get('metrics')
+  async getMetrics() {
+    const metrics = await this.getCreditCardMetricsUseCase.execute();
+    return success(metrics, 'Métricas recuperadas com sucesso');
+  }
 
   @Post()
   async createCreditCard(

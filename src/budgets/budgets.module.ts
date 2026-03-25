@@ -5,6 +5,7 @@ import { BudgetsRepositoryInterface } from './budgets.interface';
 import { BudgetsRepository } from './budgets.repository';
 import { CreateBudgetUseCase } from './use-cases/create-budget.use-case';
 import { DeleteBudgetUseCase } from './use-cases/delete-budget.use-case';
+import { GetBudgetMetricsUseCase } from './use-cases/get-budget-metrics.use-case';
 import { GetBudgetProgressUseCase } from './use-cases/get-budget-progress.use-case';
 import { GetBudgetsUseCase } from './use-cases/get-budgets.use-case';
 import { UpdateBudgetUseCase } from './use-cases/update-budget.use-case';
@@ -22,7 +23,8 @@ import { UpdateBudgetUseCase } from './use-cases/update-budget.use-case';
     UpdateBudgetUseCase,
     DeleteBudgetUseCase,
     GetBudgetProgressUseCase,
+    GetBudgetMetricsUseCase,
   ],
-  exports: [GetBudgetProgressUseCase],
+  exports: [GetBudgetProgressUseCase, GetBudgetMetricsUseCase],
 })
 export class BudgetsModule {}

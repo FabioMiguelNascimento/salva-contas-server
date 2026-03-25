@@ -5,6 +5,11 @@ import {
   UpdateDebitCardInput,
 } from '../schemas/debit-cards.schema';
 
+export interface DebitCardMetrics {
+  totalBalance: number;
+  activeCardsCount: number;
+}
+
 export abstract class DebitCardsRepositoryInterface {
   abstract createDebitCard(data: CreateDebitCardInput): Promise<DebitCard>;
   abstract getDebitCards(filters?: GetDebitCardsInput): Promise<DebitCard[]>;
@@ -14,4 +19,5 @@ export abstract class DebitCardsRepositoryInterface {
     data: UpdateDebitCardInput,
   ): Promise<DebitCard>;
   abstract deleteDebitCard(id: string): Promise<void>;
+  abstract getMetrics(): Promise<DebitCardMetrics>;
 }

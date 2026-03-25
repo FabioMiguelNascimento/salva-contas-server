@@ -1,27 +1,28 @@
 import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
+    Body,
+    Controller,
+    Delete,
+    Get,
+    Param,
+    Patch,
+    Post,
+    Query,
 } from '@nestjs/common';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
-  CreateBudgetInput,
-  CreateBudgetSchema,
-  GetBudgetProgressInput,
-  GetBudgetProgressSchema,
-  GetBudgetsInput,
-  GetBudgetsSchema,
-  UpdateBudgetInput,
-  UpdateBudgetSchema,
+    CreateBudgetInput,
+    CreateBudgetSchema,
+    GetBudgetProgressInput,
+    GetBudgetProgressSchema,
+    GetBudgetsInput,
+    GetBudgetsSchema,
+    UpdateBudgetInput,
+    UpdateBudgetSchema,
 } from '../schemas/budgets.schema';
 import { success } from '../utils/api-response-helper';
 import { CreateBudgetUseCase } from './use-cases/create-budget.use-case';
 import { DeleteBudgetUseCase } from './use-cases/delete-budget.use-case';
+import { GetBudgetMetricsUseCase } from './use-cases/get-budget-metrics.use-case';
 import { GetBudgetProgressUseCase } from './use-cases/get-budget-progress.use-case';
 import { GetBudgetsUseCase } from './use-cases/get-budgets.use-case';
 import { UpdateBudgetUseCase } from './use-cases/update-budget.use-case';
@@ -31,10 +32,21 @@ export class BudgetsController {
   constructor(
     private readonly createBudgetUseCase: CreateBudgetUseCase,
     private readonly getBudgetsUseCase: GetBudgetsUseCase,
+    private readonly getBudgetMetricsUseCase: GetBudgetMetricsUseCase,
     private readonly updateBudgetUseCase: UpdateBudgetUseCase,
     private readonly deleteBudgetUseCase: DeleteBudgetUseCase,
     private readonly getBudgetProgressUseCase: GetBudgetProgressUseCase,
   ) {}
+
+  @Get('metrics')
+  async getMetrics(
+    @Query(new ZodValidationPipe(GetBudgetsSchema)) filters: GetBudgetsInput,
+  ) {
+    const month = filters.month || new Date().getMonth() + 1;
+    const year = filters.year || new Date().getFullYear();
+    const metrics = await this.getBudgetMetricsUseCase.execute(month, year);
+    return success(metrics, 'Métricas de orçamento recuperadas com sucesso');
+  }
 
   @Post()
   async createBudget(

@@ -3,13 +3,14 @@ import { CreditCard, Prisma } from '../../generated/prisma/client';
 import { UserContext } from '../auth/user-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  CreateCreditCardInput,
-  GetCreditCardsInput,
-  UpdateCreditCardInput,
+    CreateCreditCardInput,
+    GetCreditCardsInput,
+    UpdateCreditCardInput,
 } from '../schemas/credit-cards.schema';
 import {
-  CreditCardsRepositoryInterface,
-  CreditCardWithUsage,
+    CreditCardMetrics,
+    CreditCardsRepositoryInterface,
+    CreditCardWithUsage,
 } from './credit-cards.interface';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -25,6 +26,52 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
 
   private get actorUserId(): string {
     return this.userContext.actorUserId;
+  }
+
+  async getMetrics(): Promise<CreditCardMetrics> {
+    const cards = await this.prisma.creditCard.findMany({
+      where: {
+        userId: this.userId,
+        status: 'active',
+      },
+    });
+
+    let totalLimit = 0;
+    let totalUsed = 0;
+
+    for (const card of cards) {
+      const limit = Number(card.limit);
+      
+      const txAgg = await this.prisma.transaction.aggregate({
+        where: {
+          userId: this.userId,
+          creditCardId: card.id,
+          type: 'expense',
+          splits: { none: {} },
+        },
+        _sum: { amount: true },
+      });
+      
+      const splitAgg = await this.prisma.transactionSplit.aggregate({
+        where: {
+          creditCardId: card.id,
+          transaction: { userId: this.userId, type: 'expense' },
+        },
+        _sum: { amount: true },
+      });
+      
+      const debt = Number(txAgg._sum.amount || 0) + Number(splitAgg._sum.amount || 0);
+      
+      totalLimit += limit;
+      totalUsed += debt;
+    }
+
+    return {
+      totalLimit,
+      totalUsed,
+      availableLimit: totalLimit - totalUsed,
+      activeCardsCount: cards.length,
+    };
   }
 
   async createCreditCard(data: CreateCreditCardInput): Promise<CreditCard> {

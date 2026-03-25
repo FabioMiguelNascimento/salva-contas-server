@@ -1,5 +1,12 @@
 import { Budget } from 'generated/prisma/client';
 
+export interface BudgetMetrics {
+  totalBudgeted: number;
+  totalSpent: number;
+  remaining: number;
+  percentage: number;
+}
+
 export abstract class BudgetsRepositoryInterface {
   abstract createBudget(data: {
     categoryId: string;
@@ -21,4 +28,5 @@ export abstract class BudgetsRepositoryInterface {
       percentage: number;
     }>
   >;
+  abstract getMetrics(month: number, year: number): Promise<BudgetMetrics>;
 }

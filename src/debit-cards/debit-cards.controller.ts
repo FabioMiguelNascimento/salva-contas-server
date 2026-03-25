@@ -24,6 +24,8 @@ import { GetDebitCardByIdUseCase } from './use-cases/get-debit-card-by-id.use-ca
 import { GetDebitCardsUseCase } from './use-cases/get-debit-cards.use-case';
 import { UpdateDebitCardUseCase } from './use-cases/update-debit-card.use-case';
 
+import { GetDebitCardMetricsUseCase } from './use-cases/get-debit-card-metrics.use-case';
+
 @Controller('debit-cards')
 export class DebitCardsController {
   constructor(
@@ -32,7 +34,14 @@ export class DebitCardsController {
     private readonly getDebitCardByIdUseCase: GetDebitCardByIdUseCase,
     private readonly updateDebitCardUseCase: UpdateDebitCardUseCase,
     private readonly deleteDebitCardUseCase: DeleteDebitCardUseCase,
+    private readonly getDebitCardMetricsUseCase: GetDebitCardMetricsUseCase,
   ) {}
+
+  @Get('metrics')
+  async getMetrics() {
+    const metrics = await this.getDebitCardMetricsUseCase.execute();
+    return success(metrics, 'Métricas recuperadas com sucesso');
+  }
 
   @Post()
   async createDebitCard(

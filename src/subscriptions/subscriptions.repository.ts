@@ -3,11 +3,11 @@ import { Subscription } from 'generated/prisma/client';
 import { UserContext } from 'src/auth/user-context.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
-  CreateSubscriptionInput,
-  GetAllSubscriptionsInput,
-  UpdateSubscriptionInput,
+    CreateSubscriptionInput,
+    GetAllSubscriptionsInput,
+    UpdateSubscriptionInput,
 } from 'src/schemas/subscriptions.schema';
-import { SubscriptionsRepositoryInterface } from './subscriptions.interface';
+import { SubscriptionMetrics, SubscriptionsRepositoryInterface } from './subscriptions.interface';
 
 @Injectable({ scope: Scope.REQUEST })
 export default class SubscriptionsRepository extends SubscriptionsRepositoryInterface {
@@ -24,6 +24,43 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
 
   private get actorUserId(): string {
     return this.userContext.actorUserId;
+  }
+
+  async getMetrics(): Promise<SubscriptionMetrics> {
+    const subscriptions = await this.prisma.subscription.findMany({
+      where: {
+        userId: this.userId,
+        isActive: true,
+      },
+    });
+
+    const activeCount = subscriptions.length;
+    let totalMonthly = 0;
+    const byFrequency: SubscriptionMetrics['byFrequency'] = {
+      weekly: 0,
+      monthly: 0,
+      yearly: 0,
+    };
+    
+    for (const sub of subscriptions) {
+      if (sub.frequency === 'monthly') {
+        byFrequency.monthly += 1;
+        totalMonthly += Number(sub.amount);
+      } else if (sub.frequency === 'weekly') {
+        byFrequency.weekly += 1;
+        totalMonthly += Number(sub.amount) * 4;
+      } else if (sub.frequency === 'yearly') {
+        byFrequency.yearly += 1;
+        totalMonthly += Number(sub.amount) / 12;
+      }
+    }
+
+    return {
+      totalMonthly,
+      activeCount,
+      upcomingTotal: totalMonthly, // Por enquanto igual ao total mensal, mas poderia ser refinado
+      byFrequency,
+    };
   }
 
   async createSubscription(data: CreateSubscriptionInput): Promise<any> {

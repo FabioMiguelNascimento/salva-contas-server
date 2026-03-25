@@ -6,6 +6,7 @@ import { DebitCardsRepository } from './debit-cards.repository';
 import { CreateDebitCardUseCase } from './use-cases/create-debit-card.use-case';
 import { DeleteDebitCardUseCase } from './use-cases/delete-debit-card.use-case';
 import { GetDebitCardByIdUseCase } from './use-cases/get-debit-card-by-id.use-case';
+import { GetDebitCardMetricsUseCase } from './use-cases/get-debit-card-metrics.use-case';
 import { GetDebitCardsUseCase } from './use-cases/get-debit-cards.use-case';
 import { UpdateDebitCardUseCase } from './use-cases/update-debit-card.use-case';
 
@@ -22,6 +23,7 @@ import { UpdateDebitCardUseCase } from './use-cases/update-debit-card.use-case';
     GetDebitCardByIdUseCase,
     UpdateDebitCardUseCase,
     DeleteDebitCardUseCase,
+    GetDebitCardMetricsUseCase,
   ],
   exports: [],
 })

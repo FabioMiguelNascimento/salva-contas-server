@@ -3,11 +3,11 @@ import { DebitCard } from '../../generated/prisma/client';
 import { UserContext } from '../auth/user-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  CreateDebitCardInput,
-  GetDebitCardsInput,
-  UpdateDebitCardInput,
+    CreateDebitCardInput,
+    GetDebitCardsInput,
+    UpdateDebitCardInput,
 } from '../schemas/debit-cards.schema';
-import { DebitCardsRepositoryInterface } from './debit-cards.interface';
+import { DebitCardMetrics, DebitCardsRepositoryInterface } from './debit-cards.interface';
 
 @Injectable({ scope: Scope.REQUEST })
 export class DebitCardsRepository implements DebitCardsRepositoryInterface {
@@ -22,6 +22,48 @@ export class DebitCardsRepository implements DebitCardsRepositoryInterface {
 
   private get actorUserId(): string {
     return this.userContext.actorUserId;
+  }
+
+  async getMetrics(): Promise<DebitCardMetrics> {
+    const cards = await this.prisma.debitCard.findMany({
+      where: {
+        userId: this.userId,
+        status: 'active',
+      },
+    });
+
+    // Como o modelo DebitCard não possui campo `balance`, computamos o montante
+    // com base nos gastos via transações e splits para cada cartão.
+    const amountByCard = await Promise.all(
+      cards.map(async (card) => {
+        const txAgg = await this.prisma.transaction.aggregate({
+          where: {
+            userId: this.userId,
+            debitCardId: card.id,
+            type: 'expense',
+            splits: { none: {} },
+          },
+          _sum: { amount: true },
+        });
+
+        const splitAgg = await this.prisma.transactionSplit.aggregate({
+          where: {
+            debitCardId: card.id,
+            transaction: { userId: this.userId, type: 'expense' },
+          },
+          _sum: { amount: true },
+        });
+
+        return Number(txAgg._sum.amount || 0) + Number(splitAgg._sum.amount || 0);
+      }),
+    );
+
+    const totalBalance = amountByCard.reduce((sum, value) => sum + value, 0);
+
+    return {
+      totalBalance,
+      activeCardsCount: cards.length,
+    };
   }
 
   async createDebitCard(data: CreateDebitCardInput): Promise<DebitCard> {

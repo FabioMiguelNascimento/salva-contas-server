@@ -1,7 +1,7 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
-  BadRequestException,
   OnModuleInit,
 } from '@nestjs/common';
 import { PlanTier } from 'generated/prisma/enums';
@@ -16,9 +16,7 @@ export class StripeService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   onModuleInit() {
-    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-      apiVersion: '2025-01-27ts' as any,
-    });
+    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
   }
 
   async handleWebhook(signature: string, rawBody: Buffer) {
@@ -89,7 +87,7 @@ export class StripeService implements OnModuleInit {
       metadata: {
         planTier,
       },
-      success_url: `${process.env.FRONTEND_URL}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${process.env.FRONTEND_URL}/app/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/precos`,
     });
 
@@ -99,7 +97,7 @@ export class StripeService implements OnModuleInit {
   async createPortalSession(stripeCustomerId: string) {
     const session = await this.stripe.billingPortal.sessions.create({
       customer: stripeCustomerId,
-      return_url: `${process.env.FRONTEND_URL}/dashboard`,
+      return_url: `${process.env.FRONTEND_URL}/app/dashboard`,
     });
 
     return { url: session.url };

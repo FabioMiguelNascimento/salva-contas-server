@@ -106,11 +106,13 @@ export class AuthController {
 
     return success(
       {
-        id: user.id,
-        email: user.email,
-        name: user.user_metadata?.name,
+        id: localUser?.id ?? user.id,
+        email: localUser?.email ?? user.email,
+        name: localUser?.name ?? user.user_metadata?.name,
+        planTier: localUser?.planTier ?? null,
+        stripeCustomerId: localUser?.stripeCustomerId ?? null,
         linkedToId: localUser?.linkedToId ?? null,
-        createdAt: user.created_at,
+        createdAt: localUser?.createdAt ?? user.created_at,
         emailConfirmedAt: user.email_confirmed_at,
       },
       'Usuário recuperado com sucesso',

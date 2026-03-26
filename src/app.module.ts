@@ -10,6 +10,7 @@ import { HealthModule } from './health/health.module';
 import { InvitesModule } from './invites/invites.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { StorageModule } from './storage/storage.module';
+import { StripeModule } from './stripe/stripe.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { VaultsModule } from './vaults/vaults.module';
@@ -30,6 +31,7 @@ import { VaultsModule } from './vaults/vaults.module';
     CreditCardsModule,
     DebitCardsModule,
     VaultsModule,
+    StripeModule,
   ],
 })
 export class AppModule {}

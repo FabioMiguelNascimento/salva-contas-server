@@ -6,7 +6,9 @@ import { AppModule } from './app.module';
 import { GlobalExceptionHandler } from './common/execptions/global-exception-handler';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
 
   app.useGlobalFilters(new GlobalExceptionHandler());
 

@@ -53,9 +53,9 @@ model User {
   email            String?  @unique
   name             String?
   linkedToId       String?  @map("linked_to_id")
-  planTier             PlanTier @default(FREE) @map("plan_tier")
-  stripeCustomerId     String?  @unique @map("stripe_customer_id")
-  stripeSubscriptionId String?  @unique @map("stripe_subscription_id")
+  planTier         PlanTier @default(FREE) @map("plan_tier")
+  mpCustomerId     String?  @unique @map("mp_customer_id")
+  mpPreapprovalId  String?  @unique @map("mp_preapproval_id")
 
   linkedTo    User?  @relation("LinkedAccounts", fields: [linkedToId], references: [id])
   linkedUsers User[] @relation("LinkedAccounts")

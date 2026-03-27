@@ -3,17 +3,17 @@ import { User } from '@supabase/supabase-js';
 import { Request } from 'express';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
-  RefreshTokenInput,
-  RefreshTokenSchema,
-  ResetPasswordInput,
-  ResetPasswordSchema,
-  SignInInput,
-  SignInSchema,
-  SignUpInput,
-  SignUpSchema,
-  UpdatePasswordInput,
-  UpdatePasswordSchema,
-  UpdateProfileSchema,
+    RefreshTokenInput,
+    RefreshTokenSchema,
+    ResetPasswordInput,
+    ResetPasswordSchema,
+    SignInInput,
+    SignInSchema,
+    SignUpInput,
+    SignUpSchema,
+    UpdatePasswordInput,
+    UpdatePasswordSchema,
+    UpdateProfileSchema,
 } from '../schemas/auth.schema';
 import { success } from '../utils/api-response-helper';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -110,7 +110,7 @@ export class AuthController {
         email: localUser?.email ?? user.email,
         name: localUser?.name ?? user.user_metadata?.name,
         planTier: localUser?.planTier ?? null,
-        stripeCustomerId: localUser?.stripeCustomerId ?? null,
+        mpCustomerId: localUser?.mpCustomerId ?? null,
         linkedToId: localUser?.linkedToId ?? null,
         createdAt: localUser?.createdAt ?? user.created_at,
         emailConfirmedAt: user.email_confirmed_at,

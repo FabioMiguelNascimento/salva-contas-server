@@ -8,9 +8,9 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { DebitCardsModule } from './debit-cards/debit-cards.module';
 import { HealthModule } from './health/health.module';
 import { InvitesModule } from './invites/invites.module';
+import { MercadoPagoModule } from './mercado-pago/mercado-pago.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { StorageModule } from './storage/storage.module';
-import { StripeModule } from './stripe/stripe.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { VaultsModule } from './vaults/vaults.module';
@@ -22,6 +22,7 @@ import { VaultsModule } from './vaults/vaults.module';
     AuthModule,
     HealthModule,
     InvitesModule,
+    MercadoPagoModule,
     TransactionsModule,
     CategoriesModule,
     SubscriptionsModule,
@@ -30,8 +31,7 @@ import { VaultsModule } from './vaults/vaults.module';
     NotificationsModule,
     CreditCardsModule,
     DebitCardsModule,
-    VaultsModule,
-    StripeModule,
+    VaultsModule
   ],
 })
 export class AppModule {}

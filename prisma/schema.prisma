@@ -48,12 +48,18 @@ enum PlanTier {
   FAMILY
 }
 
+enum BillingCycle {
+  monthly
+  yearly
+}
+
 model User {
   id               String   @id
   email            String?  @unique
   name             String?
   linkedToId       String?  @map("linked_to_id")
   planTier         PlanTier @default(FREE) @map("plan_tier")
+  billingCycle     BillingCycle? @map("billing_cycle")
   mpCustomerId     String?  @unique @map("mp_customer_id")
   mpPreapprovalId  String?  @unique @map("mp_preapproval_id")
 

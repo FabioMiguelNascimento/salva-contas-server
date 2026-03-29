@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PlanTier } from 'generated/prisma/enums';
+import { PlanTier, BillingCycle } from 'generated/prisma/enums';
 import { MercadoPagoConfig, PreApproval } from 'mercadopago';
 import { PrismaService } from 'src/prisma/prisma.service';
 
@@ -10,53 +10,38 @@ export class MercadoPagoService {
 
   constructor(private readonly prisma: PrismaService) {
     const accessToken = process.env.MP_ACCESS_TOKEN;
+    this.logger.log('Inicializando MercadoPagoService');
 
     if (!accessToken) {
+      this.logger.error('MP_ACCESS_TOKEN não configurado');
       throw new Error('MP_ACCESS_TOKEN não configurado');
     }
 
+    this.logger.debug('MP_ACCESS_TOKEN encontrado, inicializando cliente Mercado Pago');
     const client = new MercadoPagoConfig({ accessToken });
     this.preApproval = new PreApproval(client);
+    this.logger.log('MercadoPagoService inicializado com sucesso');
   }
 
-
-  async createCheckoutUrl(userId: string, planTier: PlanTier, cycle: 'monthly' | 'yearly') {
-    const planId = this.getPreapprovalPlanId(planTier, cycle);
-
-    if (!planId) {
-      throw new Error(`Plano inválido para checkout: ${planTier} ${cycle}`);
-    }
-
-    const url = `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${planId}&external_reference=${userId}`;
-
-    this.logger.log(`Checkout gerado para userId=${userId} planTier=${planTier} cycle=${cycle}`);
-
-    return { url };
-  }
-
-
-  async processWebhook(action?: string, preapprovalId?: string, type?: string) {
-    this.logger.log(`Webhook recebido: action=${action ?? 'n/a'} id=${preapprovalId ?? 'n/a'} type=${type ?? 'n/a'}`);
-
-    if (type !== 'subscription_preapproval' && type !== 'preapproval') {
-      this.logger.log(`Webhook ignorado: tipo "${type}" não é de assinatura`);
-      return { received: true, ignored: true };
-    }
+  async processWebhook(action?: string, preapprovalId?: string) {
+    this.logger.log(`processWebhook chamado: action=${action ?? 'n/a'} id=${preapprovalId ?? 'n/a'}`);
 
     if (!preapprovalId || preapprovalId === '123456') {
-      this.logger.warn('Webhook de teste ou sem ID ignorado');
+      this.logger.warn(`Webhook de teste ou sem ID ignorado. ID=${preapprovalId}`);
       return { received: true, test: true };
     }
 
     let subscription: any;
     try {
       subscription = await this.preApproval.get({ id: preapprovalId });
+      this.logger.debug(`Resposta MP get subscription: ${JSON.stringify(subscription)}`);
     } catch (error) {
       this.logger.error(`Erro ao buscar assinatura ${preapprovalId} no MP`, error);
       return { received: true, error: 'Subscription not found' };
     }
 
     const status = this.asString(subscription?.status)?.toLowerCase();
+
     this.logger.log(`Status da assinatura ${preapprovalId}: ${status ?? 'desconhecido'}`);
 
     if (status === 'authorized') {
@@ -89,6 +74,8 @@ export class MercadoPagoService {
     const planTier =
       this.extractPlanTier(externalReference) ??
       this.extractPlanTierFromPreapprovalPlanId(preapprovalPlanId);
+    
+    const billingCycle = this.extractBillingCycleFromPreapprovalPlanId(preapprovalPlanId);
 
     let targetUserId = userId;
 
@@ -112,22 +99,42 @@ export class MercadoPagoService {
       data: {
         mpPreapprovalId: preapprovalId,
         planTier,
+        billingCycle,
         ...(payerId ? { mpCustomerId: payerId } : {}),
       },
     });
 
-    this.logger.log(`Usuário ${targetUserId} atualizado para plano ${planTier}. preapproval=${preapprovalId}`);
+    this.logger.log(`Usuário ${targetUserId} atualizado para plano ${planTier} (${billingCycle ?? 'n/a'}). preapproval=${preapprovalId}`);
   }
 
   private async handleCancelledSubscription(preapprovalId: string) {
     const result = await this.prisma.user.updateMany({
       where: { mpPreapprovalId: preapprovalId },
-      data: { planTier: PlanTier.FREE, mpPreapprovalId: null },
+      data: { 
+        planTier: PlanTier.FREE, 
+        billingCycle: null,
+        mpPreapprovalId: null 
+      },
     });
 
     this.logger.log(`Assinatura ${preapprovalId} cancelada. Usuários afetados: ${result.count}`);
   }
 
+  async createCheckoutUrl(userId: string, planTier: PlanTier, cycle: 'monthly' | 'yearly') {
+    this.logger.log(`createCheckoutUrl chamado para userId=${userId} planTier=${planTier} cycle=${cycle}`);
+
+    const planId = this.getPreapprovalPlanId(planTier, cycle);
+
+    if (!planId) {
+      this.logger.error(`Plano inválido para checkout: ${planTier} ${cycle}`);
+      throw new Error(`Plano inválido para checkout: ${planTier}`);
+    }
+
+    const url = `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${planId}&external_reference=${userId}`;
+
+    this.logger.log(`URL de checkout gerada: ${url}`);
+    return { url };
+  }
 
   private getPreapprovalPlanId(planTier: PlanTier, cycle: 'monthly' | 'yearly'): string | null {
     const envMap: Record<string, Record<'monthly' | 'yearly', string | undefined>> = {
@@ -207,5 +214,26 @@ export class MercadoPagoService {
     if (planId === process.env.MP_PLAN_FAMILY_MONTHLY || planId === process.env.MP_PLAN_FAMILY_YEARLY) return PlanTier.FAMILY;
     if (planId === process.env.MP_PLAN_PRO_MONTHLY || planId === process.env.MP_PLAN_PRO_YEARLY) return PlanTier.PRO;
     return PlanTier.PRO;
+  }
+
+  private extractBillingCycleFromPreapprovalPlanId(id?: string): BillingCycle | null {
+    if (!id) return null;
+    const planId = id.trim();
+
+    if (
+      planId === process.env.MP_PLAN_PRO_MONTHLY ||
+      planId === process.env.MP_PLAN_FAMILY_MONTHLY
+    ) {
+      return BillingCycle.monthly;
+    }
+
+    if (
+      planId === process.env.MP_PLAN_PRO_YEARLY ||
+      planId === process.env.MP_PLAN_FAMILY_YEARLY
+    ) {
+      return BillingCycle.yearly;
+    }
+
+    return null;
   }
 }

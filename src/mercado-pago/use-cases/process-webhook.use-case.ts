@@ -57,7 +57,7 @@ export class ProcessWebhookUseCase {
 
     this.logger.log(`Webhook parseado: action=${action ?? 'n/a'} type=${type ?? 'n/a'} id=${dataId ?? 'n/a'}`);
 
-    return this.mercadoPagoService.processWebhook(action, dataId, type);
+    return this.mercadoPagoService.processWebhook(action, dataId);
   }
 
   private validateSignature(signature: string, requestId: string, dataId: string, secret: string): boolean {

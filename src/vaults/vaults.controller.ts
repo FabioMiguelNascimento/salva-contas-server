@@ -123,16 +123,6 @@ export class VaultsController {
     return success(vault, 'Rendimento registrado com sucesso');
   }
 
-  @Post(':id/ai-action')
-  async aiAction(
-    @Param('id') id: string,
-    @Body(new ZodValidationPipe(VaultAiActionSchema))
-    input: VaultAiActionInput,
-  ) {
-    const result = await this.executeVaultAiActionUseCase.execute(id, input);
-    return success(result, 'Ação de IA executada com sucesso');
-  }
-
   @Get(':id/history')
   async getHistory(
     @Param('id') id: string,

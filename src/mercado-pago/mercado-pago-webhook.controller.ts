@@ -1,45 +1,24 @@
-import { BadRequestException, Body, Controller, Headers, Post } from '@nestjs/common';
+import { Body, Controller, Headers, Post } from '@nestjs/common';
 import { Public } from 'src/auth';
-import { MercadoPagoService } from './mercado-pago.service';
+import { ProcessWebhookUseCase } from './use-cases/process-webhook.use-case';
 
 @Controller('webhooks/mercado-pago')
 export class MercadoPagoWebhookController {
-  constructor(private readonly mercadoPagoService: MercadoPagoService) {}
+  constructor(private readonly processWebhookUseCase: ProcessWebhookUseCase) {}
 
   @Public()
   @Post()
   async handleWebhook(
-    // @Headers('x-mercadopago-webhook-test-key') webhookKey: string,
+    @Headers('x-mercadopago-webhook-test-key') testKey: string,
+    @Headers('x-signature') signature: string,
+    @Headers('x-request-id') requestId: string,
     @Body() payload: any,
   ) {
-    // console.log('MercadoPago webhook recebido', { webhookKey, payload });
-    const expectedKey = process.env.MP_WEBHOOK_SECRET;
-
-    if (!expectedKey) {
-      console.error('MP_WEBHOOK_SECRET não configurado');
-      throw new BadRequestException('MP_WEBHOOK_SECRET não configurado');
-    }
-
-    // if (!webhookKey) {
-    //   throw new BadRequestException('Header x-mercadopago-webhook-test-key não informado');
-    // }
-
-    // if (webhookKey !== expectedKey) {
-    //   console.error('Chave de webhook inválida', { provided: webhookKey, expected: expectedKey });
-    //   throw new BadRequestException('Chave de webhook inválida');
-    // }
-
-    const action =
-      typeof payload?.action === 'string' ? payload.action : undefined;
-    const dataId =
-      typeof payload?.data?.id === 'string' ||
-      typeof payload?.data?.id === 'number'
-        ? String(payload.data.id)
-        : undefined;
-
-    console.log('Webhook parseado', { action, dataId });
-    const result = await this.mercadoPagoService.processWebhook(action, dataId);
-    console.log('processWebhook resultado', result);
-    return result;
+    return this.processWebhookUseCase.execute({
+      testKey,
+      signature,
+      requestId,
+      payload,
+    });
   }
 }

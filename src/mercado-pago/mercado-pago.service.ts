@@ -10,60 +10,71 @@ export class MercadoPagoService {
 
   constructor(private readonly prisma: PrismaService) {
     const accessToken = process.env.MP_ACCESS_TOKEN;
-    this.logger.log('Inicializando MercadoPagoService');
 
     if (!accessToken) {
-      this.logger.error('MP_ACCESS_TOKEN não configurado');
       throw new Error('MP_ACCESS_TOKEN não configurado');
     }
 
-    this.logger.debug('MP_ACCESS_TOKEN encontrado, inicializando cliente Mercado Pago');
     const client = new MercadoPagoConfig({ accessToken });
     this.preApproval = new PreApproval(client);
-    this.logger.log('MercadoPagoService inicializado com sucesso');
   }
 
-  async processWebhook(action?: string, preapprovalId?: string) {
-    this.logger.log(`processWebhook chamado: action=${action ?? 'n/a'} id=${preapprovalId ?? 'n/a'}`);
+
+  async createCheckoutUrl(userId: string, planTier: PlanTier, cycle: 'monthly' | 'yearly') {
+    const planId = this.getPreapprovalPlanId(planTier, cycle);
+
+    if (!planId) {
+      throw new Error(`Plano inválido para checkout: ${planTier} ${cycle}`);
+    }
+
+    const url = `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${planId}&external_reference=${userId}`;
+
+    this.logger.log(`Checkout gerado para userId=${userId} planTier=${planTier} cycle=${cycle}`);
+
+    return { url };
+  }
+
+
+  async processWebhook(action?: string, preapprovalId?: string, type?: string) {
+    this.logger.log(`Webhook recebido: action=${action ?? 'n/a'} id=${preapprovalId ?? 'n/a'} type=${type ?? 'n/a'}`);
+
+    if (type !== 'subscription_preapproval' && type !== 'preapproval') {
+      this.logger.log(`Webhook ignorado: tipo "${type}" não é de assinatura`);
+      return { received: true, ignored: true };
+    }
 
     if (!preapprovalId || preapprovalId === '123456') {
-      this.logger.warn('Webhook de teste ou sem ID ignorado.');
+      this.logger.warn('Webhook de teste ou sem ID ignorado');
       return { received: true, test: true };
     }
 
     let subscription: any;
     try {
       subscription = await this.preApproval.get({ id: preapprovalId });
-      this.logger.debug(`Resposta MP get subscription: ${JSON.stringify(subscription)}`);
     } catch (error) {
       this.logger.error(`Erro ao buscar assinatura ${preapprovalId} no MP`, error);
       return { received: true, error: 'Subscription not found' };
     }
 
     const status = this.asString(subscription?.status)?.toLowerCase();
-
-    this.logger.log(`Webhook Mercado Pago recebido. action=${action ?? 'n/a'} id=${preapprovalId} status=${status ?? 'n/a'}`);
+    this.logger.log(`Status da assinatura ${preapprovalId}: ${status ?? 'desconhecido'}`);
 
     if (status === 'authorized') {
-      this.logger.log('Status authorized - processando assinatura autorizada');
       await this.handleAuthorizedSubscription(subscription);
       return { received: true, status };
     }
 
     if (status === 'cancelled') {
-      this.logger.log('Status cancelled - processando cancelamento');
       await this.handleCancelledSubscription(preapprovalId);
       return { received: true, status };
     }
 
-    this.logger.warn(`Status de assinatura não tratado: ${status ?? 'desconhecido'}`);
+    this.logger.warn(`Status não tratado: ${status ?? 'desconhecido'}`);
     return { received: true, status: status ?? 'unknown' };
   }
 
-  private async handleAuthorizedSubscription(subscription: any) {
-    this.logger.log('handleAuthorizedSubscription iniciado');
-    this.logger.debug(`subscription payload: ${JSON.stringify(subscription)}`);
 
+  private async handleAuthorizedSubscription(subscription: any) {
     const preapprovalId = this.asString(subscription?.id);
     if (!preapprovalId) {
       this.logger.warn('Assinatura autorizada sem id. Evento ignorado.');
@@ -71,18 +82,13 @@ export class MercadoPagoService {
     }
 
     const externalReference = this.asString(subscription?.external_reference);
-    const reason = this.asString(subscription?.reason);
-    const userId = this.extractUserId(externalReference, reason);
-    let planTier = this.extractPlanTier(externalReference, reason);
     const preapprovalPlanId = this.asString(subscription?.preapproval_plan_id);
+    const payerId = this.asString(subscription?.payer_id) ?? this.asString(subscription?.payer?.id);
 
-    if (!planTier) {
-      planTier = this.extractPlanTierFromPreapprovalPlanId(preapprovalPlanId);
-    }
-
-    const payerId =
-      this.asString(subscription?.payer_id) ??
-      this.asString(subscription?.payer?.id);
+    const userId = this.extractUserId(externalReference);
+    const planTier =
+      this.extractPlanTier(externalReference) ??
+      this.extractPlanTierFromPreapprovalPlanId(preapprovalPlanId);
 
     let targetUserId = userId;
 
@@ -96,8 +102,7 @@ export class MercadoPagoService {
 
     if (!targetUserId) {
       this.logger.warn(
-        `Não foi possível identificar userId para assinatura ${preapprovalId}.` +
-          ` external_reference=${externalReference ?? 'n/a'}`,
+        `Não foi possível identificar userId para assinatura ${preapprovalId}. external_reference=${externalReference ?? 'n/a'}`,
       );
       return;
     }
@@ -114,25 +119,18 @@ export class MercadoPagoService {
     this.logger.log(`Usuário ${targetUserId} atualizado para plano ${planTier}. preapproval=${preapprovalId}`);
   }
 
-  async createCheckoutUrl(userId: string, planTier: PlanTier, cycle: 'monthly' | 'yearly') {
-    this.logger.log(`createCheckoutUrl chamado para userId=${userId} planTier=${planTier} cycle=${cycle}`);
+  private async handleCancelledSubscription(preapprovalId: string) {
+    const result = await this.prisma.user.updateMany({
+      where: { mpPreapprovalId: preapprovalId },
+      data: { planTier: PlanTier.FREE, mpPreapprovalId: null },
+    });
 
-    const planId = this.getPreapprovalPlanId(planTier, cycle);
-
-    if (!planId) {
-      this.logger.error(`Plano inválido para checkout: ${planTier} ${cycle}`);
-      throw new Error(`Plano inválido para checkout: ${planTier}`);
-    }
-
-    const externalReference = userId;
-    const url = `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${planId}&external_reference=${externalReference}`;
-
-    this.logger.debug(`URL de checkout gerada: ${url}`);
-    return { url };
+    this.logger.log(`Assinatura ${preapprovalId} cancelada. Usuários afetados: ${result.count}`);
   }
 
+
   private getPreapprovalPlanId(planTier: PlanTier, cycle: 'monthly' | 'yearly'): string | null {
-    const envMap = {
+    const envMap: Record<string, Record<'monthly' | 'yearly', string | undefined>> = {
       PRO: {
         monthly: process.env.MP_PLAN_PRO_MONTHLY,
         yearly: process.env.MP_PLAN_PRO_YEARLY,
@@ -141,31 +139,9 @@ export class MercadoPagoService {
         monthly: process.env.MP_PLAN_FAMILY_MONTHLY,
         yearly: process.env.MP_PLAN_FAMILY_YEARLY,
       },
-    } as Record<string, Record<'monthly' | 'yearly', string | undefined>>;
+    };
 
-    const envPlanId = envMap[planTier]?.[cycle];
-    this.logger.log(`getPreapprovalPlanId: planTier=${planTier} cycle=${cycle} envPlanId=${envPlanId ?? 'n/a'}`);
-
-    if (envPlanId) {
-      return envPlanId;
-    }
-
-    this.logger.error(`Plano de pré-aprovação não configurado (ENV): ${planTier} ${cycle}`);
-    return null;
-  }
-
-  private async handleCancelledSubscription(preapprovalId: string) {
-    const result = await this.prisma.user.updateMany({
-      where: { mpPreapprovalId: preapprovalId },
-      data: {
-        planTier: PlanTier.FREE,
-        mpPreapprovalId: null,
-      },
-    });
-
-    this.logger.log(
-      `Assinatura ${preapprovalId} cancelada. Usuários afetados: ${result.count}`,
-    );
+    return envMap[planTier]?.[cycle] ?? null;
   }
 
   private asString(value: unknown): string | undefined {
@@ -173,107 +149,63 @@ export class MercadoPagoService {
       const trimmed = value.trim();
       return trimmed.length ? trimmed : undefined;
     }
-
-    if (typeof value === 'number') {
-      return String(value);
-    }
-
+    if (typeof value === 'number') return String(value);
     return undefined;
   }
 
   private extractUserId(...sources: Array<string | undefined>): string | undefined {
-    const uuidRegex =
-      /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
+    const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
 
     for (const source of sources) {
-      if (!source) {
-        continue;
-      }
+      if (!source) continue;
 
       try {
         const parsed = JSON.parse(source) as Record<string, unknown>;
         const fromJson = this.asString(parsed?.userId ?? parsed?.user_id);
-        if (fromJson) {
-          return fromJson;
-        }
-      } catch {
-      }
+        if (fromJson) return fromJson;
+      } catch { }
 
       const explicit = source.match(/(?:userId|user_id|uid)[=:]([a-zA-Z0-9-]+)/i);
-      if (explicit?.[1]) {
-        return explicit[1];
-      }
+      if (explicit?.[1]) return explicit[1];
 
       const uuid = source.match(uuidRegex);
-      if (uuid?.[0]) {
-        return uuid[0];
-      }
+      if (uuid?.[0]) return uuid[0];
     }
 
     return undefined;
   }
 
-  private extractPlanTier(...sources: Array<string | undefined>): PlanTier {
+  private extractPlanTier(...sources: Array<string | undefined>): PlanTier | undefined {
     for (const source of sources) {
-      if (!source) {
-        continue;
-      }
+      if (!source) continue;
 
       try {
         const parsed = JSON.parse(source) as Record<string, unknown>;
         const plan = this.toPlanTier(this.asString(parsed?.planTier ?? parsed?.plan_tier));
-        if (plan) {
-          return plan;
-        }
-      } catch {
-      }
+        if (plan) return plan;
+      } catch { }
 
       const plan = this.toPlanTier(source);
-      if (plan) {
-        return plan;
-      }
-    }
-
-    return PlanTier.PRO;
-  }
-
-  private toPlanTier(input?: string): PlanTier | undefined {
-    if (!input) {
-      return undefined;
-    }
-
-    const normalized = input.toUpperCase();
-
-    if (normalized.includes('FAMILY')) {
-      return PlanTier.FAMILY;
-    }
-
-    if (normalized.includes('PRO')) {
-      return PlanTier.PRO;
-    }
-
-    if (normalized.includes('FREE')) {
-      return PlanTier.FREE;
+      if (plan) return plan;
     }
 
     return undefined;
   }
 
+  private toPlanTier(input?: string): PlanTier | undefined {
+    if (!input) return undefined;
+    const normalized = input.toUpperCase();
+    if (normalized.includes('FAMILY')) return PlanTier.FAMILY;
+    if (normalized.includes('PRO')) return PlanTier.PRO;
+    if (normalized.includes('FREE')) return PlanTier.FREE;
+    return undefined;
+  }
+
   private extractPlanTierFromPreapprovalPlanId(id?: string): PlanTier {
-    if (!id) {
-      return PlanTier.PRO;
-    }
-
+    if (!id) return PlanTier.PRO;
     const planId = id.trim();
-
-    if (planId === '435acb54537d4f179f769620ad62f33b') {
-      return PlanTier.FAMILY;
-    }
-
-    if (planId === '28ece073b9d44080be90e86506bfe37a') {
-      return PlanTier.PRO;
-    }
-
+    if (planId === process.env.MP_PLAN_FAMILY_MONTHLY || planId === process.env.MP_PLAN_FAMILY_YEARLY) return PlanTier.FAMILY;
+    if (planId === process.env.MP_PLAN_PRO_MONTHLY || planId === process.env.MP_PLAN_PRO_YEARLY) return PlanTier.PRO;
     return PlanTier.PRO;
   }
 }

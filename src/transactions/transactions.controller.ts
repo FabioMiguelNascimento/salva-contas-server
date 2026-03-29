@@ -9,9 +9,13 @@ import {
   Post,
   Query,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { PlanTier } from 'generated/prisma/enums';
+import { AllowedPlans } from 'src/auth/decorators/allowed-plans.decorator';
+import { RequirePlanGuard } from 'src/auth/guards/require-plan.guard';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import {
   ConfirmTransactionInput,
@@ -50,6 +54,8 @@ export class TransactionsController {
   }
 
   @Post()
+  @UseGuards(RequirePlanGuard)
+  @AllowedPlans(PlanTier.PRO, PlanTier.FAMILY)
   @UseInterceptors(FileInterceptor('file'))
   async processTransaction(
     @Body('text') body: string,

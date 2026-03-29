@@ -1,4 +1,7 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { PlanTier } from 'generated/prisma/enums';
+import { AllowedPlans } from 'src/auth/decorators/allowed-plans.decorator';
+import { RequirePlanGuard } from 'src/auth/guards/require-plan.guard';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import {
   AcceptInviteInput,
@@ -11,6 +14,8 @@ import { GetFamilyMembersUseCase } from './use-cases/get-family-members.use-case
 import { PreviewInviteUseCase } from './use-cases/preview-invite.use-case';
 
 @Controller('invites')
+@UseGuards(RequirePlanGuard)
+@AllowedPlans(PlanTier.FAMILY)
 export class InvitesController {
   constructor(
     private readonly generateInviteUseCase: GenerateInviteUseCase,

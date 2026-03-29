@@ -296,6 +296,22 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     if (status) where.status = status;
     if (creditCardId) where.creditCardId = creditCardId;
 
+    const user = await this.userContext.localUser;
+    if (user?.planTier === 'FREE') {
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      threeMonthsAgo.setHours(0, 0, 0, 0);
+
+      if (!where.createdAt) {
+        where.createdAt = { gte: threeMonthsAgo };
+      } else {
+        const existingGte = where.createdAt.gte;
+        if (!existingGte || existingGte < threeMonthsAgo) {
+          where.createdAt.gte = threeMonthsAgo;
+        }
+      }
+    }
+
     if (month && year) {
       startDate = new Date(year, month - 1, 1);
       endDate = new Date(year, month, 0, 23, 59, 59, 999);

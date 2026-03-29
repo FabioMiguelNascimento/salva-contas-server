@@ -14,6 +14,7 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AIReceiptSchema } from 'src/schemas/transactions.schema';
 import { StorageService } from 'src/storage/storage.service';
+import { UsageService } from 'src/usage/usage.service';
 import { CreditCardsRepositoryInterface } from '../../credit-cards/credit-cards.interface';
 import { TransactionsRepositoryInterface } from '../transactions.interface';
 
@@ -39,6 +40,7 @@ export default class ProcessTransactionUseCase {
     private readonly prisma: PrismaService,
     @Inject(GEN_AI_SERVICE)
     private readonly genAIService: GenAIServiceInterface,
+    private readonly usageService: UsageService,
   ) {}
 
   async execute(
@@ -55,6 +57,16 @@ export default class ProcessTransactionUseCase {
     if (!file && !textInput?.trim()) {
       throw new BadRequestException(
         'Envie um arquivo ou texto para processamento da transação.',
+      );
+    }
+
+    // Se não for apenas teste, verifica a cota de RECEIPT
+    if (!dryRun) {
+      const localUser = await this.userContext.localUser;
+      await this.usageService.checkAndIncrementUsage(
+        this.userContext.actorUserId,
+        localUser.planTier,
+        'RECEIPT',
       );
     }
 
@@ -189,9 +201,9 @@ export default class ProcessTransactionUseCase {
       ou ARRAY desse mesmo objeto para extrato multiplo.
     `;
 
-    let rawText = '';
+    let rawJsonText = '';
     try {
-      rawText = await this.genAIService.generateStructuredJson({
+      rawJsonText = await this.genAIService.generateStructuredJson({
         prompt,
         textInput,
         file: file
@@ -212,7 +224,7 @@ export default class ProcessTransactionUseCase {
 
     let parsedJson: unknown;
     try {
-      parsedJson = JSON.parse(rawText);
+      parsedJson = JSON.parse(rawJsonText);
     } catch {
       throw new BadRequestException(
         'A IA retornou um formato inválido (JSON malformado).',
@@ -303,6 +315,7 @@ export default class ProcessTransactionUseCase {
         transaction = await this.transactionsRepository.createTransaction({
           ...data,
           ...(index === 0 ? attachmentData : {}),
+          rawText: rawJsonText,
         });
       }
 

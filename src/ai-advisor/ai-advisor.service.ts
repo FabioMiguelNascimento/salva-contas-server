@@ -3,6 +3,8 @@ import { AiAdvisorChatRequestInput } from 'src/schemas/ai-advisor.schema';
 import { AiAdvisorModelService } from './ai-advisor-model.service';
 import { AiAdvisorToolsService } from './ai-advisor-tools.service';
 import { AiVisualization } from './ai-advisor.types';
+import { UsageService } from 'src/usage/usage.service';
+import { UserContext } from 'src/auth/user-context.service';
 
 const MAX_MODEL_TURNS = 4;
 
@@ -11,11 +13,21 @@ export class AiAdvisorService {
   constructor(
     private readonly modelService: AiAdvisorModelService,
     private readonly toolsService: AiAdvisorToolsService,
+    private readonly usageService: UsageService,
+    private readonly userContext: UserContext,
   ) {}
 
   async chat(
     input: AiAdvisorChatRequestInput & { files?: Express.Multer.File[] },
   ) {
+    // 1. Verificar e incrementar cota de uso IA
+    const localUser = await this.userContext.localUser;
+    await this.usageService.checkAndIncrementUsage(
+      this.userContext.actorUserId,
+      localUser.planTier,
+      'IA',
+    );
+
     const contents = this.buildConversationContents(input);
 
     if (input.files?.length) {

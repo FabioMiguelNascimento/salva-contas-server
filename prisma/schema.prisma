@@ -70,11 +70,26 @@ model User {
   invitesAccepted  FamilyInvite[] @relation("InviteAcceptedByUser")
   vaults           Vault[]
   vaultHistoryEvents VaultHistoryEvent[]
+  usage            SubscriptionUsage?
 
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("users")
+}
+
+model SubscriptionUsage {
+  id                  String   @id @default(uuid())
+  userId              String   @unique @map("user_id")
+  aiInteractionsCount Int      @default(0) @map("ai_interactions_count")
+  receiptsCount       Int      @default(0) @map("receipts_count")
+  month               Int
+  year                Int
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscription_usages")
 }
 
 model FamilyInvite {

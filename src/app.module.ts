@@ -14,9 +14,11 @@ import { StorageModule } from './storage/storage.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { VaultsModule } from './vaults/vaults.module';
+import { UsageModule } from './usage/usage.module';
 
 @Module({
   imports: [
+    UsageModule,
     StorageModule,
     AiAdvisorModule,
     AuthModule,

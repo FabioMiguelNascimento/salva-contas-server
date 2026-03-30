@@ -3,17 +3,17 @@ import { User } from '@supabase/supabase-js';
 import { Request } from 'express';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
-    RefreshTokenInput,
-    RefreshTokenSchema,
-    ResetPasswordInput,
-    ResetPasswordSchema,
-    SignInInput,
-    SignInSchema,
-    SignUpInput,
-    SignUpSchema,
-    UpdatePasswordInput,
-    UpdatePasswordSchema,
-    UpdateProfileSchema,
+  RefreshTokenInput,
+  RefreshTokenSchema,
+  ResetPasswordInput,
+  ResetPasswordSchema,
+  SignInInput,
+  SignInSchema,
+  SignUpInput,
+  SignUpSchema,
+  UpdatePasswordInput,
+  UpdatePasswordSchema,
+  UpdateProfileSchema,
 } from '../schemas/auth.schema';
 import { success } from '../utils/api-response-helper';
 import { CurrentUser } from './decorators/current-user.decorator';

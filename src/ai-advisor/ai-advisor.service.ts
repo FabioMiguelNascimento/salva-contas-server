@@ -1,10 +1,11 @@
 import { Injectable, Scope } from '@nestjs/common';
+import { UserContext } from 'src/auth/user-context.service';
+import { PLAN_LIMITS } from 'src/config/plan-limits.config';
 import { AiAdvisorChatRequestInput } from 'src/schemas/ai-advisor.schema';
+import { UsageService } from 'src/usage/usage.service';
 import { AiAdvisorModelService } from './ai-advisor-model.service';
 import { AiAdvisorToolsService } from './ai-advisor-tools.service';
 import { AiVisualization } from './ai-advisor.types';
-import { UsageService } from 'src/usage/usage.service';
-import { UserContext } from 'src/auth/user-context.service';
 
 const MAX_MODEL_TURNS = 4;
 
@@ -22,11 +23,21 @@ export class AiAdvisorService {
   ) {
     // 1. Verificar e incrementar cota de uso IA
     const localUser = await this.userContext.localUser;
+    if (!localUser) {
+      throw new Error('Usuário não autenticado.');
+    }
+
     await this.usageService.checkAndIncrementUsage(
       this.userContext.actorUserId,
       localUser.planTier,
       'IA',
     );
+
+    const planLimits = PLAN_LIMITS[localUser.planTier];
+    const aiModelName =
+      planLimits.aiModel === 'BASIC'
+        ? process.env.AI_ADVISOR_BASIC_MODEL || 'gemini-2.5-flash'
+        : process.env.AI_ADVISOR_ADVANCED_MODEL || 'gemini-3.5-pro';
 
     const contents = this.buildConversationContents(input);
 
@@ -40,7 +51,12 @@ export class AiAdvisorService {
     });
 
     const tools = this.toolsService.buildTools();
-    const result = await this.runModelLoop(contents, tools, input.files);
+    const result = await this.runModelLoop(
+      contents,
+      tools,
+      input.files,
+      aiModelName,
+    );
 
     return result;
   }
@@ -83,6 +99,7 @@ export class AiAdvisorService {
     contents: any[],
     tools: any[],
     files?: Express.Multer.File[],
+    aiModelName?: string,
   ) {
     const visualizations: AiVisualization[] = [];
     const calledTools: string[] = [];
@@ -94,7 +111,11 @@ export class AiAdvisorService {
     let finalText = '';
 
     for (let i = 0; i < MAX_MODEL_TURNS; i++) {
-      const result = await this.modelService.generateContent(contents, tools);
+      const result = await this.modelService.generateContent(
+        contents,
+        tools,
+        aiModelName,
+      );
       const candidate = result.response?.candidates?.[0];
       const parts = candidate?.content?.parts ?? [];
 

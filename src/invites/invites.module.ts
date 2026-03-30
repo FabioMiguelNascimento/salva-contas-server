@@ -25,6 +25,10 @@ import { RemoveFamilyMemberUseCase } from './use-cases/remove-family-member.use-
     GetFamilyMembersUseCase,
     RemoveFamilyMemberUseCase,
   ],
-  exports: [GetFamilyMembersUseCase, GetFamilyInviteTokensUseCase, RemoveFamilyMemberUseCase],
+  exports: [
+    GetFamilyMembersUseCase,
+    GetFamilyInviteTokensUseCase,
+    RemoveFamilyMemberUseCase,
+  ],
 })
 export class InvitesModule {}

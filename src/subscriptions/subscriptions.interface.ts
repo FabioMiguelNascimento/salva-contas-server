@@ -1,8 +1,8 @@
 import { Subscription } from 'generated/prisma/client';
 import {
-    CreateSubscriptionInput,
-    GetAllSubscriptionsInput,
-    UpdateSubscriptionInput,
+  CreateSubscriptionInput,
+  GetAllSubscriptionsInput,
+  UpdateSubscriptionInput,
 } from 'src/schemas/subscriptions.schema';
 
 export interface SubscriptionMetrics {

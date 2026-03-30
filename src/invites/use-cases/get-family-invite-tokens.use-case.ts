@@ -1,6 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { UserContext } from 'src/auth/user-context.service';
-import { FamilyInviteTokenDto, InvitesRepositoryInterface } from '../invites.interface';
+import {
+  FamilyInviteTokenDto,
+  InvitesRepositoryInterface,
+} from '../invites.interface';
 
 export type FamilyInviteTokensResponse = {
   activeInvites: FamilyInviteTokenDto[];
@@ -17,7 +20,8 @@ export class GetFamilyInviteTokensUseCase {
 
   async execute(): Promise<FamilyInviteTokensResponse> {
     const userId = this.userContext.actorUserId;
-    const invites = await this.invitesRepository.findInvitesByFromUserId(userId);
+    const invites =
+      await this.invitesRepository.findInvitesByFromUserId(userId);
 
     const now = new Date();
 

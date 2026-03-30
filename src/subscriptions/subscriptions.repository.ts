@@ -3,11 +3,14 @@ import { Subscription } from 'generated/prisma/client';
 import { UserContext } from 'src/auth/user-context.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
-    CreateSubscriptionInput,
-    GetAllSubscriptionsInput,
-    UpdateSubscriptionInput,
+  CreateSubscriptionInput,
+  GetAllSubscriptionsInput,
+  UpdateSubscriptionInput,
 } from 'src/schemas/subscriptions.schema';
-import { SubscriptionMetrics, SubscriptionsRepositoryInterface } from './subscriptions.interface';
+import {
+  SubscriptionMetrics,
+  SubscriptionsRepositoryInterface,
+} from './subscriptions.interface';
 
 @Injectable({ scope: Scope.REQUEST })
 export default class SubscriptionsRepository extends SubscriptionsRepositoryInterface {
@@ -41,7 +44,7 @@ export default class SubscriptionsRepository extends SubscriptionsRepositoryInte
       monthly: 0,
       yearly: 0,
     };
-    
+
     for (const sub of subscriptions) {
       if (sub.frequency === 'monthly') {
         byFrequency.monthly += 1;

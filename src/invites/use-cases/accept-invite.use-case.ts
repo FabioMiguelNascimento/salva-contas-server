@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { UserContext } from 'src/auth/user-context.service';
+import { PLAN_LIMITS } from 'src/config/plan-limits.config';
 import { AcceptInviteInput } from 'src/schemas/invites.schema';
 import { InvitesRepositoryInterface } from '../invites.interface';
 
@@ -32,6 +33,18 @@ export class AcceptInviteUseCase {
     if (invite.fromUserId === actorUserId) {
       throw new BadRequestException(
         'Você não pode aceitar um convite da sua própria conta.',
+      );
+    }
+
+    // Limiteur maxUsers do plano FAMILY
+    const planLimits = PLAN_LIMITS[invite.fromUser.planTier];
+    const members = await this.invitesRepository.findLinkedUsers(
+      invite.fromUserId,
+    );
+    const total = members.length + 1; // inclui o proprietário
+    if (total >= planLimits.maxUsers) {
+      throw new BadRequestException(
+        'O proprietário já atingiu o limite de membros do plano FAMILY.',
       );
     }
 

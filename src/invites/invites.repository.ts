@@ -33,6 +33,7 @@ export class InvitesRepository implements InvitesRepositoryInterface {
             id: true,
             name: true,
             email: true,
+            planTier: true,
           },
         },
       },

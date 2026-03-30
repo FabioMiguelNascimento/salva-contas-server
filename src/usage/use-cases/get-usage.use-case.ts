@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PlanTier } from 'generated/prisma/enums';
-import { UsageRepositoryInterface } from '../usage.interface';
 import { PLAN_LIMITS } from '../usage.constants';
+import { UsageRepositoryInterface } from '../usage.interface';
 
 @Injectable()
 export class GetUsageUseCase {
@@ -18,10 +18,17 @@ export class GetUsageUseCase {
     let usage = await this.usageRepository.findByUserId(userId);
 
     if (!usage || usage.month !== currentMonth || usage.year !== currentYear) {
-      usage = await this.usageRepository.upsertUsage(userId, currentMonth, currentYear);
+      usage = await this.usageRepository.upsertUsage(
+        userId,
+        currentMonth,
+        currentYear,
+      );
     }
 
     const planLimits = PLAN_LIMITS[planTier];
+
+    const aiLimit = planLimits.maxAiMessagesPerMonth;
+    const receiptLimit = planLimits.maxReceiptsPerMonth;
 
     return {
       usage: {
@@ -29,8 +36,8 @@ export class GetUsageUseCase {
         receipts: usage.receiptsCount,
       },
       limits: {
-        aiInteractions: planLimits.IA,
-        receipts: planLimits.RECEIPT,
+        aiInteractions: aiLimit,
+        receipts: receiptLimit,
       },
       period: {
         month: currentMonth,

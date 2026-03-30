@@ -3,14 +3,14 @@ import { CreditCard, Prisma } from '../../generated/prisma/client';
 import { UserContext } from '../auth/user-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-    CreateCreditCardInput,
-    GetCreditCardsInput,
-    UpdateCreditCardInput,
+  CreateCreditCardInput,
+  GetCreditCardsInput,
+  UpdateCreditCardInput,
 } from '../schemas/credit-cards.schema';
 import {
-    CreditCardMetrics,
-    CreditCardsRepositoryInterface,
-    CreditCardWithUsage,
+  CreditCardMetrics,
+  CreditCardsRepositoryInterface,
+  CreditCardWithUsage,
 } from './credit-cards.interface';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -41,7 +41,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
 
     for (const card of cards) {
       const limit = Number(card.limit);
-      
+
       const txAgg = await this.prisma.transaction.aggregate({
         where: {
           userId: this.userId,
@@ -51,7 +51,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
         },
         _sum: { amount: true },
       });
-      
+
       const splitAgg = await this.prisma.transactionSplit.aggregate({
         where: {
           creditCardId: card.id,
@@ -59,9 +59,10 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
         },
         _sum: { amount: true },
       });
-      
-      const debt = Number(txAgg._sum.amount || 0) + Number(splitAgg._sum.amount || 0);
-      
+
+      const debt =
+        Number(txAgg._sum.amount || 0) + Number(splitAgg._sum.amount || 0);
+
       totalLimit += limit;
       totalUsed += debt;
     }
@@ -157,7 +158,6 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
         _sum: { amount: true },
       });
 
-
       const pendingResult = await this.prisma.transaction.aggregate({
         where: {
           userId: this.userId,
@@ -189,7 +189,7 @@ export class CreditCardsRepository implements CreditCardsRepositoryInterface {
         invoiceStartDate,
         invoiceEndDate,
         dueDate,
-      } as any);
+      });
     }
 
     return result;

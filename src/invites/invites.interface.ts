@@ -25,7 +25,9 @@ export abstract class InvitesRepositoryInterface {
   abstract findInviteByToken(
     token: string,
   ): Promise<
-    (FamilyInvite & { fromUser: Pick<User, 'id' | 'name' | 'email'> }) | null
+    (FamilyInvite & {
+      fromUser: Pick<User, 'id' | 'name' | 'email' | 'planTier'>;
+    }) | null
   >;
 
   abstract findInvitesByFromUserId(

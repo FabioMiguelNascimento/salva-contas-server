@@ -19,4 +19,3 @@ export abstract class VaultsRepositoryInterface {
   abstract addYield(id: string, input: VaultAmountInput): Promise<Vault>;
   abstract getHistory(id: string, query: GetVaultHistoryInput): Promise<any>;
 }
-

@@ -1,6 +1,7 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { Prisma } from 'generated/prisma/client';
 import { UserContext } from 'src/auth/user-context.service';
+import { PLAN_LIMITS } from 'src/config/plan-limits.config';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   GetVaultHistoryInput,
@@ -19,7 +20,10 @@ export class VaultsRepository {
   }
 
   async findAll() {
-    return this.prisma.vault.findMany({ where: { userId: this.userId }, orderBy: { createdAt: 'desc' } });
+    return this.prisma.vault.findMany({
+      where: { userId: this.userId },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   getVaultById(id: string) {
@@ -27,7 +31,9 @@ export class VaultsRepository {
   }
 
   getVaultByName(name: string) {
-    return this.prisma.vault.findFirst({ where: { name, userId: this.userId } });
+    return this.prisma.vault.findFirst({
+      where: { name, userId: this.userId },
+    });
   }
 
   create(args: Prisma.VaultCreateArgs) {
@@ -63,8 +69,28 @@ export class VaultsRepository {
 
   async getHistory(id: string, query: GetVaultHistoryInput) {
     const now = new Date();
+
+    const localUser = await this.userContext.localUser;
+    if (!localUser) {
+      throw new Error('Usuário não autenticado.');
+    }
+
+    const limits = PLAN_LIMITS[localUser.planTier];
     const month = query.month ?? now.getUTCMonth() + 1;
     const year = query.year ?? now.getUTCFullYear();
+
+    if (limits.historyMonths !== Infinity) {
+      const minAllowed = new Date();
+      minAllowed.setMonth(minAllowed.getMonth() - limits.historyMonths);
+      minAllowed.setHours(0, 0, 0, 0);
+
+      const selectedStart = new Date(Date.UTC(year, month - 1, 1));
+      if (selectedStart < minAllowed) {
+        throw new Error(
+          `Histórico disponível apenas a partir de ${minAllowed.toISOString().slice(0, 10)}.`,
+        );
+      }
+    }
 
     const startDate = new Date(Date.UTC(year, month - 1, 1));
     const endDate = new Date(Date.UTC(year, month, 1));
@@ -110,9 +136,14 @@ export class VaultsRepository {
 
     const last = items[items.length - 1];
 
-    const nextCursor = hasNextPage && last ? this.serializeCursor({ happenedAt: last.happenedAt, id: last.id }) : null;
+    const nextCursor =
+      hasNextPage && last
+        ? this.serializeCursor({ happenedAt: last.happenedAt, id: last.id })
+        : null;
 
-    const totalEvents = await this.prisma.vaultHistoryEvent.count({ where: whereBase });
+    const totalEvents = await this.prisma.vaultHistoryEvent.count({
+      where: whereBase,
+    });
 
     const groupedAgg = await this.prisma.vaultHistoryEvent.groupBy({
       by: ['type'],
@@ -145,7 +176,8 @@ export class VaultsRepository {
         totalDeposited: amountByType.deposit,
         totalWithdrawn: amountByType.withdraw,
         totalYield: amountByType.yield,
-        totalNetSaved: amountByType.deposit + amountByType.yield - amountByType.withdraw,
+        totalNetSaved:
+          amountByType.deposit + amountByType.yield - amountByType.withdraw,
         totalEvents,
       },
       groups: Object.entries(groups).map(([date, items]) => ({ date, items })),
@@ -186,7 +218,9 @@ export class VaultsRepository {
 
   async deposit(id: string, input: VaultAmountInput) {
     return this.prisma.$transaction(async (tx) => {
-      const vault = await tx.vault.findFirst({ where: { id, userId: this.userId } });
+      const vault = await tx.vault.findFirst({
+        where: { id, userId: this.userId },
+      });
 
       if (!vault) {
         throw new Error('Cofrinho não encontrado');
@@ -234,7 +268,9 @@ export class VaultsRepository {
 
   async withdraw(id: string, input: VaultAmountInput) {
     return this.prisma.$transaction(async (tx) => {
-      const vault = await tx.vault.findFirst({ where: { id, userId: this.userId } });
+      const vault = await tx.vault.findFirst({
+        where: { id, userId: this.userId },
+      });
 
       if (!vault) {
         throw new Error('Cofrinho não encontrado');
@@ -286,7 +322,9 @@ export class VaultsRepository {
 
   async addYield(id: string, input: VaultAmountInput) {
     return this.prisma.$transaction(async (tx) => {
-      const vault = await tx.vault.findFirst({ where: { id, userId: this.userId } });
+      const vault = await tx.vault.findFirst({
+        where: { id, userId: this.userId },
+      });
 
       if (!vault) {
         throw new Error('Cofrinho não encontrado');

@@ -1,7 +1,13 @@
-import { HttpException, HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+import {
+    HttpException,
+    HttpStatus,
+    Inject,
+    Injectable,
+    Logger,
+} from '@nestjs/common';
 import { PlanTier } from 'generated/prisma/enums';
-import { UsageRepositoryInterface } from '../usage.interface';
 import { PLAN_LIMITS } from '../usage.constants';
+import { UsageRepositoryInterface } from '../usage.interface';
 
 export type FeatureType = 'IA' | 'RECEIPT';
 
@@ -23,12 +29,20 @@ export class IncrementUsageUseCase {
 
     // Lazy Reset
     if (!usage || usage.month !== currentMonth || usage.year !== currentYear) {
-      usage = await this.usageRepository.upsertUsage(userId, currentMonth, currentYear);
+      usage = await this.usageRepository.upsertUsage(
+        userId,
+        currentMonth,
+        currentYear,
+      );
     }
 
     const planLimits = PLAN_LIMITS[planTier];
-    const currentCount = feature === 'IA' ? usage.aiInteractionsCount : usage.receiptsCount;
-    const limit = planLimits[feature];
+    const currentCount =
+      feature === 'IA' ? usage.aiInteractionsCount : usage.receiptsCount;
+    const limit =
+      feature === 'IA'
+        ? planLimits.maxAiMessagesPerMonth
+        : planLimits.maxReceiptsPerMonth;
 
     if (currentCount >= limit) {
       this.logger.warn(`Limite atingido para usuário ${userId}: ${feature}`);

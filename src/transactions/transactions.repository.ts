@@ -1,5 +1,6 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { UserContext } from 'src/auth/user-context.service';
+import { PLAN_LIMITS } from 'src/config/plan-limits.config';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   AIReceiptData,
@@ -297,17 +298,20 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     if (creditCardId) where.creditCardId = creditCardId;
 
     const user = await this.userContext.localUser;
-    if (user?.planTier === 'FREE') {
-      const threeMonthsAgo = new Date();
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-      threeMonthsAgo.setHours(0, 0, 0, 0);
+    if (user) {
+      const limits = PLAN_LIMITS[user.planTier];
+      if (Number.isFinite(limits.historyMonths) && limits.historyMonths > 0) {
+        const limitedAt = new Date();
+        limitedAt.setMonth(limitedAt.getMonth() - limits.historyMonths);
+        limitedAt.setHours(0, 0, 0, 0);
 
-      if (!where.createdAt) {
-        where.createdAt = { gte: threeMonthsAgo };
-      } else {
-        const existingGte = where.createdAt.gte;
-        if (!existingGte || existingGte < threeMonthsAgo) {
-          where.createdAt.gte = threeMonthsAgo;
+        if (!where.createdAt) {
+          where.createdAt = { gte: limitedAt };
+        } else {
+          const existingGte = where.createdAt.gte;
+          if (!existingGte || existingGte < limitedAt) {
+            where.createdAt.gte = limitedAt;
+          }
         }
       }
     }

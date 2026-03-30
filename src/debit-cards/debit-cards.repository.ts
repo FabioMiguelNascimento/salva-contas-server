@@ -3,11 +3,14 @@ import { DebitCard } from '../../generated/prisma/client';
 import { UserContext } from '../auth/user-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-    CreateDebitCardInput,
-    GetDebitCardsInput,
-    UpdateDebitCardInput,
+  CreateDebitCardInput,
+  GetDebitCardsInput,
+  UpdateDebitCardInput,
 } from '../schemas/debit-cards.schema';
-import { DebitCardMetrics, DebitCardsRepositoryInterface } from './debit-cards.interface';
+import {
+  DebitCardMetrics,
+  DebitCardsRepositoryInterface,
+} from './debit-cards.interface';
 
 @Injectable({ scope: Scope.REQUEST })
 export class DebitCardsRepository implements DebitCardsRepositoryInterface {
@@ -54,7 +57,9 @@ export class DebitCardsRepository implements DebitCardsRepositoryInterface {
           _sum: { amount: true },
         });
 
-        return Number(txAgg._sum.amount || 0) + Number(splitAgg._sum.amount || 0);
+        return (
+          Number(txAgg._sum.amount || 0) + Number(splitAgg._sum.amount || 0)
+        );
       }),
     );
 

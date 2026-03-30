@@ -1,7 +1,8 @@
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { UserContext } from 'src/auth/user-context.service';
+import { PLAN_LIMITS } from 'src/config/plan-limits.config';
 import { CreateVaultInput } from 'src/schemas/vaults.schema';
 import { VaultsRepositoryInterface } from '../vaults.interface';
-import { UserContext } from 'src/auth/user-context.service';
 
 @Injectable()
 export class CreateVaultUseCase {
@@ -13,12 +14,24 @@ export class CreateVaultUseCase {
 
   async execute(data: CreateVaultInput) {
     const user = this.userContext.localUser;
-    
-    if (user?.planTier === 'FREE') {
+
+    if (!user) {
+      throw new ForbiddenException('Usuário não autenticado.');
+    }
+
+    const limits = PLAN_LIMITS[user.planTier];
+
+    if (limits.maxVaults === 0) {
+      throw new ForbiddenException(
+        'O seu plano não permite criar cofrinhos. Faça upgrade para PRO ou FAMILY.',
+      );
+    }
+
+    if (limits.maxVaults !== Infinity) {
       const vaults = await this.vaultsRepository.findAll();
-      if (vaults.length >= 3) {
+      if (vaults.length >= limits.maxVaults) {
         throw new ForbiddenException(
-          'O plano FREE permite apenas 3 cofrinhos ativos. Faça upgrade para o plano PRO para ter cofrinhos ilimitados.',
+          `Você atingiu o limite de ${limits.maxVaults} cofrinhos do seu plano.`,
         );
       }
     }

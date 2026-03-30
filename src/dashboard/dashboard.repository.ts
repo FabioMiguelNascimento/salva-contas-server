@@ -499,7 +499,8 @@ export class DashboardRepository extends DashboardRepositoryInterface {
         const spent = Number(spentResult._sum?.amount || 0);
         const budgetAmount = Number(budget.amount);
         const remaining = budgetAmount - spent;
-        const rawPercentage = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
+        const rawPercentage =
+          budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
         const percentage = Math.min(100, Math.max(0, rawPercentage));
 
         return {

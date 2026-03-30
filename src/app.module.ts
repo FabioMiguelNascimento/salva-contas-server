@@ -33,7 +33,7 @@ import { UsageModule } from './usage/usage.module';
     NotificationsModule,
     CreditCardsModule,
     DebitCardsModule,
-    VaultsModule
+    VaultsModule,
   ],
 })
 export class AppModule {}

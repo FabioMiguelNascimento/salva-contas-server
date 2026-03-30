@@ -21,11 +21,15 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
 
   async getMetrics(month: number, year: number): Promise<BudgetMetrics> {
     const progress = await this.getBudgetProgress(month, year);
-    
-    const totalBudgeted = progress.reduce((sum, item) => sum + Number(item.budget.amount), 0);
+
+    const totalBudgeted = progress.reduce(
+      (sum, item) => sum + Number(item.budget.amount),
+      0,
+    );
     const totalSpent = progress.reduce((sum, item) => sum + item.spent, 0);
     const remaining = totalBudgeted - totalSpent;
-    const percentage = totalBudgeted > 0 ? (totalSpent / totalBudgeted) * 100 : 0;
+    const percentage =
+      totalBudgeted > 0 ? (totalSpent / totalBudgeted) * 100 : 0;
 
     return {
       totalBudgeted,

@@ -5,4 +5,6 @@ export const MercadoPagoCheckoutSchema = z.object({
   cycle: z.enum(['monthly', 'yearly']),
 });
 
-export type MercadoPagoCheckoutInput = z.infer<typeof MercadoPagoCheckoutSchema>;
+export type MercadoPagoCheckoutInput = z.infer<
+  typeof MercadoPagoCheckoutSchema
+>;

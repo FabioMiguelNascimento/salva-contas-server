@@ -11,7 +11,9 @@ export class RemoveFamilyMemberUseCase {
   ) {}
 
   async execute(memberId: string) {
-    const actor = await this.invitesRepository.findUserById(this.userContext.actorUserId);
+    const actor = await this.invitesRepository.findUserById(
+      this.userContext.actorUserId,
+    );
 
     if (!actor) {
       throw new BadRequestException('Usuário não encontrado.');
@@ -25,7 +27,9 @@ export class RemoveFamilyMemberUseCase {
     }
 
     if (member.linkedToId !== ownerId) {
-      throw new BadRequestException('Membro não pertence à família do usuário.');
+      throw new BadRequestException(
+        'Membro não pertence à família do usuário.',
+      );
     }
 
     await this.invitesRepository.unlinkFamilyMember(memberId);

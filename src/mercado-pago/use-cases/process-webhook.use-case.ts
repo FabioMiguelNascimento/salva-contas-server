@@ -24,7 +24,8 @@ export class ProcessWebhookUseCase {
     }
 
     const dataId =
-      typeof payload?.data?.id === 'string' || typeof payload?.data?.id === 'number'
+      typeof payload?.data?.id === 'string' ||
+      typeof payload?.data?.id === 'number'
         ? String(payload.data.id)
         : undefined;
 
@@ -36,31 +37,48 @@ export class ProcessWebhookUseCase {
       this.logger.log('Webhook validado via simulador de teste');
     } else if (signature) {
       if (!requestId || !dataId) {
-        this.logger.error('Headers ou payload insuficientes para validar a assinatura');
+        this.logger.error(
+          'Headers ou payload insuficientes para validar a assinatura',
+        );
         throw new BadRequestException('Dados incompletos para validação');
       }
 
-      const isValid = this.validateSignature(signature, requestId, dataId, expectedKey);
-      
+      const isValid = this.validateSignature(
+        signature,
+        requestId,
+        dataId,
+        expectedKey,
+      );
+
       if (!isValid) {
         this.logger.error('Assinatura x-signature inválida. Possível fraude!');
         throw new BadRequestException('Assinatura inválida');
       }
-      
-      this.logger.log('Assinatura do webhook validada com sucesso via criptografia');
+
+      this.logger.log(
+        'Assinatura do webhook validada com sucesso via criptografia',
+      );
     } else {
       this.logger.warn('Webhook recebido sem nenhum header de segurança');
     }
 
-    const action = typeof payload?.action === 'string' ? payload.action : undefined;
+    const action =
+      typeof payload?.action === 'string' ? payload.action : undefined;
     const type = typeof payload?.type === 'string' ? payload.type : undefined;
 
-    this.logger.log(`Webhook parseado: action=${action ?? 'n/a'} type=${type ?? 'n/a'} id=${dataId ?? 'n/a'}`);
+    this.logger.log(
+      `Webhook parseado: action=${action ?? 'n/a'} type=${type ?? 'n/a'} id=${dataId ?? 'n/a'}`,
+    );
 
     return this.mercadoPagoService.processWebhook(action, dataId);
   }
 
-  private validateSignature(signature: string, requestId: string, dataId: string, secret: string): boolean {
+  private validateSignature(
+    signature: string,
+    requestId: string,
+    dataId: string,
+    secret: string,
+  ): boolean {
     try {
       const parts = signature.split(',');
       let ts = '';
@@ -75,13 +93,16 @@ export class ProcessWebhookUseCase {
       if (!ts || !hash) return false;
 
       const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
-      
+
       const hmac = crypto.createHmac('sha256', secret);
       const digest = hmac.update(manifest).digest('hex');
 
       return digest === hash;
     } catch (error) {
-      this.logger.error('Erro no processamento da assinatura criptográfica', error);
+      this.logger.error(
+        'Erro no processamento da assinatura criptográfica',
+        error,
+      );
       return false;
     }
   }

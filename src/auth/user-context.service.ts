@@ -13,7 +13,7 @@ export class UserContext {
     }
     return targetUserId;
   }
-  
+
   get actorUserId(): string {
     const user = this.request['user'];
     if (!user?.id) {

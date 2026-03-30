@@ -13,8 +13,9 @@ export class AiAdvisorModelService {
 
   constructor(private readonly groqProvider: GroqGenAIProvider) {}
 
-  async generateContent(contents: any[], tools: any[]) {
-    const model = this.genAI.getGenerativeModel({ model: this.modelName });
+  async generateContent(contents: any[], tools: any[], modelName?: string) {
+    const selectedModel = modelName || this.modelName;
+    const model = this.genAI.getGenerativeModel({ model: selectedModel });
 
     try {
       return await model.generateContent({ contents, tools } as any);

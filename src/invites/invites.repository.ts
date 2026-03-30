@@ -1,8 +1,8 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
-  FamilyMemberDto,
-  InvitesRepositoryInterface,
+    FamilyMemberDto,
+    InvitesRepositoryInterface,
 } from './invites.interface';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -69,6 +69,39 @@ export class InvitesRepository implements InvitesRepositoryInterface {
     });
   }
 
+  async findInvitesByFromUserId(userId: string) {
+    const invites = await this.prisma.familyInvite.findMany({
+      where: { fromUserId: userId },
+      include: {
+        acceptedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return invites.map((invite) => ({
+      id: invite.id,
+      token: invite.token,
+      status: invite.status,
+      expiresAt: invite.expiresAt,
+      acceptedAt: invite.acceptedAt,
+      acceptedBy: invite.acceptedBy
+        ? {
+            id: invite.acceptedBy.id,
+            name: invite.acceptedBy.name,
+            email: invite.acceptedBy.email,
+          }
+        : null,
+    }));
+  }
+
   async findLinkedUsers(ownerId: string): Promise<FamilyMemberDto[]> {
     const users = await this.prisma.user.findMany({
       where: { linkedToId: ownerId },
@@ -85,5 +118,12 @@ export class InvitesRepository implements InvitesRepositoryInterface {
       name: user.name,
       email: user.email,
     }));
+  }
+
+  async unlinkFamilyMember(memberId: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: memberId },
+      data: { linkedToId: null },
+    });
   }
 }

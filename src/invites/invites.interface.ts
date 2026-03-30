@@ -6,6 +6,15 @@ export type FamilyMemberDto = {
   email: string | null;
 };
 
+export type FamilyInviteTokenDto = {
+  id: string;
+  token: string;
+  status: string;
+  expiresAt: Date;
+  acceptedAt?: Date | null;
+  acceptedBy?: { id: string; name: string | null; email: string | null } | null;
+};
+
 export abstract class InvitesRepositoryInterface {
   abstract createInvite(data: {
     fromUserId: string;
@@ -19,6 +28,10 @@ export abstract class InvitesRepositoryInterface {
     (FamilyInvite & { fromUser: Pick<User, 'id' | 'name' | 'email'> }) | null
   >;
 
+  abstract findInvitesByFromUserId(
+    userId: string,
+  ): Promise<FamilyInviteTokenDto[]>;
+
   abstract markInviteAccepted(data: {
     inviteId: string;
     acceptedById: string;
@@ -31,4 +44,6 @@ export abstract class InvitesRepositoryInterface {
   ): Promise<Pick<User, 'id' | 'name' | 'email' | 'linkedToId'> | null>;
 
   abstract findLinkedUsers(ownerId: string): Promise<FamilyMemberDto[]>;
+
+  abstract unlinkFamilyMember(memberId: string): Promise<void>;
 }

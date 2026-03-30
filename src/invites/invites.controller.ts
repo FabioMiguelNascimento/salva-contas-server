@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { PlanTier } from 'generated/prisma/enums';
 import { AllowedPlans } from 'src/auth/decorators/allowed-plans.decorator';
 import { RequirePlanGuard } from 'src/auth/guards/require-plan.guard';
@@ -10,8 +10,10 @@ import {
 import { success } from 'src/utils/api-response-helper';
 import { AcceptInviteUseCase } from './use-cases/accept-invite.use-case';
 import { GenerateInviteUseCase } from './use-cases/generate-invite.use-case';
+import { GetFamilyInviteTokensUseCase } from './use-cases/get-family-invite-tokens.use-case';
 import { GetFamilyMembersUseCase } from './use-cases/get-family-members.use-case';
 import { PreviewInviteUseCase } from './use-cases/preview-invite.use-case';
+import { RemoveFamilyMemberUseCase } from './use-cases/remove-family-member.use-case';
 
 @Controller('invites')
 @UseGuards(RequirePlanGuard)
@@ -21,7 +23,9 @@ export class InvitesController {
     private readonly generateInviteUseCase: GenerateInviteUseCase,
     private readonly acceptInviteUseCase: AcceptInviteUseCase,
     private readonly previewInviteUseCase: PreviewInviteUseCase,
+    private readonly getFamilyInviteTokensUseCase: GetFamilyInviteTokensUseCase,
     private readonly getFamilyMembersUseCase: GetFamilyMembersUseCase,
+    private readonly removeFamilyMemberUseCase: RemoveFamilyMemberUseCase,
   ) {}
 
   @Post('generate')
@@ -42,6 +46,18 @@ export class InvitesController {
   async previewInvite(@Param('token') token: string) {
     const data = await this.previewInviteUseCase.execute(token);
     return success(data, 'Convite válido');
+  }
+
+  @Get('tokens')
+  async getFamilyInviteTokens() {
+    const data = await this.getFamilyInviteTokensUseCase.execute();
+    return success(data, 'Tokens de convite recuperados com sucesso');
+  }
+
+  @Delete('members/:memberId')
+  async removeFamilyMember(@Param('memberId') memberId: string) {
+    const data = await this.removeFamilyMemberUseCase.execute(memberId);
+    return success(data, 'Membro removido com sucesso');
   }
 
   @Get('members')

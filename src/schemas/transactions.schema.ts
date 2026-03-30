@@ -31,11 +31,13 @@ export const AIReceiptSchema = z.object({
   type: z.enum(['expense', 'income']),
   status: z.enum(['paid', 'pending']),
   // AI returns dates as "DD/MM/YYYY" (string). Accept string|null/optional here and convert later.
+  purchaseDate: z.string().nullable().optional(),
   dueDate: z.string().nullable().optional(),
   paymentDate: z.string().nullable().optional(),
   creditCardId: z.string().nullable().optional(),
   debitCardId: z.string().nullable().optional(),
   createdById: z.string().nullable().optional(),
+  installments: z.number().int().min(1).nullable().optional(),
   // Optional: returned when payment is split across multiple methods
   splits: z.array(AISplitSchema).min(2).optional(),
 });
@@ -54,10 +56,12 @@ export const CreateTransactionSchema = z
     categoryId: z.string().uuid(),
     type: z.enum(['expense', 'income']),
     status: z.enum(['paid', 'pending']),
+    purchaseDate: z.coerce.date().nullable().optional(),
     dueDate: z.coerce.date().nullable().optional(),
     paymentDate: z.coerce.date().nullable().optional(),
     creditCardId: z.uuid().nullable().optional(),
     debitCardId: z.uuid().nullable().optional(),
+    installments: z.number().int().min(1).optional(),
     splits: z.array(SplitSchema).min(1).optional(),
   })
   .refine(
@@ -92,10 +96,12 @@ export const UpdateTransactionSchema = z
     categoryId: z.string().uuid().nullable().optional(),
     type: z.enum(['expense', 'income']).optional(),
     status: z.enum(['paid', 'pending']).optional(),
+    purchaseDate: z.coerce.date().nullable().optional(),
     dueDate: z.coerce.date().nullable().optional(),
     paymentDate: z.coerce.date().nullable().optional(),
     creditCardId: z.uuid().nullable().optional(),
     debitCardId: z.uuid().nullable().optional(),
+    installments: z.number().int().min(1).optional(),
     splits: z.array(SplitSchema).min(1).optional(),
   })
   .refine(

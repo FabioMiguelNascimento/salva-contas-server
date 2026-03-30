@@ -71,6 +71,7 @@ model User {
   vaults           Vault[]
   vaultHistoryEvents VaultHistoryEvent[]
   usage            SubscriptionUsage?
+  installmentGroups InstallmentGroup[]
 
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -115,9 +116,10 @@ model Category {
   icon         String?
   isGlobal     Boolean       @default(false)
   
-  transactions  Transaction[]
-  subscriptions Subscription[]
-  budgets       Budget[]
+  transactions      Transaction[]
+  subscriptions     Subscription[]
+  budgets           Budget[]
+  installmentGroups InstallmentGroup[]
 
   @@unique([userId, name])
   @@map("categories")
@@ -162,10 +164,32 @@ model Transaction {
   attachments  Attachment[]
   splits       TransactionSplit[]
 
+  installmentGroupId String? @map("installment_group_id")
+  installmentGroup   InstallmentGroup? @relation(fields: [installmentGroupId], references: [id], onDelete: Cascade)
+  installmentCurrent Int?     @map("installment_current")
+
   @@index([userId, creditCardId, type], map: "idx_transactions_card_expense")
   @@index([vaultId], map: "idx_transactions_vault")
   @@index([userId, description, amount, categoryName, type, status, dueDate, paymentDate, creditCardId, debitCardId], map: "idx_transactions_confirm_duplicate")
   @@map("transactions")
+}
+
+model InstallmentGroup {
+  id           String        @id @default(uuid())
+  userId       String        @map("user_id")
+  title        String
+  totalAmount  Decimal       @db.Decimal(10, 2)
+  installments Int
+  purchaseDate DateTime      @map("purchase_date")
+  categoryId   String?       @map("category_id")
+  category     Category?     @relation(fields: [categoryId], references: [id])
+  transactions Transaction[]
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  @@map("installment_groups")
 }
 
 model Vault {

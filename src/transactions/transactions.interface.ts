@@ -1,8 +1,8 @@
 import { Prisma } from 'generated/prisma/client';
 import {
-  AIReceiptData,
-  GetTransactionsInput,
-  UpdateTransactionInput,
+    AIReceiptData,
+    GetTransactionsInput,
+    UpdateTransactionInput,
 } from 'src/schemas/transactions.schema';
 
 export type TransactionWithCount = Prisma.TransactionGetPayload<{
@@ -37,4 +37,8 @@ export abstract class TransactionsRepositoryInterface {
   abstract deleteTransaction(
     id: string,
   ): Promise<{ attachmentKey: string | null }>;
+  abstract getTransactionById(id: string): Promise<TransactionWithCount | null>;
+  abstract getInstallmentTransactions(
+    installmentGroupId: string,
+  ): Promise<TransactionWithCount[]>;
 }

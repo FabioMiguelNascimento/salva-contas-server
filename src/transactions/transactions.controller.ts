@@ -10,7 +10,7 @@ import {
   Query,
   UploadedFile,
   UseGuards,
-  UseInterceptors,
+  UseInterceptors
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PlanTier } from 'generated/prisma/enums';
@@ -28,6 +28,7 @@ import {
 import { success, successWithPagination } from 'src/utils/api-response-helper';
 import { ConfirmTransactionUseCase } from './use-cases/confirm-transaction.use-case';
 import { DeleteTransactionUseCase } from './use-cases/delete-transaction.use-case';
+import { GetInstallmentTransactionsUseCase } from './use-cases/get-installment-transactions.use-case';
 import GetTransactionsUseCase from './use-cases/get-transactions.use-case';
 import ProcessTransactionUseCase from './use-cases/process-transaction.use-case';
 import { UpdateTransactionUseCase } from './use-cases/update-transaction.use-case';
@@ -40,6 +41,7 @@ export class TransactionsController {
     private readonly processTransactionUseCase: ProcessTransactionUseCase,
     private readonly confirmTransactionUseCase: ConfirmTransactionUseCase,
     private readonly getTransactionsUseCase: GetTransactionsUseCase,
+    private readonly getInstallmentTransactionsUseCase: GetInstallmentTransactionsUseCase,
     private readonly updateTransactionUseCase: UpdateTransactionUseCase,
     private readonly deleteTransactionUseCase: DeleteTransactionUseCase,
   ) {}
@@ -63,6 +65,7 @@ export class TransactionsController {
     @Body('debitCardId') debitCardId: string | null,
     @Body('paymentDate') paymentDate: string | null,
     @Body('dueDate') dueDate: string | null,
+    @Body('installments') installments: number | null,
     @UploadedFile() file: Express.Multer.File,
   ) {
     const data = await this.processTransactionUseCase.execute(file, body, {
@@ -70,9 +73,17 @@ export class TransactionsController {
       debitCardId,
       paymentDate,
       dueDate,
+      installments,
     });
 
     return success(data, 'Transaction processed successfully');
+  }
+
+  @Get(':id/installments')
+  async getInstallmentTransactions(@Param('id') id: string) {
+    const installments = await this.getInstallmentTransactionsUseCase.execute(id);
+
+    return success(installments, 'Parcelas encontradas');
   }
 
   @Get()

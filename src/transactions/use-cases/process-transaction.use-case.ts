@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
+import crypto from 'crypto';
 import { UserContext } from 'src/auth/user-context.service';
 import { CategoriesRepositoryInterface } from 'src/categories/categories.interface';
 import {
@@ -51,6 +52,7 @@ export default class ProcessTransactionUseCase {
       debitCardId?: string | null;
       paymentDate?: string | null;
       dueDate?: string | null;
+      installments?: number | null;
     },
     dryRun = false,
   ) {
@@ -176,6 +178,8 @@ export default class ProcessTransactionUseCase {
       - Pagamento dividido: envie splits e nao envie creditCardId na raiz.
       - splits[].paymentMethod: credit_card|debit|pix|cash|transfer|other
       - Soma de splits deve bater com amount.
+      - Se o comprovante indicar compra parcelada (ex: "em 3x", "parcela 1/5"), extraia o numero total de parcelas e retorne no campo "installments".
+      - Se for pagamento a vista, retorne "installments" como 1 ou null.
       - Se for EXTRATO com varias linhas, retorne um ARRAY de objetos (um por transacao).
       - Em extrato, cada objeto deve ter paymentDate proprio da linha correspondente.
       - NUNCA copie a data inicial/final do periodo para todas as transacoes.
@@ -185,6 +189,20 @@ export default class ProcessTransactionUseCase {
 
       JSON de saida:
       Objeto unico (comprovante simples):
+      {
+        "amount": number,
+        "description": string,
+        "category": string,
+        "type": "expense" | "income",
+        "status": "paid" | "pending",
+        "dueDate": "DD/MM/YYYY" | null,
+        "paymentDate": "DD/MM/YYYY" | null,
+        "creditCardId": "uuid" | null,
+        "debitCardId": "uuid" | null,
+        "createdById": "uuid" | null,
+        "installments": number | null,
+        "splits": [ { "amount": number, "paymentMethod": string, "creditCardId": "uuid" | null, "debitCardId": "uuid" | null } ]
+      }
       {
         "amount": number,
         "description": string,
@@ -262,6 +280,10 @@ export default class ProcessTransactionUseCase {
         data.creditCardId = null;
       }
 
+      if (options?.installments && options.installments > 0) {
+        data.installments = options.installments;
+      }
+
       // Keep dates as strings (AI returns DD/MM/YYYY). The repository will parse them via parseDateLocal.
       if (options?.paymentDate !== undefined) {
         data.paymentDate = options.paymentDate;
@@ -296,10 +318,12 @@ export default class ProcessTransactionUseCase {
           ...data,
           dueDate: data.dueDate ?? null,
           paymentDate: data.paymentDate ?? null,
+          purchaseDate: data.purchaseDate ?? null,
+          installments: data.installments ?? null,
           categoryName: data.category || null,
           createdById: data.createdById || null,
-          creditCardId: data.creditCardId || null,
-          debitCardId: data.debitCardId || null,
+          creditCardId: data.creditCardId ?? null,
+          debitCardId: data.debitCardId ?? null,
           attachmentKey:
             (index === 0 ? attachmentData.attachmentKey : undefined) ?? null,
           attachmentOriginalName:
@@ -312,11 +336,54 @@ export default class ProcessTransactionUseCase {
             (index === 0 ? attachmentData.attachmentSize : undefined) ?? null,
         };
       } else {
-        transaction = await this.transactionsRepository.createTransaction({
-          ...data,
-          ...(index === 0 ? attachmentData : {}),
-          rawText: rawJsonText,
-        });
+        // SE FOR PARCELADO (A MÁGICA ACONTECE AQUI)
+        if (data.installments && data.installments > 1 && data.creditCardId) {
+          const groupId = crypto.randomUUID();
+          const baseAmount = Math.floor((data.amount / data.installments) * 100) / 100;
+          const remainder = data.amount - baseAmount * data.installments;
+
+          await this.prisma.installmentGroup.create({
+            data: {
+              id: groupId,
+              userId: this.userContext.userId,
+              title: data.description,
+              totalAmount: data.amount,
+              installments: data.installments,
+              purchaseDate: new Date(data.paymentDate || data.createdAt || now),
+            },
+          });
+
+          const installmentTransactions: Array<any> = [];
+          for (let i = 1; i <= data.installments; i++) {
+            const finalAmount =
+              i === data.installments ? baseAmount + remainder : baseAmount;
+
+            const baseDate = new Date(data.paymentDate || now);
+            baseDate.setMonth(baseDate.getMonth() + (i - 1));
+
+            installmentTransactions.push({
+              ...data,
+              amount: finalAmount,
+              description: `${data.description} (${i}/${data.installments})`,
+              paymentDate: baseDate,
+              dueDate: baseDate,
+              installmentGroupId: groupId,
+              installmentCurrent: i,
+              rawText: rawJsonText,
+              ...(index === 0 ? attachmentData : {}),
+            });
+          }
+
+          await this.prisma.transaction.createMany({ data: installmentTransactions });
+          transaction = installmentTransactions[0];
+        } else {
+          // SE FOR À VISTA, SEGUE O FLUXO NORMAL QUE VOCÊ JÁ TINHA
+          transaction = await this.transactionsRepository.createTransaction({
+            ...data,
+            ...(index === 0 ? attachmentData : {}),
+            rawText: rawJsonText,
+          });
+        }
       }
 
       createdTransactions.push(transaction);

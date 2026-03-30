@@ -1,4 +1,5 @@
 import { Injectable, Scope } from '@nestjs/common';
+import { addMonths } from 'date-fns';
 import { UserContext } from 'src/auth/user-context.service';
 import { PLAN_LIMITS } from 'src/config/plan-limits.config';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -201,8 +202,15 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     const normalizedCategory =
       data.category.charAt(0).toUpperCase() +
       data.category.slice(1).toLowerCase();
-    const { category, creditCardId, debitCardId, splits, ...transactionData } =
-      data as any;
+    const {
+      category,
+      creditCardId,
+      debitCardId,
+      splits,
+      installments: dataInstallments,
+      purchaseDate,
+      ...transactionData
+    } = data as any;
 
     const dueDate = parseDateLocal((data as any).dueDate);
     const paymentDate = parseDateLocal((data as any).paymentDate);
@@ -238,6 +246,70 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
 
     if (!splits && !creditCardId && debitCardId) {
       createData.debitCard = { connect: { id: debitCardId } };
+    }
+
+    const installments = Number(dataInstallments ?? 1);
+    if (installments > 1) {
+      const purchaseDate =
+        parseDateLocal(
+          (data as any).purchaseDate ?? data.paymentDate ?? data.dueDate ?? new Date(),
+        ) ?? new Date();
+
+      const totalAmount = Number(transactionData.amount);
+      const baseAmount = Math.floor((totalAmount / installments) * 100) / 100;
+      const remainder = Number((totalAmount - baseAmount * installments).toFixed(2));
+
+      const installmentGroup = await this.prisma.installmentGroup.create({
+        data: {
+          userId: this.userId,
+          title: createData.description,
+          totalAmount,
+          installments,
+          purchaseDate,
+          categoryId: categoryIdToConnect ?? null,
+        },
+      });
+
+      const createdTxs: any[] = [];
+      for (let i = 1; i <= installments; i++) {
+        const amount =
+          i === installments
+            ? Number((baseAmount + remainder).toFixed(2))
+            : baseAmount;
+        const due = addMonths(purchaseDate, i - 1);
+
+        const statusValue = (createData.status as string | undefined) ?? 'pending';
+        const child = await this.prisma.transaction.create({
+          data: {
+            ...createData,
+            amount,
+            description: createData.description,
+            status: i === 1 ? statusValue : 'pending',
+            dueDate: due,
+            paymentDate: null,
+            installmentGroup: { connect: { id: installmentGroup.id } },
+            installmentCurrent: i,
+          },
+          include: {
+            categoryRel: true,
+            creditCard: true,
+            debitCard: true,
+            splits: { include: { creditCard: true, debitCard: true } },
+          },
+        });
+
+        if (!categoryIdToConnect && child.categoryRel?.id) {
+          this.categoryIdCache.set(normalizedCategory, child.categoryRel.id);
+        }
+
+        createdTxs.push(child);
+      }
+
+      if (creditCardId && !options?.skipCardRecalc) {
+        await this.recalcCardLimit(creditCardId);
+      }
+
+      return (await this.withCreatedByName(createdTxs[0])) as any;
     }
 
     const tx = await this.prisma.transaction.create({
@@ -387,6 +459,40 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async getTransactionById(id: string): Promise<TransactionWithCount | null> {
+    const tx = await this.prisma.transaction.findUnique({
+      where: { id },
+      include: {
+        categoryRel: true,
+        creditCard: true,
+        debitCard: true,
+      },
+    });
+
+    if (!tx) return null;
+    return (await this.withCreatedByName(tx)) as any;
+  }
+
+  async getInstallmentTransactions(
+    installmentGroupId: string,
+  ): Promise<TransactionWithCount[]> {
+    const transactions = await this.prisma.transaction.findMany({
+      where: { installmentGroupId },
+      include: {
+        categoryRel: true,
+        creditCard: true,
+        debitCard: true,
+      },
+      orderBy: { installmentCurrent: 'asc' },
+    });
+
+    const enriched = await Promise.all(
+      transactions.map((tx) => this.withCreatedByName(tx)),
+    );
+
+    return enriched as any;
   }
 
   async updateTransaction(

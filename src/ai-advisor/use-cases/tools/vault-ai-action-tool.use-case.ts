@@ -1,44 +1,53 @@
 import { Injectable, Scope } from '@nestjs/common';
+import { z } from 'zod';
 import { ToolVaultAiActionArgsSchema } from 'src/schemas/ai-advisor.schema';
 import { ExecuteVaultAiCommandUseCase } from 'src/vaults/use-cases/execute-vault-ai-command.use-case';
 import { ToolExecutionResult } from '../../ai-advisor.types';
-import { AiAdvisorToolUseCase } from './tool-use-case.interface';
+import { BaseAiTool } from '../../tools/base-ai-tool';
 
 @Injectable({ scope: Scope.REQUEST })
-export class VaultAiActionToolUseCase implements AiAdvisorToolUseCase {
+export class VaultAiActionToolUseCase extends BaseAiTool<
+  typeof ToolVaultAiActionArgsSchema
+> {
   readonly name = 'vault_ai_action';
+  readonly description =
+    'Executa uma acao de cofrinho (depositar/resgatar/rendimento) com base no texto.';
+  readonly schema = ToolVaultAiActionArgsSchema;
 
   constructor(
-    private readonly executeVaultAiCommandUseCase: ExecuteVaultAiCommandUseCase,
-  ) {}
+    private readonly executeVaultAiCommand: ExecuteVaultAiCommandUseCase,
+  ) {
+    super();
+  }
 
-  async execute(rawArgs: Record<string, any>): Promise<ToolExecutionResult> {
-    const args = ToolVaultAiActionArgsSchema.parse(rawArgs);
-
-    const result = await this.executeVaultAiCommandUseCase.execute({
-      text: args.text,
+  async run(
+    args: z.infer<typeof ToolVaultAiActionArgsSchema>,
+  ): Promise<ToolExecutionResult> {
+    const result = await this.executeVaultAiCommand.execute({
+      text: args.description,
     });
-
-    const vault = result.vault;
 
     return {
       responseForModel: {
-        message: `Cofrinho atualizado: ${vault.name} (${vault.id})`,
-        vault,
+        success: true,
+        action: result.actionType,
+        amount: result.actionAmount,
+        vaultName: result.vault.name,
+        currentBalance: result.vault.currentAmount,
       },
       visualization: {
         type: 'table_summary',
         toolName: this.name,
-        title: `Cofrinho atualizado: ${vault.name}`,
+        title: 'Ação no Cofrinho',
         payload: {
-          id: vault.id,
-          name: vault.name,
-          currentAmount: vault.currentAmount,
-          targetAmount: vault.targetAmount,
-          color: vault.color,
-          icon: vault.icon,
-          actionType: result.actionType || 'deposit',
-          actionAmount: result.actionAmount ?? 0,
+          items: [
+            {
+              vault: result.vault.name,
+              action: result.actionType,
+              amount: result.actionAmount,
+              balance: result.vault.currentAmount,
+            },
+          ],
         },
       },
     };

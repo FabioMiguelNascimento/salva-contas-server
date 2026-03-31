@@ -79,6 +79,7 @@ export const CreateTransactionSchema = z
 export const GetTransactionsSchema = z.object({
   page: z.coerce.number().min(1).optional().default(1),
   limit: z.coerce.number().min(1).max(1000).optional().default(10),
+  query: z.string().trim().optional(),
   categoryId: z.string().uuid().optional(),
   type: z.enum(['expense', 'income']).optional(),
   status: z.enum(['paid', 'pending']).optional(),

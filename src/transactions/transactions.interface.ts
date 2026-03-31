@@ -1,8 +1,8 @@
 import { Prisma } from 'generated/prisma/client';
 import {
-    AIReceiptData,
-    GetTransactionsInput,
-    UpdateTransactionInput,
+  AIReceiptData,
+  GetTransactionsInput,
+  UpdateTransactionInput,
 } from 'src/schemas/transactions.schema';
 
 export type TransactionWithCount = Prisma.TransactionGetPayload<{

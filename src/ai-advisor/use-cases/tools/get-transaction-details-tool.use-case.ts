@@ -1,171 +1,219 @@
-import { Injectable, Scope } from '@nestjs/common';
-import { UserContext } from 'src/auth/user-context.service';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { Inject, Injectable, Scope } from '@nestjs/common';
 import { ToolTransactionDetailsArgsSchema } from 'src/schemas/ai-advisor.schema';
-import { StorageService } from 'src/storage/storage.service';
+import { TransactionsRepositoryInterface } from 'src/transactions/transactions.interface';
+import { z } from 'zod';
 import { ToolExecutionResult } from '../../ai-advisor.types';
-import { AiAdvisorToolUseCase } from './tool-use-case.interface';
+import { BaseAiTool } from '../../tools/base-ai-tool';
 
 @Injectable({ scope: Scope.REQUEST })
-export class GetTransactionDetailsToolUseCase implements AiAdvisorToolUseCase {
+export class GetTransactionDetailsToolUseCase extends BaseAiTool<
+  typeof ToolTransactionDetailsArgsSchema
+> {
   readonly name = 'get_transaction_details';
+  readonly description =
+    'Retorna detalhes de uma transação. Se houver mais de uma correspondência para o texto, retorna uma lista para escolha.';
+  readonly schema = ToolTransactionDetailsArgsSchema;
 
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly userContext: UserContext,
-    private readonly storageService: StorageService,
-  ) {}
-
-  private get userId(): string {
-    return this.userContext.userId;
+    @Inject(TransactionsRepositoryInterface)
+    private readonly transactionsRepository: TransactionsRepositoryInterface,
+  ) {
+    super();
   }
 
-  async execute(rawArgs: Record<string, any>): Promise<ToolExecutionResult> {
-    const normalizedArgs = {
-      transactionId:
-        typeof rawArgs?.transactionId === 'string'
-          ? rawArgs.transactionId.trim()
-          : undefined,
-      query:
-        typeof rawArgs?.query === 'string' ? rawArgs.query.trim() : undefined,
-    };
+  async run(
+    args: z.infer<typeof ToolTransactionDetailsArgsSchema>,
+  ): Promise<ToolExecutionResult> {
+    let transactionId = args.transactionId?.trim();
+    let query = args.query?.trim();
 
-    if (!normalizedArgs.transactionId && !normalizedArgs.query) {
-      return {
-        responseForModel: {
-          error: 'Nenhum identificador de transacao foi informado.',
-          hint: 'Passe o ID da transacao ou um texto de busca (descricao).',
-        },
-        visualization: {
-          type: 'table_summary',
-          toolName: this.name,
-          title: 'Como buscar transacao',
-          payload: {
-            items: [],
-            totalTransactions: 0,
-            error: 'Nenhum identificador de transacao foi informado.',
-            hint: 'Passe o ID da transacao ou um texto de busca (descricao).',
+    if (transactionId) {
+      const result =
+        await this.transactionsRepository.getTransactionById(transactionId);
+      if (result) {
+        return this.handleSingleResult(result);
+      }
+
+      const fallbackSearch = await this.transactionsRepository.getTransactions({
+        page: 1,
+        limit: 5,
+        query: transactionId,
+      });
+      if (fallbackSearch.data.length > 0) {
+        if (fallbackSearch.data.length === 1) {
+          return this.handleSingleResult(fallbackSearch.data[0]);
+        }
+
+        return {
+          responseForModel: {
+            error:
+              'Múltiplas transações encontradas para esse identificador. Selecione uma das opções abaixo.',
+            matches: fallbackSearch.data.map((t) => ({
+              id: t.id,
+              description: t.description,
+              amount: t.amount,
+              date: t.paymentDate || t.createdAt,
+            })),
           },
-        },
-      };
+          visualization: {
+            type: 'table_summary',
+            toolName: this.name,
+            title: `Múltiplas transações para "${transactionId}"`,
+            payload: {
+              items: fallbackSearch.data.map((t) => ({
+                id: t.id,
+                description: t.description,
+                amount: Number(t.amount || 0),
+                date: t.paymentDate || t.createdAt,
+                category: t.categoryName || 'Sem categoria',
+              })),
+              message:
+                'Encontrei mais de uma transação com esse identificador. Qual delas você deseja ver?',
+            },
+          },
+        };
+      }
+
+      return this.handleNotFound();
     }
 
-    const args = ToolTransactionDetailsArgsSchema.parse(normalizedArgs);
-    const query = (args.transactionId ?? args.query ?? '').trim();
-
-    const isUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    if (query) {
+      const search = await this.transactionsRepository.getTransactions({
+        page: 1,
+        limit: 5,
         query,
-      );
-
-    if (isUuid) {
-      const transaction = await this.prisma.transaction.findUnique({
-        where: { id: query },
-        select: {
-          id: true,
-          userId: true,
-          description: true,
-          amount: true,
-          type: true,
-          status: true,
-          categoryId: true,
-          categoryName: true,
-          dueDate: true,
-          paymentDate: true,
-          attachmentKey: true,
-          attachmentOriginalName: true,
-          attachmentMimeType: true,
-        },
       });
 
-      let categoryIcon: string | null = null;
-      if (transaction?.categoryId) {
-        const category = await this.prisma.category.findUnique({
-          where: { id: transaction.categoryId },
-          select: { icon: true },
-        });
-        categoryIcon = category?.icon ?? null;
+      if (search.data.length === 0) {
+        return this.handleNotFound();
       }
 
-      let detail: Record<string, any>;
-      if (!transaction || transaction.userId !== this.userId) {
-        detail = { error: 'Transacao nao encontrada ou acesso negado' };
-      } else {
-        let attachmentUrl: string | null = null;
-        if (transaction.attachmentKey) {
-          try {
-            attachmentUrl = await this.storageService.getPresignedUrl(
-              transaction.attachmentKey,
-            );
-          } catch {
-            attachmentUrl = null;
-          }
-        }
-
-        detail = { ...transaction, attachmentUrl, categoryIcon };
+      if (search.data.length > 1) {
+        return {
+          responseForModel: {
+            error:
+              'Múltiplas transações encontradas. Peça para o usuário ser mais específico ou escolher pelo ID da lista fornecida.',
+            matches: search.data.map((t) => ({
+              id: t.id,
+              description: t.description,
+              amount: t.amount,
+              date: t.paymentDate || t.createdAt,
+            })),
+          },
+          visualization: {
+            type: 'table_summary',
+            toolName: this.name,
+            title: `Múltiplas transações para "${args.query}"`,
+            payload: {
+              items: search.data.map((t) => ({
+                id: t.id,
+                description: t.description,
+                amount: Number(t.amount || 0),
+                date: t.paymentDate || t.createdAt,
+                category: t.categoryName || 'Sem categoria',
+              })),
+              message:
+                'Encontrei mais de uma transação com esse nome. Qual delas você deseja ver?',
+            },
+          },
+        };
       }
 
-      return {
-        responseForModel: detail,
-        visualization: {
-          type: 'transaction',
-          toolName: this.name,
-          title: `Detalhes da transacao ${args.transactionId}`,
-          payload: detail,
-        },
-      };
+      return this.handleSingleResult(search.data[0]);
     }
 
-    const matches = await this.prisma.transaction.findMany({
-      where: {
-        userId: this.userId,
-        description: { contains: query, mode: 'insensitive' },
-      },
-      take: 10,
-      orderBy: { createdAt: 'desc' },
-    });
+    return this.handleNotFound();
+  }
 
-    const items = matches.map((tx) => ({
-      id: tx.id,
-      description: tx.description,
-      amount: Number(tx.amount),
-      type: tx.type,
-      category: tx.categoryName ?? 'Sem categoria',
-      status: tx.status,
-      createdAt: tx.createdAt,
-      paymentDate: tx.paymentDate,
-      dueDate: tx.dueDate,
-    }));
+  private handleSingleResult(result: any): ToolExecutionResult {
+    if (!result) return this.handleNotFound();
 
-    const totals = items.reduce(
-      (acc, item) => {
-        const value = Number(item.amount || 0);
-        if (item.type === 'income') {
-          acc.totalIncome += value;
-        } else {
-          acc.totalExpenses += value;
-        }
-        acc.totalAmount += value;
-        return acc;
-      },
-      { totalIncome: 0, totalExpenses: 0, totalAmount: 0 },
-    );
+    const paymentMethods = [] as any[];
+    const splits = Array.isArray(result.splits) ? result.splits : [];
 
-    const summary = {
-      totalTransactions: items.length,
-      totalAmount: Number(totals.totalAmount.toFixed(2)),
-      totalIncome: Number(totals.totalIncome.toFixed(2)),
-      totalExpenses: Number(totals.totalExpenses.toFixed(2)),
-      balance: Number((totals.totalIncome - totals.totalExpenses).toFixed(2)),
-    };
+    if (Array.isArray(result.splits) && result.splits.length > 0) {
+      paymentMethods.push(
+        ...result.splits.map((split: any) => ({
+          id: split.id,
+          amount: Number(split.amount || 0),
+          paymentMethod: split.paymentMethod,
+          creditCard: split.creditCard
+            ? {
+                id: split.creditCard.id,
+                name: split.creditCard.name,
+                lastFourDigits: split.creditCard.lastFourDigits,
+                flag: split.creditCard.flag,
+              }
+            : undefined,
+          debitCard: split.debitCard
+            ? {
+                id: split.debitCard.id,
+                name: split.debitCard.name,
+                lastFourDigits: split.debitCard.lastFourDigits,
+                flag: split.debitCard.flag,
+              }
+            : undefined,
+        })),
+      );
+    } else {
+      // fallback para cartão direto na transação
+      if (result.creditCard) {
+        paymentMethods.push({
+          amount: Number(result.amount || 0),
+          paymentMethod: 'credit_card',
+          creditCard: {
+            id: result.creditCard.id,
+            name: result.creditCard.name,
+            lastFourDigits: result.creditCard.lastFourDigits,
+            flag: result.creditCard.flag,
+          },
+        });
+      }
+      if (result.debitCard) {
+        paymentMethods.push({
+          amount: Number(result.amount || 0),
+          paymentMethod: 'debit',
+          debitCard: {
+            id: result.debitCard.id,
+            name: result.debitCard.name,
+            lastFourDigits: result.debitCard.lastFourDigits,
+            flag: result.debitCard.flag,
+          },
+        });
+      }
+    }
 
     return {
-      responseForModel: { query, items, ...summary },
+      responseForModel: {
+        transaction: {
+          ...result,
+          paymentMethods,
+          splits,
+        },
+        instructionToAi:
+          'Você recebeu os detalhes da transação. Formule uma resposta breve ao usuário resumindo os dados e sugerindo próximo passo (ex: verificar outra transação ou analisar orçamento).',
+      },
+      visualization: {
+        type: 'transaction',
+        toolName: this.name,
+        title: `Detalhes: ${result.description}`,
+        payload: {
+          ...result,
+          paymentMethods,
+          splits,
+        },
+      },
+    };
+  }
+
+  private handleNotFound(): ToolExecutionResult {
+    return {
+      responseForModel: { error: 'Transação não encontrada.' },
       visualization: {
         type: 'table_summary',
         toolName: this.name,
-        title: `Transacoes encontradas para "${query}" (${items.length})`,
-        payload: { items, query, ...summary },
+        title: 'Não encontrado',
+        payload: { error: 'Nenhuma transação corresponde aos critérios.' },
       },
     };
   }

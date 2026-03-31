@@ -6,6 +6,7 @@ import { UsageService } from 'src/usage/usage.service';
 import { AiAdvisorModelService } from './ai-advisor-model.service';
 import { AiAdvisorToolsService } from './ai-advisor-tools.service';
 import { AiVisualization } from './ai-advisor.types';
+import { ToolExecutor } from './tools/tool-executor.service';
 
 const MAX_MODEL_TURNS = 4;
 
@@ -14,6 +15,7 @@ export class AiAdvisorService {
   constructor(
     private readonly modelService: AiAdvisorModelService,
     private readonly toolsService: AiAdvisorToolsService,
+    private readonly toolExecutor: ToolExecutor,
     private readonly usageService: UsageService,
     private readonly userContext: UserContext,
   ) {}
@@ -21,7 +23,6 @@ export class AiAdvisorService {
   async chat(
     input: AiAdvisorChatRequestInput & { files?: Express.Multer.File[] },
   ) {
-    // 1. Verificar e incrementar cota de uso IA
     const localUser = await this.userContext.localUser;
     if (!localUser) {
       throw new Error('Usuário não autenticado.');
@@ -36,8 +37,8 @@ export class AiAdvisorService {
     const planLimits = PLAN_LIMITS[localUser.planTier];
     const aiModelName =
       planLimits.aiModel === 'BASIC'
-        ? process.env.AI_ADVISOR_BASIC_MODEL || 'gemini-2.5-flash'
-        : process.env.AI_ADVISOR_ADVANCED_MODEL || 'gemini-3.5-pro';
+        ? process.env.AI_ADVISOR_BASIC_MODEL
+        : process.env.AI_ADVISOR_ADVANCED_MODEL;
 
     const contents = this.buildConversationContents(input);
 
@@ -76,7 +77,13 @@ export class AiAdvisorService {
         role: 'user',
         parts: [
           {
-            text: 'Voce e o Boletinho, um assistente financeiro. Seja objetivo, amigavel e em portugues do Brasil. Quando receber dados de ferramentas, resuma em linguagem simples e acione insights acionaveis. Se o usuario enviar um comprovante (imagem), processe automaticamente e nao peca mais descricao. Nunca responda apenas com saudacao generica; responda de forma especifica ao pedido atual. Para registrar por texto sem anexo, use create_transaction. Para extrair dados de comprovante com anexo, use process_transaction_receipt. So chame get_expenses_by_category quando a pergunta mencionar categoria(s), maior categoria ou distribuicao de gastos. So chame get_spending_trend quando a pergunta pedir tendencia, evolucao temporal ou ultimos dias.',
+            text: `Você é o Boletinho, um assistente financeiro inteligente do app Salva Contas. Seja objetivo, amigável e responda em português do Brasil.
+
+REGRAS CRÍTICAS DE COMPORTAMENTO:
+1. NUNCA mencione nomes técnicos de ferramentas, funções ou comandos (ex: create_transaction, process_transaction_receipt) para o usuário. O uso de ferramentas deve ser 100% invisível para ele.
+2. Se você acabou de chamar uma ferramenta e recebeu os dados de volta (como o resumo financeiro), USE esses dados para formular sua resposta. Jamais diga que "precisa de mais informações" se os dados já estiverem no histórico.
+3. Se precisar de alguma informação, peça naturalmente, como um humano. Ex: "Você pode me dizer o valor e a data dessa compra?" (NÃO peça para ele usar comandos).
+4. Nunca responda apenas com uma saudação genérica; responda de forma específica ao pedido atual e comente os números que a ferramenta trouxe de forma prestativa.`,
           },
         ],
       },
@@ -88,10 +95,15 @@ export class AiAdvisorService {
           },
         ],
       },
-      ...input.history.map((msg) => ({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: msg.content }],
-      })),
+      ...input.history
+        .filter(
+          (msg) =>
+            typeof msg.content === 'string' && msg.content.trim().length > 0,
+        )
+        .map((msg) => ({
+          role: msg.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: msg.content }],
+        })),
     ];
   }
 
@@ -103,6 +115,7 @@ export class AiAdvisorService {
   ) {
     const visualizations: AiVisualization[] = [];
     const calledTools: string[] = [];
+    const executedToolSignatures = new Set<string>();
     const toolResponseCache = new Map<
       string,
       { responseForModel: any; visualization: AiVisualization }
@@ -111,9 +124,11 @@ export class AiAdvisorService {
     let finalText = '';
 
     for (let i = 0; i < MAX_MODEL_TURNS; i++) {
+      const currentTools = calledTools.length > 0 ? undefined : tools;
+
       const result = await this.modelService.generateContent(
         contents,
-        tools,
+        currentTools!,
         aiModelName,
       );
       const candidate = result.response?.candidates?.[0];
@@ -135,8 +150,25 @@ export class AiAdvisorService {
       }));
 
       if (!normalizedFunctionCalls.length) {
-        finalText = text || 'Pronto. Aqui esta sua analise.';
+        finalText = text;
         break;
+      }
+
+      const repeatedCycle = normalizedFunctionCalls.every((call) => {
+        const signature = `${call.name}:${JSON.stringify(call.args ?? {})}`;
+        return executedToolSignatures.has(signature);
+      });
+
+      if (repeatedCycle) {
+        contents.push({
+          role: 'user',
+          parts: [
+            {
+              text: 'Erro: Você já chamou esta ferramenta com os mesmos argumentos. Por favor, analise a resposta anterior e dê uma resposta final em texto para o usuário, sem chamar ferramentas.',
+            },
+          ],
+        });
+        continue;
       }
 
       contents.push({
@@ -154,20 +186,42 @@ export class AiAdvisorService {
         let toolResult = toolResponseCache.get(signature);
 
         if (!toolResult) {
-          const executed = await this.toolsService.executeTool(
+          const executed = await this.toolExecutor.execute(
             functionCall.name,
             functionCall.args,
-            files,
+            { files },
           );
+          if (!executed.success) {
+            contents.push({
+              role: 'user',
+              parts: [
+                {
+                  functionResponse: {
+                    name: functionCall.name,
+                    response: {
+                      error: `Erro de validação: ${executed.error}. Por favor, corrija os argumentos conforme o schema esperado.`,
+                    },
+                  },
+                },
+              ],
+            });
+            continue;
+          }
+
+          // Agora o TypeScript sabe que executed.success é true
+          const successResult = executed;
 
           toolResult = {
-            responseForModel: executed.responseForModel,
-            visualization: executed.visualization,
+            responseForModel: successResult.responseForModel,
+            visualization: successResult.visualization,
           };
 
           toolResponseCache.set(signature, toolResult);
-          calledTools.push(functionCall.name);
-          visualizations.push(executed.visualization);
+          executedToolSignatures.add(signature);
+          if (!calledTools.includes(functionCall.name)) {
+            calledTools.push(functionCall.name);
+          }
+          visualizations.push(successResult.visualization);
         }
 
         contents.push({
@@ -186,8 +240,20 @@ export class AiAdvisorService {
 
     const uniqueVisualizations = this.deduplicateVisualizations(visualizations);
 
+    let responseMessage = finalText?.trim() ? finalText : '';
+
+    if (!responseMessage && calledTools.length > 0) {
+      responseMessage =
+        'Operações de ferramenta executadas com sucesso. Veja os dados gerados nas visualizações abaixo.';
+    }
+
+    if (!responseMessage) {
+      responseMessage =
+        'Resposta da IA indisponível no momento, tente novamente.';
+    }
+
     return {
-      message: finalText,
+      message: responseMessage,
       toolCalls: calledTools,
       visualization:
         uniqueVisualizations.length > 0

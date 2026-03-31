@@ -47,6 +47,6 @@ import { UpdateTransactionUseCase } from './use-cases/update-transaction.use-cas
       useClass: GenAIService,
     },
   ],
-  exports: [ProcessTransactionUseCase],
+  exports: [ProcessTransactionUseCase, TransactionsRepositoryInterface],
 })
 export class TransactionsModule {}

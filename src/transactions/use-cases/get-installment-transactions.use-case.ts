@@ -9,11 +9,14 @@ export class GetInstallmentTransactionsUseCase {
   ) {}
 
   async execute(transactionId: string) {
-    const tx = await this.transactionsRepository.getTransactionById(transactionId);
+    const tx =
+      await this.transactionsRepository.getTransactionById(transactionId);
     if (!tx || !tx.installmentGroupId) {
       return [];
     }
 
-    return this.transactionsRepository.getInstallmentTransactions(tx.installmentGroupId);
+    return this.transactionsRepository.getInstallmentTransactions(
+      tx.installmentGroupId,
+    );
   }
 }

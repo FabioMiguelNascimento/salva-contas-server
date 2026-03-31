@@ -2,82 +2,81 @@ import { Injectable, Scope } from '@nestjs/common';
 import { UserContext } from 'src/auth/user-context.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ToolSpendingTrendArgsSchema } from 'src/schemas/ai-advisor.schema';
+import { z } from 'zod';
 import { ToolExecutionResult } from '../../ai-advisor.types';
-import { AiAdvisorToolUseCase } from './tool-use-case.interface';
+import { BaseAiTool } from '../../tools/base-ai-tool';
 
 @Injectable({ scope: Scope.REQUEST })
-export class GetSpendingTrendToolUseCase implements AiAdvisorToolUseCase {
+export class GetSpendingTrendToolUseCase extends BaseAiTool<
+  typeof ToolSpendingTrendArgsSchema
+> {
   readonly name = 'get_spending_trend';
+  readonly description =
+    'Retorna serie temporal de gastos dos ultimos X dias para grafico de linha.';
+  readonly schema = ToolSpendingTrendArgsSchema;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly userContext: UserContext,
-  ) {}
-
-  private get userId(): string {
-    return this.userContext.userId;
+  ) {
+    super();
   }
 
-  async execute(rawArgs: Record<string, any>): Promise<ToolExecutionResult> {
-    const defaultDaysBack = 30;
-    const daysBackCandidate = Number(rawArgs?.days_back);
-
-    const normalizedArgs = {
-      days_back:
-        Number.isInteger(daysBackCandidate) &&
-        daysBackCandidate >= 3 &&
-        daysBackCandidate <= 180
-          ? daysBackCandidate
-          : defaultDaysBack,
-    };
-
-    const args = ToolSpendingTrendArgsSchema.parse(normalizedArgs);
-    const daysBack = args.days_back;
-
-    const today = new Date();
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() - (daysBack - 1));
+  async run(
+    args: z.infer<typeof ToolSpendingTrendArgsSchema>,
+  ): Promise<ToolExecutionResult> {
+    const daysBack = args.days_back || 30;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - daysBack);
     startDate.setHours(0, 0, 0, 0);
 
-    const expenses = await this.prisma.transaction.findMany({
+    const transactions = await this.prisma.transaction.findMany({
       where: {
-        userId: this.userId,
+        userId: this.userContext.userId,
         type: 'expense',
-        paymentDate: { gte: startDate },
+        OR: [
+          { paymentDate: { gte: startDate } },
+          { paymentDate: null, createdAt: { gte: startDate } },
+        ],
       },
-      select: { amount: true, paymentDate: true },
+      select: {
+        amount: true,
+        paymentDate: true,
+        createdAt: true,
+      },
       orderBy: { paymentDate: 'asc' },
     });
 
-    const grouped = new Map<string, number>();
-    for (const tx of expenses) {
-      const dateKey = (tx.paymentDate || today).toISOString().slice(0, 10);
-      grouped.set(
-        dateKey,
-        (grouped.get(dateKey) || 0) + Number(tx.amount || 0),
-      );
+    const dailySpend: Record<string, number> = {};
+
+    // Initialize dates
+    for (let i = 0; i <= daysBack; i++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0];
+      dailySpend[dateStr] = 0;
     }
 
-    const points: Array<{ date: string; total: number }> = [];
-    for (let i = 0; i < daysBack; i++) {
-      const d = new Date(startDate);
-      d.setDate(startDate.getDate() + i);
-      const key = d.toISOString().slice(0, 10);
-      points.push({
-        date: key,
-        total: Number((grouped.get(key) || 0).toFixed(2)),
-      });
+    for (const tx of transactions) {
+      const date = tx.paymentDate || tx.createdAt;
+      const dateStr = date.toISOString().split('T')[0];
+      if (dailySpend[dateStr] !== undefined) {
+        dailySpend[dateStr] += Number(tx.amount);
+      }
     }
 
-    const data = { daysBack, points };
+    const data = Object.entries(dailySpend).map(([date, amount]) => ({
+      date,
+      amount,
+    }));
 
     return {
-      responseForModel: data,
+      responseForModel: { trend: data },
       visualization: {
         type: 'chart_line',
         toolName: this.name,
-        title: `Tendencia de gastos (${daysBack} dias)`,
-        payload: data,
+        title: `Tendência de Gastos (Últimos ${daysBack} dias)`,
+        payload: { items: data },
       },
     };
   }

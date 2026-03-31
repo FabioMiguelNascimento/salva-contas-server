@@ -1,9 +1,9 @@
 import {
-    HttpException,
-    HttpStatus,
-    Inject,
-    Injectable,
-    Logger,
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
 } from '@nestjs/common';
 import { PlanTier } from 'generated/prisma/enums';
 import { PLAN_LIMITS } from '../usage.constants';

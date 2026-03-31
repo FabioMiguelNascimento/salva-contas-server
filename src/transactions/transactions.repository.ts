@@ -252,12 +252,17 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     if (installments > 1) {
       const purchaseDate =
         parseDateLocal(
-          (data as any).purchaseDate ?? data.paymentDate ?? data.dueDate ?? new Date(),
+          (data as any).purchaseDate ??
+            data.paymentDate ??
+            data.dueDate ??
+            new Date(),
         ) ?? new Date();
 
       const totalAmount = Number(transactionData.amount);
       const baseAmount = Math.floor((totalAmount / installments) * 100) / 100;
-      const remainder = Number((totalAmount - baseAmount * installments).toFixed(2));
+      const remainder = Number(
+        (totalAmount - baseAmount * installments).toFixed(2),
+      );
 
       const installmentGroup = await this.prisma.installmentGroup.create({
         data: {
@@ -278,7 +283,8 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
             : baseAmount;
         const due = addMonths(purchaseDate, i - 1);
 
-        const statusValue = (createData.status as string | undefined) ?? 'pending';
+        const statusValue =
+          (createData.status as string | undefined) ?? 'pending';
         const child = await this.prisma.transaction.create({
           data: {
             ...createData,
@@ -309,7 +315,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         await this.recalcCardLimit(creditCardId);
       }
 
-      return (await this.withCreatedByName(createdTxs[0])) as any;
+      return await this.withCreatedByName(createdTxs[0]);
     }
 
     const tx = await this.prisma.transaction.create({
@@ -340,6 +346,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
   async getTransactions({
     page,
     limit,
+    query,
     categoryId,
     type,
     status,
@@ -352,6 +359,13 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     const where: any = {
       userId: this.userId,
     };
+
+    if (query) {
+      where.description = {
+        contains: query,
+        mode: 'insensitive',
+      };
+    }
 
     if (categoryId) {
       const cat = await this.prisma.category.findUnique({
@@ -468,6 +482,7 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         categoryRel: true,
         creditCard: true,
         debitCard: true,
+        splits: { include: { creditCard: true, debitCard: true } },
       },
     });
 

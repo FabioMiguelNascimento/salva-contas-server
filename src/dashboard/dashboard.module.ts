@@ -17,6 +17,10 @@ import { GetDashboardSnapshotUseCase } from './use-cases/get-dashboard-snapshot.
     GetDashboardMetricsUseCase,
     GetDashboardSnapshotUseCase,
   ],
-  exports: [GetDashboardMetricsUseCase, GetDashboardSnapshotUseCase],
+  exports: [
+    DashboardRepositoryInterface,
+    GetDashboardMetricsUseCase,
+    GetDashboardSnapshotUseCase,
+  ],
 })
 export class DashboardModule {}

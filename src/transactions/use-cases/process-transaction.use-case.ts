@@ -339,7 +339,8 @@ export default class ProcessTransactionUseCase {
         // SE FOR PARCELADO (A MÁGICA ACONTECE AQUI)
         if (data.installments && data.installments > 1 && data.creditCardId) {
           const groupId = crypto.randomUUID();
-          const baseAmount = Math.floor((data.amount / data.installments) * 100) / 100;
+          const baseAmount =
+            Math.floor((data.amount / data.installments) * 100) / 100;
           const remainder = data.amount - baseAmount * data.installments;
 
           await this.prisma.installmentGroup.create({
@@ -374,7 +375,9 @@ export default class ProcessTransactionUseCase {
             });
           }
 
-          await this.prisma.transaction.createMany({ data: installmentTransactions });
+          await this.prisma.transaction.createMany({
+            data: installmentTransactions,
+          });
           transaction = installmentTransactions[0];
         } else {
           // SE FOR À VISTA, SEGUE O FLUXO NORMAL QUE VOCÊ JÁ TINHA

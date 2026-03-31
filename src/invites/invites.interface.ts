@@ -22,12 +22,11 @@ export abstract class InvitesRepositoryInterface {
     expiresAt: Date;
   }): Promise<FamilyInvite>;
 
-  abstract findInviteByToken(
-    token: string,
-  ): Promise<
-    (FamilyInvite & {
-      fromUser: Pick<User, 'id' | 'name' | 'email' | 'planTier'>;
-    }) | null
+  abstract findInviteByToken(token: string): Promise<
+    | (FamilyInvite & {
+        fromUser: Pick<User, 'id' | 'name' | 'email' | 'planTier'>;
+      })
+    | null
   >;
 
   abstract findInvitesByFromUserId(

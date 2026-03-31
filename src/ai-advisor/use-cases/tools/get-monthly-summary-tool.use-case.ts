@@ -1,92 +1,56 @@
-import { Injectable, Scope } from '@nestjs/common';
-import { UserContext } from 'src/auth/user-context.service';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { Inject, Injectable, Scope } from '@nestjs/common';
+import { DashboardRepositoryInterface } from 'src/dashboard/dashboard.interface';
 import { ToolMonthlySummaryArgsSchema } from 'src/schemas/ai-advisor.schema';
+import { z } from 'zod';
 import { ToolExecutionResult } from '../../ai-advisor.types';
-import { AiAdvisorToolUseCase } from './tool-use-case.interface';
+import { BaseAiTool } from '../../tools/base-ai-tool';
 
 @Injectable({ scope: Scope.REQUEST })
-export class GetMonthlySummaryToolUseCase implements AiAdvisorToolUseCase {
+export class GetMonthlySummaryToolUseCase extends BaseAiTool<
+  typeof ToolMonthlySummaryArgsSchema
+> {
   readonly name = 'get_monthly_summary';
+  readonly description =
+    'Retorna totais de receita, despesa e saldo para um mes/ano.';
+  readonly schema = ToolMonthlySummaryArgsSchema;
 
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly userContext: UserContext,
-  ) {}
-
-  private get userId(): string {
-    return this.userContext.userId;
+    @Inject(DashboardRepositoryInterface)
+    private readonly dashboardRepository: DashboardRepositoryInterface,
+  ) {
+    super();
   }
 
-  async execute(rawArgs: Record<string, any>): Promise<ToolExecutionResult> {
-    const now = new Date();
-    const defaultMonth = now.getMonth() + 1;
-    const defaultYear = now.getFullYear();
-
-    const monthCandidate = Number(rawArgs?.month);
-    const yearCandidate = Number(rawArgs?.year);
-
-    const normalizedArgs = {
-      month:
-        Number.isInteger(monthCandidate) &&
-        monthCandidate >= 1 &&
-        monthCandidate <= 12
-          ? monthCandidate
-          : defaultMonth,
-      year:
-        Number.isInteger(yearCandidate) &&
-        yearCandidate >= 2000 &&
-        yearCandidate <= 2100
-          ? yearCandidate
-          : defaultYear,
-    };
-
-    const args = ToolMonthlySummaryArgsSchema.parse(normalizedArgs);
-    const summary = await this.getMonthlySummary(args.month, args.year);
+  async run(
+    args: z.infer<typeof ToolMonthlySummaryArgsSchema>,
+  ): Promise<ToolExecutionResult> {
+    const data = await this.dashboardRepository.getMetrics(
+      args.month,
+      args.year,
+    );
 
     return {
-      responseForModel: summary,
+      responseForModel: {
+        success: true,
+        message: `O resumo financeiro de ${args.month}/${args.year} foi gerado com sucesso.`,
+        data: {
+          receitas: data.totalIncome,
+          despesas: data.totalExpenses,
+          saldo: data.netBalance,
+        },
+        instructionToAi:
+          'Diga ao usuário que o resumo foi gerado e está aparecendo na tela. Faça um comentário breve e amigável sobre o fato das despesas estarem maiores que as receitas.',
+      },
       visualization: {
         type: 'table_summary',
         toolName: this.name,
         title: `Resumo de ${args.month}/${args.year}`,
-        payload: summary,
+        payload: data,
       },
     };
   }
 
-  async getMonthlySummary(month: number, year: number) {
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 1);
-
-    const [incomeAgg, expenseAgg] = await Promise.all([
-      this.prisma.transaction.aggregate({
-        where: {
-          userId: this.userId,
-          type: 'income',
-          createdAt: { gte: startDate, lt: endDate },
-        },
-        _sum: { amount: true },
-      }),
-      this.prisma.transaction.aggregate({
-        where: {
-          userId: this.userId,
-          type: 'expense',
-          createdAt: { gte: startDate, lt: endDate },
-        },
-        _sum: { amount: true },
-      }),
-    ]);
-
-    const totalIncome = Number(incomeAgg._sum.amount || 0);
-    const totalExpenses = Number(expenseAgg._sum.amount || 0);
-
-    return {
-      month,
-      year,
-      totalIncome,
-      totalExpenses,
-      balance: totalIncome - totalExpenses,
-    };
+  getMonthlySummary(month: number, year: number) {
+    return this.dashboardRepository.getMetrics(month, year);
   }
 }

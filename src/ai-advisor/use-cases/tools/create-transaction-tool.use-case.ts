@@ -1,23 +1,31 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { ToolCreateTransactionArgsSchema } from 'src/schemas/ai-advisor.schema';
 import ProcessTransactionUseCase from 'src/transactions/use-cases/process-transaction.use-case';
+import { z } from 'zod';
 import { ToolExecutionResult } from '../../ai-advisor.types';
-import { AiAdvisorToolUseCase } from './tool-use-case.interface';
+import { BaseAiTool } from '../../tools/base-ai-tool';
 
 @Injectable({ scope: Scope.REQUEST })
-export class CreateTransactionToolUseCase implements AiAdvisorToolUseCase {
+export class CreateTransactionToolUseCase extends BaseAiTool<
+  typeof ToolCreateTransactionArgsSchema
+> {
   readonly name = 'create_transaction';
+  readonly description =
+    'Registra uma transação a partir de uma descrição em texto.';
+  readonly schema = ToolCreateTransactionArgsSchema;
 
   constructor(
     private readonly processTransactionUseCase: ProcessTransactionUseCase,
-  ) {}
+  ) {
+    super();
+  }
 
-  async execute(rawArgs: Record<string, any>): Promise<ToolExecutionResult> {
-    const args = ToolCreateTransactionArgsSchema.parse(rawArgs);
-
+  async run(
+    args: z.infer<typeof ToolCreateTransactionArgsSchema>,
+  ): Promise<ToolExecutionResult> {
     const transaction = await this.processTransactionUseCase.execute(
       null,
-      args.text,
+      args.description,
       {
         creditCardId: args.creditCardId ?? undefined,
         paymentDate: args.paymentDate ?? undefined,
@@ -29,6 +37,7 @@ export class CreateTransactionToolUseCase implements AiAdvisorToolUseCase {
     const transactions = Array.isArray(transaction)
       ? transaction
       : [transaction];
+
     if (transactions.length > 1) {
       return {
         responseForModel: {

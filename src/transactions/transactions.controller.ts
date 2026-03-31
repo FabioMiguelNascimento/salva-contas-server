@@ -10,7 +10,7 @@ import {
   Query,
   UploadedFile,
   UseGuards,
-  UseInterceptors
+  UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PlanTier } from 'generated/prisma/enums';
@@ -81,7 +81,8 @@ export class TransactionsController {
 
   @Get(':id/installments')
   async getInstallmentTransactions(@Param('id') id: string) {
-    const installments = await this.getInstallmentTransactionsUseCase.execute(id);
+    const installments =
+      await this.getInstallmentTransactionsUseCase.execute(id);
 
     return success(installments, 'Parcelas encontradas');
   }

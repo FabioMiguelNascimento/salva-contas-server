@@ -26,13 +26,20 @@ export const ToolSpendingTrendArgsSchema = z.object({
 
 export const ToolTransactionDetailsArgsSchema = z
   .object({
-    transactionId: z.string().min(1).optional(),
-    query: z.string().min(1).optional(),
+    transactionId: z.string().trim().optional(),
+    query: z.string().trim().optional(),
   })
-  .refine((data) => !!data.transactionId || !!data.query, {
-    message: 'transactionId or query is required',
-    path: ['transactionId'],
-  });
+  .refine(
+    (data) => {
+      const hasTransactionId = !!data.transactionId?.trim();
+      const hasQuery = !!data.query?.trim();
+      return hasTransactionId || hasQuery;
+    },
+    {
+      message: 'transactionId or query is required',
+      path: ['transactionId'],
+    },
+  );
 
 export const ToolProcessReceiptArgsSchema = z.object({
   fileIndex: z.coerce.number().int().min(0),
@@ -42,14 +49,22 @@ export const ToolProcessReceiptArgsSchema = z.object({
 });
 
 export const ToolCreateTransactionArgsSchema = z.object({
-  text: z.string().trim().min(1),
+  description: z
+    .string()
+    .trim()
+    .min(1)
+    .describe('Descrição da transação (ex: 200 reais de mercado)'),
   paymentDate: z.string().optional().nullable(),
   dueDate: z.string().optional().nullable(),
   creditCardId: z.string().optional().nullable(),
 });
 
 export const ToolVaultAiActionArgsSchema = z.object({
-  text: z.string().trim().min(1),
+  description: z
+    .string()
+    .trim()
+    .min(1)
+    .describe('Comando em linguagem natural (ex: Adicione 500 no cofrinho)'),
 });
 
 export type AiAdvisorChatRequestInput = z.infer<

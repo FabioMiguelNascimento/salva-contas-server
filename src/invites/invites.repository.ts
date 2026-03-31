@@ -1,8 +1,8 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
-    FamilyMemberDto,
-    InvitesRepositoryInterface,
+  FamilyMemberDto,
+  InvitesRepositoryInterface,
 } from './invites.interface';
 
 @Injectable({ scope: Scope.REQUEST })

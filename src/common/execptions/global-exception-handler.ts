@@ -1,17 +1,17 @@
 import {
-  ArgumentsHost,
-  Catch,
-  ExceptionFilter,
-  HttpException,
+    ArgumentsHost,
+    Catch,
+    ExceptionFilter,
+    HttpException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import {
-  authenticationError,
-  authorizationError,
-  badRequest,
-  internalError,
-  notFound,
-  serviceUnavailable,
+    authenticationError,
+    authorizationError,
+    badRequest,
+    internalError,
+    notFound,
+    serviceUnavailable,
 } from '../../utils/api-response-helper.js';
 
 @Catch()

@@ -10,11 +10,12 @@ import { HealthModule } from './health/health.module';
 import { InvitesModule } from './invites/invites.module';
 import { MercadoPagoModule } from './mercado-pago/mercado-pago.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ReportsModule } from './reports/reports.module';
 import { StorageModule } from './storage/storage.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TransactionsModule } from './transactions/transactions.module';
-import { VaultsModule } from './vaults/vaults.module';
 import { UsageModule } from './usage/usage.module';
+import { VaultsModule } from './vaults/vaults.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { UsageModule } from './usage/usage.module';
     DashboardModule,
     BudgetsModule,
     NotificationsModule,
+    ReportsModule,
     CreditCardsModule,
     DebitCardsModule,
     VaultsModule,

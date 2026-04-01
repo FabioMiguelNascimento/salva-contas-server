@@ -45,7 +45,7 @@ export class AiAdvisorModelService {
 
     // 2. Só injeta instruções de ferramenta E de JSON se existirem ferramentas!
     if (hasTools) {
-      promptParts.push('### FERRAMENTAS DISPONIVEIS:');
+      promptParts.push('### FERRAMENTAS DISPONÍVEIS:');
       for (const tool of tools[0]?.functionDeclarations ?? []) {
         promptParts.push(`- ${tool.name}: ${tool.description}`);
         if (tool.parameters) {
@@ -59,14 +59,14 @@ export class AiAdvisorModelService {
       }
 
       promptParts.push(`
-### INSTRUCOES ESTRITAS:
-1) Retorne EXCLUSIVAMENTE um JSON valido. Nao adicione nenhum texto antes ou depois.
-2) O formato obrigatorio e: {"message": "seu texto", "functionCalls": [{"name": "tool", "args": {}}]}
+### INSTRUÇÕES ESTRITAS:
+1) Retorne EXCLUSIVAMENTE um JSON válido. Não adicione nenhum texto antes ou depois.
+2) O formato obrigatório é: {"message": "seu texto", "functionCalls": [{"name": "tool", "args": {}}]}
 `);
     } else {
       // Se não há ferramentas, pede texto puro!
       promptParts.push(`
-### INSTRUCOES FINAIS:
+### INSTRUÇÕES FINAIS:
 Responda de forma natural e amigável em texto puro (formato Markdown permitido). NÃO utilize formato JSON.
 `);
     }
@@ -100,7 +100,7 @@ Responda de forma natural e amigável em texto puro (formato Markdown permitido)
       parsed = JSON.parse(jsonText);
     } catch {
       this.logger.warn(
-        'Fallback Groq retornou JSON invalido, retornando como texto puro.',
+        'Fallback Groq retornou JSON inválido, retornando como texto puro.',
       );
       return {
         response: {

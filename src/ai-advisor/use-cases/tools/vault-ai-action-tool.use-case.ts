@@ -11,7 +11,7 @@ export class VaultAiActionToolUseCase extends BaseAiTool<
 > {
   readonly name = 'vault_ai_action';
   readonly description =
-    'Executa uma acao de cofrinho (depositar/resgatar/rendimento) com base no texto.';
+    'Executa uma ação de cofrinho (depositar/resgatar/rendimento) com base no texto.';
   readonly schema = ToolVaultAiActionArgsSchema;
 
   constructor(

@@ -76,7 +76,7 @@ export class CreateTransactionToolUseCase extends BaseAiTool<
       visualization: {
         type: 'transaction',
         toolName: this.name,
-        title: `Transacao pré-registrada: ${singleTransaction.description}`,
+        title: `Transação pré-registrada: ${singleTransaction.description}`,
         payload: {
           ...singleTransaction,
           requiresConfirmation: true,

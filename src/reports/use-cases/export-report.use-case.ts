@@ -59,7 +59,7 @@ export class ExportReportUseCase {
     }
 
     if (format !== 'csv') {
-      throw new BadRequestException('Formato de exportacao invalido.');
+      throw new BadRequestException('Formato de exportação inválido.');
     }
 
     const tableData = await this.buildTableData(userId, feature, filters, 5000);
@@ -100,7 +100,7 @@ export class ExportReportUseCase {
       case 'cofrinhos':
         return this.buildVaultsTable(userId, filters, limit);
       default:
-        throw new BadRequestException('Relatorio nao suportado.');
+        throw new BadRequestException('Relatório não suportado.');
     }
   }
 
@@ -184,7 +184,7 @@ export class ExportReportUseCase {
             lineBreak: false,
           });
 
-        doc.font('Helvetica-Bold').fontSize(18).fillColor('#111827').text('Relatorio de exportacao', tableLeft, 36, {
+        doc.font('Helvetica-Bold').fontSize(18).fillColor('#111827').text('Relatório de exportação', tableLeft, 36, {
           width: pageWidth - totalBrandWidth - 20,
         });
         doc.font('Helvetica').fontSize(10).fillColor('#4B5563').text(`Funcionalidade: ${context.feature}`, tableLeft, 60);
@@ -320,11 +320,11 @@ export class ExportReportUseCase {
     if (filters.categoryId) lines.push(`Categoria: ${filters.categoryId}`);
     if (filters.type) lines.push(`Tipo: ${this.formatType(filters.type)}`);
     if (filters.status) lines.push(`Status: ${this.formatStatus(filters.status)}`);
-    if (filters.month && filters.year) lines.push(`Periodo: ${filters.month}/${filters.year}`);
+    if (filters.month && filters.year) lines.push(`Período: ${filters.month}/${filters.year}`);
     if (filters.startDate || filters.endDate) {
-      const start = filters.startDate ? this.formatDate(filters.startDate) : 'inicio';
+      const start = filters.startDate ? this.formatDate(filters.startDate) : 'início';
       const end = filters.endDate ? this.formatDate(filters.endDate) : 'hoje';
-      lines.push(`Periodo selecionado: ${start} - ${end}`);
+      lines.push(`Período selecionado: ${start} - ${end}`);
     }
 
     return lines;
@@ -443,7 +443,7 @@ export class ExportReportUseCase {
 
     return {
       headers: [
-        'Descricao',
+        'Descrição',
         'Categoria',
         'Tipo',
         'Status',
@@ -483,7 +483,7 @@ export class ExportReportUseCase {
     ]);
 
     return {
-      headers: ['Descricao', 'Categoria', 'Status', 'Valor', 'Vencimento', 'Pagamento'],
+      headers: ['Descrição', 'Categoria', 'Status', 'Valor', 'Vencimento', 'Pagamento'],
       rows,
     };
   }
@@ -520,9 +520,9 @@ export class ExportReportUseCase {
       headers: [
         'Nome',
         'Bandeira',
-        'Ultimos 4 digitos',
+        'Últimos 4 dígitos',
         'Limite total',
-        'Limite disponivel',
+        'Limite disponível',
         'Dia de fechamento',
         'Dia de vencimento',
         'Status',
@@ -559,7 +559,7 @@ export class ExportReportUseCase {
     ]);
 
     return {
-      headers: ['Descricao', 'Categoria', 'Frequencia', 'Valor', 'Status', 'Criado em'],
+      headers: ['Descrição', 'Categoria', 'Frequência', 'Valor', 'Status', 'Criado em'],
       rows,
     };
   }
@@ -592,7 +592,7 @@ export class ExportReportUseCase {
     ]);
 
     return {
-      headers: ['Categoria', 'Valor orcado', 'Mes', 'Ano', 'Criado em'],
+      headers: ['Categoria', 'Valor orçado', 'Mês', 'Ano', 'Criado em'],
       rows,
     };
   }

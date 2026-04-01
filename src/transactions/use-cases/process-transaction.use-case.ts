@@ -130,19 +130,19 @@ export default class ProcessTransactionUseCase {
 
     const creditCardsInfo =
       includeCreditCardsInPrompt && creditCards.length > 0
-        ? `\nCARTOES:\n${creditCards.map((c) => `${c.id}|${c.name}|${c.flag}|${c.lastFourDigits}`).join('\n')}\nUse creditCardId apenas quando pagamento for cartao de credito.`
+        ? `\nCARTOES:\n${creditCards.map((c) => `${c.id}|${c.name}|${c.flag}|${c.lastFourDigits}`).join('\n')}\nUse creditCardId apenas quando pagamento for cartão de crédito.`
         : '';
 
     const debitCardsInfo =
       includeDebitCardsInPrompt && debitCards.length > 0
-        ? `\nCARTOES_DEBITO:\n${debitCards.map((c) => `${c.id}|${c.name}|${c.flag}|${c.lastFourDigits}`).join('\n')}\nUse debitCardId apenas quando pagamento for cartao de debito.`
+        ? `\nCARTOES_DEBITO:\n${debitCards.map((c) => `${c.id}|${c.name}|${c.flag}|${c.lastFourDigits}`).join('\n')}\nUse debitCardId apenas quando pagamento for cartão de débito.`
         : '';
 
     const categoriesList = categoriesResult?.data ? categoriesResult.data : [];
 
     const categoriesInfo =
       categoriesList.length > 0
-        ? `\nCATEGORIAS:\n${categoriesList.map((c: any) => c.name).join(', ')}\nRetorne category com nome de categoria existente quando possivel.`
+        ? `\nCATEGORIAS:\n${categoriesList.map((c: any) => c.name).join(', ')}\nRetorne category com nome de categoria existente quando possível.`
         : '';
 
     const documentHint = file?.originalname
@@ -154,7 +154,7 @@ export default class ProcessTransactionUseCase {
     const familyMembers = await this.getFamilyMembersForPrompt();
     const familyMembersInfo =
       familyMembers.length > 0
-        ? `\nMEMBROS DA CONTA (use createdById somente com IDs desta lista quando o texto indicar "quem fez" a transacao):\n${familyMembers
+        ? `\nMEMBROS DA CONTA (use createdById somente com IDs desta lista quando o texto indicar "quem fez" a transação):\n${familyMembers
             .map(
               (member, index) =>
                 `${index + 1}. ${member.id}|${member.name || 'Sem nome'}|${member.email || 'Sem email'}`,
@@ -163,7 +163,7 @@ export default class ProcessTransactionUseCase {
         : '';
 
     const prompt = `
-      Extraia dados financeiros e retorne SOMENTE JSON valido, sem markdown.
+      Extraia dados financeiros e retorne SOMENTE JSON válido, sem markdown.
       DATA DE HOJE: ${brazilDate} (use somente para completar ano faltante).
       ${documentHint}
       Datas devem manter valor literal do documento em DD/MM/YYYY.
@@ -173,22 +173,22 @@ export default class ProcessTransactionUseCase {
       ${familyMembersInfo}
 
       Regras:
-      - Pagamento unico: use creditCardId (ou null) e nao envie splits.
-      - Para pagamento unico em debito, use debitCardId (ou null).
-      - Pagamento dividido: envie splits e nao envie creditCardId na raiz.
+      - Pagamento único: use creditCardId (ou null) e não envie splits.
+      - Para pagamento único em débito, use debitCardId (ou null).
+      - Pagamento dividido: envie splits e não envie creditCardId na raiz.
       - splits[].paymentMethod: credit_card|debit|pix|cash|transfer|other
       - Soma de splits deve bater com amount.
-      - Se o comprovante indicar compra parcelada (ex: "em 3x", "parcela 1/5"), extraia o numero total de parcelas e retorne no campo "installments".
-      - Se for pagamento a vista, retorne "installments" como 1 ou null.
-      - Se for EXTRATO com varias linhas, retorne um ARRAY de objetos (um por transacao).
-      - Em extrato, cada objeto deve ter paymentDate proprio da linha correspondente.
-      - NUNCA copie a data inicial/final do periodo para todas as transacoes.
-      - Se nao houver data da linha, use paymentDate null para aquele item.
-      - Se o texto deixar claro quem criou a transacao, retorne createdById com um ID da lista de membros.
-      - Se nao estiver claro, retorne createdById como null.
+      - Se o comprovante indicar compra parcelada (ex: "em 3x", "parcela 1/5"), extraia o número total de parcelas e retorne no campo "installments".
+      - Se for pagamento à vista, retorne "installments" como 1 ou null.
+      - Se for EXTRATO com várias linhas, retorne um ARRAY de objetos (um por transação).
+      - Em extrato, cada objeto deve ter paymentDate próprio da linha correspondente.
+      - NUNCA copie a data inicial/final do período para todas as transações.
+      - Se não houver data da linha, use paymentDate null para aquele item.
+      - Se o texto deixar claro quem criou a transação, retorne createdById com um ID da lista de membros.
+      - Se não estiver claro, retorne createdById como null.
 
-      JSON de saida:
-      Objeto unico (comprovante simples):
+      JSON de saída:
+      Objeto único (comprovante simples):
       {
         "amount": number,
         "description": string,
@@ -216,7 +216,7 @@ export default class ProcessTransactionUseCase {
         "createdById": "uuid" | null,
         "splits": [ { "amount": number, "paymentMethod": string, "creditCardId": "uuid" | null, "debitCardId": "uuid" | null } ]
       }
-      ou ARRAY desse mesmo objeto para extrato multiplo.
+      ou ARRAY desse mesmo objeto para extrato múltiplo.
     `;
 
     let rawJsonText = '';
@@ -234,7 +234,7 @@ export default class ProcessTransactionUseCase {
       });
     } catch (error) {
       this.logger.error(
-        'Falha no layer de GenAI ao extrair dados da transacao',
+        'Falha no layer de GenAI ao extrair dados da transação',
         error,
       );
       throw error;

@@ -48,10 +48,10 @@ export class ReportsController {
         query,
       );
 
-      return success(result, 'Previa do relatorio carregada com sucesso');
+      return success(result, 'Prévia do relatório carregada com sucesso');
     } catch (error: any) {
       this.logger.error(
-        `Falha ao carregar previa de relatorio feature=${params.feature} userId=${this.userContext.userId} message=${error?.message ?? 'unknown'}`,
+        `Falha ao carregar prévia de relatório feature=${params.feature} userId=${this.userContext.userId} message=${error?.message ?? 'unknown'}`,
         error?.stack,
       );
       throw error;
@@ -86,7 +86,7 @@ export class ReportsController {
       return response.status(200).send(result.content);
     } catch (error: any) {
       this.logger.error(
-        `Falha ao exportar relatorio feature=${params.feature} format=${query.format} userId=${this.userContext.userId} message=${error?.message ?? 'unknown'}`,
+        `Falha ao exportar relatório feature=${params.feature} format=${query.format} userId=${this.userContext.userId} message=${error?.message ?? 'unknown'}`,
         error?.stack,
       );
       throw error;

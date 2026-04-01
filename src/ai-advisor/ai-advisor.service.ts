@@ -91,7 +91,7 @@ REGRAS CRÍTICAS DE COMPORTAMENTO:
         role: 'user',
         parts: [
           {
-            text: `Data atual: ${today}. Mes atual: ${currentMonth}. Ano atual: ${currentYear}. Use esses valores quando o usuario disser "este mes" ou "este ano".`,
+            text: `Data atual: ${today}. Mês atual: ${currentMonth}. Ano atual: ${currentYear}. Use esses valores quando o usuário disser "este mês" ou "este ano".`,
           },
         ],
       },

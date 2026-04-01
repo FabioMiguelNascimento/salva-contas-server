@@ -12,7 +12,7 @@ export class ProcessTransactionReceiptToolUseCase extends BaseAiTool<
 > {
   readonly name = 'process_transaction_receipt';
   readonly description =
-    'Processa um comprovante (imagem) e retorna os dados de transacao extraidos.';
+    'Processa um comprovante (imagem) e retorna os dados de transação extraídos.';
   readonly schema = ToolProcessReceiptArgsSchema;
 
   constructor(

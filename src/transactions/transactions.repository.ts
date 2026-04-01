@@ -424,9 +424,25 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
           })()
         : undefined;
 
-      where.createdAt = {};
-      if (normalizedStart) where.createdAt.gte = normalizedStart;
-      if (normalizedEnd) where.createdAt.lte = normalizedEnd;
+      const effectiveDateRange: any = {};
+      if (normalizedStart) effectiveDateRange.gte = normalizedStart;
+      if (normalizedEnd) effectiveDateRange.lte = normalizedEnd;
+
+      if (!where.AND) where.AND = [];
+      where.AND.push({
+        OR: [
+          { paymentDate: effectiveDateRange },
+          {
+            paymentDate: null,
+            dueDate: effectiveDateRange,
+          },
+          {
+            paymentDate: null,
+            dueDate: null,
+            createdAt: effectiveDateRange,
+          },
+        ],
+      });
     }
 
     const total = await this.prisma.transaction.count({ where });
@@ -438,7 +454,11 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         debitCard: true,
         splits: { include: { creditCard: true, debitCard: true } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [
+        { paymentDate: 'desc' },
+        { dueDate: 'desc' },
+        { createdAt: 'desc' },
+      ],
       skip: (page - 1) * limit,
       take: limit,
     });

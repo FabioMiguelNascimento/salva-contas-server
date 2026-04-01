@@ -9,6 +9,7 @@ import {
 } from './gen-ai.interface';
 import { GeminiGenAIProvider } from './providers/gemini-gen-ai.provider';
 import { GroqGenAIProvider } from './providers/groq-gen-ai.provider';
+import pdfParse = require('pdf-parse');
 
 @Injectable()
 export class GenAIService implements GenAIServiceInterface {
@@ -29,13 +30,14 @@ export class GenAIService implements GenAIServiceInterface {
   async generateStructuredJson(
     input: GenerateStructuredInput,
   ): Promise<string> {
-    const orderedProviders = this.getProvidersForInput(input);
+    const normalizedInput = await this.prepareInput(input);
+    const orderedProviders = this.getProvidersForInput(normalizedInput);
     let lastError: any;
 
     for (const provider of orderedProviders) {
       const providerName = provider.constructor?.name || 'UnknownProvider';
       try {
-        return await provider.generateStructuredJson(input);
+        return await provider.generateStructuredJson(normalizedInput);
       } catch (error: any) {
         lastError = error;
         const status = error?.status;
@@ -73,8 +75,81 @@ export class GenAIService implements GenAIServiceInterface {
           'Os provedores de IA não suportam esse tipo de entrada no momento.',
       });
     }
-
     throw lastError;
+  }
+
+  private async prepareInput(
+    input: GenerateStructuredInput,
+  ): Promise<GenerateStructuredInput> {
+    if (!input.file) {
+      return input;
+    }
+
+    const isPdf =
+      input.file.mimetype === 'application/pdf' ||
+      (input.file.originalname || '').toLowerCase().endsWith('.pdf');
+
+    if (!isPdf) {
+      return input;
+    }
+
+    try {
+      const PdfParseCtor = (pdfParse as any).PDFParse;
+      const parser = new PdfParseCtor({ data: input.file.buffer });
+      const pdfData = await parser.getText();
+      await parser.destroy();
+      const pdfText = this.normalizePdfText(pdfData.text);
+
+      if (!pdfText) {
+        this.logger.warn(
+          'PDF recebido sem texto extraivel. Mantendo arquivo para o fluxo Gemini.',
+        );
+        return input;
+      }
+
+      const combinedText = this.mergeTextInput(
+        input.textInput,
+        [
+          'O usuário enviou um comprovante/DANFE em PDF.',
+          'Texto extraído do documento:',
+          '--- INÍCIO DO TEXTO DO PDF ---',
+          pdfText,
+          '--- FIM DO TEXTO DO PDF ---',
+          'Analise o texto acima e extraia os dados necessários em JSON estruturado.',
+        ].join('\n'),
+      );
+
+      return {
+        ...input,
+        file: null,
+        textInput: combinedText,
+      };
+    } catch (error: any) {
+      this.logger.warn(
+        `Falha ao extrair texto do PDF (${input.file.originalname || 'arquivo'}): ${error?.message ?? 'erro desconhecido'}`,
+      );
+      return input;
+    }
+  }
+
+  private mergeTextInput(base?: string | null, extra?: string | null): string {
+    const pieces = [base?.trim(), extra?.trim()].filter(Boolean);
+    return pieces.join('\n\n');
+  }
+
+  private normalizePdfText(text: string): string {
+    const normalized = text
+      .replace(/\r/g, '')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    const maxLength = 20000;
+    if (normalized.length <= maxLength) {
+      return normalized;
+    }
+
+    return `${normalized.slice(0, maxLength)}\n\n[Texto truncado por limite de contexto]`;
   }
 
   private getProvidersForInput(input: GenerateStructuredInput): Array<{
@@ -108,10 +183,7 @@ export class GenAIService implements GenAIServiceInterface {
       !!input.file && !input.file.mimetype.startsWith('image/');
 
     if (isPdf || isNonImageFile) {
-      ordered = [
-        this.geminiProvider,
-        ...ordered.filter((provider) => provider !== this.geminiProvider),
-      ];
+      ordered = [this.geminiProvider];
     }
 
     return [...new Set(ordered)];

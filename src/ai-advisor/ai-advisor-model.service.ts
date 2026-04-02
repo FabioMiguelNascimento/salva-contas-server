@@ -8,7 +8,7 @@ export class AiAdvisorModelService {
   private readonly genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
   private readonly modelName = process.env.AI_ADVISOR_MODEL;
 
-  constructor(private readonly groqProvider: GroqGenAIProvider) { }
+  constructor(private readonly groqProvider: GroqGenAIProvider) {}
 
   async generateContent(contents: any[], tools: any[], modelName?: string) {
     const selectedModel = modelName || this.modelName;
@@ -88,8 +88,8 @@ export class AiAdvisorModelService {
         Se não precisar de ferramentas, envie "functionCalls": [].
         NUNCA escreva nada antes ou depois das chaves { }.
         `);
-            } else {
-              promptParts.push(`
+    } else {
+      promptParts.push(`
         ### INSTRUÇÕES FINAIS:
         Responda de forma natural e amigável em texto puro (formato Markdown permitido). NÃO utilize formato JSON.
         `);
@@ -140,11 +140,11 @@ export class AiAdvisorModelService {
                 { text: parsed.message || '' },
                 ...(Array.isArray(parsed.functionCalls)
                   ? parsed.functionCalls.map((fn: any) => ({
-                    functionCall: {
-                      name: fn?.name,
-                      args: fn?.args ?? fn?.arguments ?? {},
-                    },
-                  }))
+                      functionCall: {
+                        name: fn?.name,
+                        args: fn?.args ?? fn?.arguments ?? {},
+                      },
+                    }))
                   : []),
               ],
             },

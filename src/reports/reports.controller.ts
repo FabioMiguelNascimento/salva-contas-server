@@ -1,12 +1,12 @@
 import {
-    Controller,
-    Get,
-    Header,
-    Logger,
-    Param,
-    Query,
-    Res,
-    UseGuards,
+  Controller,
+  Get,
+  Header,
+  Logger,
+  Param,
+  Query,
+  Res,
+  UseGuards,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { PlanTier } from 'generated/prisma/enums';
@@ -15,12 +15,12 @@ import { RequirePlanGuard } from 'src/auth/guards/require-plan.guard';
 import { UserContext } from 'src/auth/user-context.service';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import {
-    ExportReportParamsInput,
-    ExportReportParamsSchema,
-    ExportReportQueryInput,
-    ExportReportQuerySchema,
-    PreviewReportQueryInput,
-    PreviewReportQuerySchema,
+  ExportReportParamsInput,
+  ExportReportParamsSchema,
+  ExportReportQueryInput,
+  ExportReportQuerySchema,
+  PreviewReportQueryInput,
+  PreviewReportQuerySchema,
 } from 'src/schemas/reports.schema';
 import { success } from 'src/utils/api-response-helper';
 import { ExportReportUseCase } from './use-cases/export-report.use-case';

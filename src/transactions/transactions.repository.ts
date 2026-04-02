@@ -4,16 +4,16 @@ import { UserContext } from 'src/auth/user-context.service';
 import { PLAN_LIMITS } from 'src/config/plan-limits.config';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
-  AIReceiptData,
-  GetTransactionsInput,
-  SplitInput,
-  UpdateTransactionInput,
+    AIReceiptData,
+    GetTransactionsInput,
+    SplitInput,
+    UpdateTransactionInput,
 } from 'src/schemas/transactions.schema';
 import { parseDateLocal } from 'src/utils/date-utils';
 import {
-  CreateTransactionOptions,
-  TransactionsRepositoryInterface,
-  TransactionWithCount,
+    CreateTransactionOptions,
+    TransactionsRepositoryInterface,
+    TransactionWithCount,
 } from './transactions.interface';
 
 const CARD_RECALC_CONCURRENCY = 4;
@@ -534,8 +534,14 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     id: string,
     data: UpdateTransactionInput,
   ): Promise<TransactionWithCount> {
-    const { categoryId, creditCardId, debitCardId, splits, ...restData } =
-      data as any;
+    const {
+      categoryId,
+      creditCardId,
+      debitCardId,
+      splits,
+      installments,
+      ...restData
+    } = data as any;
     const updateData: any = { ...restData };
 
     if (restData.dueDate !== undefined) {
@@ -575,6 +581,19 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
     ];
 
     const hasSplits = splits && (splits as SplitInput[]).length > 0;
+    const requestedInstallments = Number(installments ?? 1);
+
+    if (Number.isFinite(requestedInstallments) && requestedInstallments > 1) {
+      return this.updateTransactionWithInstallments({
+        id,
+        existing,
+        updateData,
+        splits: hasSplits ? (splits as SplitInput[]) : null,
+        requestedInstallments: Math.trunc(requestedInstallments),
+        priorCardId,
+        priorSplitCardIds,
+      });
+    }
 
     if (hasSplits) {
       updateData.creditCard = { disconnect: true };
@@ -630,6 +649,251 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
       if (updated.creditCardId) {
         await this.recalcCardLimit(updated.creditCardId);
       }
+    }
+
+    const finalTransaction = await this.prisma.transaction.findFirst({
+      where: { id, userId: this.userId },
+      include: {
+        categoryRel: true,
+        creditCard: true,
+        debitCard: true,
+        splits: { include: { creditCard: true, debitCard: true } },
+      },
+    });
+
+    return finalTransaction
+      ? ((await this.withCreatedByName(finalTransaction)) as any)
+      : (finalTransaction as any);
+  }
+
+  private allocateInstallmentAmounts(totalAmount: number, installments: number) {
+    const safeTotal = Number.isFinite(totalAmount) ? totalAmount : 0;
+    const safeInstallments = Math.max(1, Math.trunc(installments));
+    const baseAmount = Math.floor((safeTotal / safeInstallments) * 100) / 100;
+    const remainder = Number(
+      (safeTotal - baseAmount * safeInstallments).toFixed(2),
+    );
+
+    return Array.from({ length: safeInstallments }).map((_, index) =>
+      index === safeInstallments - 1
+        ? Number((baseAmount + remainder).toFixed(2))
+        : baseAmount,
+    );
+  }
+
+  private async updateTransactionWithInstallments(params: {
+    id: string;
+    existing: any;
+    updateData: any;
+    splits: SplitInput[] | null;
+    requestedInstallments: number;
+    priorCardId: string | null;
+    priorSplitCardIds: string[];
+  }): Promise<TransactionWithCount> {
+    const {
+      id,
+      existing,
+      updateData,
+      splits,
+      requestedInstallments,
+      priorCardId,
+      priorSplitCardIds,
+    } = params;
+
+    const totalAmount = Number(updateData.amount ?? existing.amount ?? 0);
+    const installments = Math.max(1, Math.trunc(requestedInstallments));
+    const splitSource: SplitInput[] = Array.isArray(splits) && splits.length > 0
+      ? splits
+      : Array.isArray(existing?.splits) && existing.splits.length > 0
+        ? existing.splits.map((split: any) => ({
+            amount: Number(split.amount),
+            paymentMethod: split.paymentMethod,
+            creditCardId: split.creditCardId ?? null,
+            debitCardId: split.debitCardId ?? null,
+          }))
+        : [];
+    const hasSplits = splitSource.length > 0;
+
+    const purchaseDate =
+      parseDateLocal(updateData.paymentDate ?? updateData.dueDate) ??
+      parseDateLocal(existing.paymentDate ?? existing.dueDate) ??
+      new Date();
+
+    const categoryIdForGroup =
+      updateData?.categoryRel?.connect?.id ?? existing?.categoryId ?? null;
+
+    const installmentGroup = existing.installmentGroupId
+      ? await this.prisma.installmentGroup.update({
+          where: { id: existing.installmentGroupId },
+          data: {
+            title: updateData.description ?? existing.description,
+            totalAmount,
+            installments,
+            purchaseDate,
+            categoryId: categoryIdForGroup,
+          },
+        })
+      : await this.prisma.installmentGroup.create({
+          data: {
+            userId: this.userId,
+            title: updateData.description ?? existing.description,
+            totalAmount,
+            installments,
+            purchaseDate,
+            categoryId: categoryIdForGroup,
+          },
+        });
+
+    const perSplitAmounts = hasSplits
+      ? splitSource.map((split) =>
+          this.allocateInstallmentAmounts(Number(split.amount), installments),
+        )
+      : [];
+
+    const installmentAmounts = hasSplits
+      ? Array.from({ length: installments }).map((_, installmentIndex) =>
+          Number(
+            perSplitAmounts
+              .reduce(
+                (sum, splitAmounts) => sum + Number(splitAmounts[installmentIndex] ?? 0),
+                0,
+              )
+              .toFixed(2),
+          ),
+        )
+      : this.allocateInstallmentAmounts(totalAmount, installments);
+
+    const statusValue = (updateData.status as string | undefined) ?? existing.status;
+    const paidDate = parseDateLocal(updateData.paymentDate ?? existing.paymentDate);
+
+    const firstUpdateData: any = {
+      ...updateData,
+      amount: installmentAmounts[0],
+      installmentGroup: { connect: { id: installmentGroup.id } },
+      installmentCurrent: 1,
+      dueDate: purchaseDate,
+      paymentDate: statusValue === 'paid' ? paidDate ?? purchaseDate : null,
+    };
+
+    if (hasSplits) {
+      firstUpdateData.creditCard = { disconnect: true };
+      firstUpdateData.debitCard = { disconnect: true };
+    }
+
+    const updatedFirst = await this.prisma.transaction.update({
+      where: { id },
+      data: firstUpdateData,
+      include: {
+        categoryRel: true,
+        creditCard: true,
+        debitCard: true,
+        splits: { include: { creditCard: true, debitCard: true } },
+      },
+    });
+
+    await this.prisma.transactionSplit.deleteMany({ where: { transactionId: id } });
+
+    if (hasSplits) {
+      const firstSplits = splitSource
+        .map((split, splitIndex) => ({
+          amount: Number(perSplitAmounts[splitIndex][0] ?? 0),
+          paymentMethod: split.paymentMethod,
+          creditCardId: split.creditCardId ?? null,
+          debitCardId: (split as any).debitCardId ?? null,
+        }))
+        .filter((split) => split.amount > 0);
+
+      if (firstSplits.length > 0) {
+        await this.createSplits(id, firstSplits as SplitInput[]);
+      }
+    }
+
+    await this.prisma.transaction.deleteMany({
+      where: {
+        userId: this.userId,
+        installmentGroupId: installmentGroup.id,
+        id: { not: id },
+      },
+    });
+
+    for (let i = 1; i < installments; i++) {
+      const childDueDate = addMonths(purchaseDate, i);
+
+      const child = await this.prisma.transaction.create({
+        data: {
+          userId: this.userId,
+          createdById: updatedFirst.createdById ?? this.actorUserId,
+          amount: installmentAmounts[i],
+          description: updatedFirst.description,
+          category: updatedFirst.category,
+          type: updatedFirst.type,
+          status: 'pending',
+          dueDate: childDueDate,
+          paymentDate: null,
+          rawText: updatedFirst.rawText,
+          attachmentKey: null,
+          attachmentOriginalName: null,
+          attachmentMimeType: null,
+          attachmentSize: null,
+          categoryName: updatedFirst.categoryName,
+          categoryRel: updatedFirst.categoryId
+            ? { connect: { id: updatedFirst.categoryId } }
+            : undefined,
+          creditCard: !hasSplits && updatedFirst.creditCardId
+            ? { connect: { id: updatedFirst.creditCardId } }
+            : undefined,
+          debitCard: !hasSplits && updatedFirst.debitCardId
+            ? { connect: { id: updatedFirst.debitCardId } }
+            : undefined,
+          installmentGroup: { connect: { id: installmentGroup.id } },
+          installmentCurrent: i + 1,
+        },
+        include: {
+          categoryRel: true,
+          creditCard: true,
+          debitCard: true,
+          splits: { include: { creditCard: true, debitCard: true } },
+        },
+      });
+
+      if (hasSplits) {
+        const childSplits = splitSource
+          .map((split, splitIndex) => ({
+            amount: Number(perSplitAmounts[splitIndex][i] ?? 0),
+            paymentMethod: split.paymentMethod,
+            creditCardId: split.creditCardId ?? null,
+            debitCardId: (split as any).debitCardId ?? null,
+          }))
+          .filter((split) => split.amount > 0);
+
+        if (childSplits.length > 0) {
+          await this.createSplits(child.id, childSplits as SplitInput[]);
+        }
+      }
+    }
+
+    const currentCardIds = hasSplits
+      ? [
+          ...new Set(
+            splitSource
+              .filter((split) => split.creditCardId)
+              .map((split) => split.creditCardId as string),
+          ),
+        ]
+      : updatedFirst.creditCardId
+        ? [updatedFirst.creditCardId]
+        : [];
+
+    const recalcCardIds = [
+      ...new Set([
+        ...priorSplitCardIds,
+        ...currentCardIds,
+        ...(priorCardId ? [priorCardId] : []),
+      ]),
+    ];
+
+    if (recalcCardIds.length > 0) {
+      await Promise.all(recalcCardIds.map((cid) => this.recalcCardLimit(cid)));
     }
 
     const finalTransaction = await this.prisma.transaction.findFirst({

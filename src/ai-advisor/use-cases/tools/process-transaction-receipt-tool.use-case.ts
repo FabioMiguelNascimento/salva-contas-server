@@ -12,7 +12,7 @@ export class ProcessTransactionReceiptToolUseCase extends BaseAiTool<
 > {
   readonly name = 'process_transaction_receipt';
   readonly description =
-    "Processa um comprovante (imagem/pdf). SÓ USE ESTA FERRAMENTA se a mensagem atual avisar \"[SISTEMA]: O usuário anexou...\". NUNCA use para buscar detalhes do histórico.";
+    'Processa um comprovante (imagem/pdf). SÓ USE ESTA FERRAMENTA se a mensagem atual avisar "[SISTEMA]: O usuário anexou...". NUNCA use para buscar detalhes do histórico.';
   readonly schema = ToolProcessReceiptArgsSchema;
 
   constructor(

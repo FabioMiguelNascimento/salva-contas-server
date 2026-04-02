@@ -10,6 +10,7 @@ export type TransactionWithCount = Prisma.TransactionGetPayload<{
     categoryRel: true;
     creditCard: true;
     debitCard: true;
+    splits: { include: { creditCard: true; debitCard: true } };
   };
 }>;
 

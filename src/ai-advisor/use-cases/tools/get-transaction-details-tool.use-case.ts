@@ -24,8 +24,8 @@ export class GetTransactionDetailsToolUseCase extends BaseAiTool<
   async run(
     args: z.infer<typeof ToolTransactionDetailsArgsSchema>,
   ): Promise<ToolExecutionResult> {
-    let transactionId = args.transactionId?.trim();
-    let query = args.query?.trim();
+    const transactionId = args.transactionId?.trim();
+    const query = args.query?.trim();
 
     if (transactionId) {
       const result =

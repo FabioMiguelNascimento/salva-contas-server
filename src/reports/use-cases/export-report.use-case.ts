@@ -1,7 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -30,7 +27,7 @@ interface ReportTableData {
 
 @Injectable()
 export class ExportReportUseCase {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async execute(
     userId: string,
@@ -137,7 +134,8 @@ export class ExportReportUseCase {
       doc.on('error', reject);
       doc.on('end', () => resolve(Buffer.concat(chunks)));
 
-      const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+      const pageWidth =
+        doc.page.width - doc.page.margins.left - doc.page.margins.right;
       const pageBottom = doc.page.height - doc.page.margins.bottom;
       const firstPageTableTop = 132;
       const repeatedPageTableTop = doc.page.margins.top;
@@ -162,9 +160,15 @@ export class ExportReportUseCase {
       const brandTextY = logoTop + 8;
 
       const availableWidth = pageWidth;
-      const columnWidth = Math.max(72, availableWidth / Math.max(headers.length, 1));
+      const columnWidth = Math.max(
+        72,
+        availableWidth / Math.max(headers.length, 1),
+      );
       const columnWidths = headers.map(() => columnWidth);
-      const maxColumnsWidth = columnWidths.reduce((sum, width) => sum + width, 0);
+      const maxColumnsWidth = columnWidths.reduce(
+        (sum, width) => sum + width,
+        0,
+      );
 
       const renderTitleBlock = () => {
         if (logo) {
@@ -175,7 +179,8 @@ export class ExportReportUseCase {
           });
         }
 
-        doc.font('Helvetica-Bold')
+        doc
+          .font('Helvetica-Bold')
           .fontSize(11)
           .fillColor('#111827')
           .text('Salva Contas', brandTextX, brandTextY, {
@@ -184,15 +189,30 @@ export class ExportReportUseCase {
             lineBreak: false,
           });
 
-        doc.font('Helvetica-Bold').fontSize(18).fillColor('#111827').text('Relatório de exportação', tableLeft, 36, {
-          width: pageWidth - totalBrandWidth - 20,
-        });
-        doc.font('Helvetica').fontSize(10).fillColor('#4B5563').text(`Funcionalidade: ${context.feature}`, tableLeft, 60);
-        doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, tableLeft, 76);
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(18)
+          .fillColor('#111827')
+          .text('Relatório de exportação', tableLeft, 36, {
+            width: pageWidth - totalBrandWidth - 20,
+          });
+        doc
+          .font('Helvetica')
+          .fontSize(10)
+          .fillColor('#4B5563')
+          .text(`Funcionalidade: ${context.feature}`, tableLeft, 60);
+        doc.text(
+          `Gerado em: ${new Date().toLocaleString('pt-BR')}`,
+          tableLeft,
+          76,
+        );
 
         const filterSummary = this.describeFilters(context.filters);
         if (filterSummary.length > 0) {
-          doc.font('Helvetica-Bold').fillColor('#111827').text('Filtros aplicados', tableLeft, 94);
+          doc
+            .font('Helvetica-Bold')
+            .fillColor('#111827')
+            .text('Filtros aplicados', tableLeft, 94);
           doc.font('Helvetica').fillColor('#4B5563');
           filterSummary.forEach((line, index) => {
             doc.text(line, tableLeft, 110 + index * 12, {
@@ -205,12 +225,16 @@ export class ExportReportUseCase {
       const renderTableHeader = (y: number) => {
         let x = tableLeft;
         doc.save();
-        doc.fillColor('#F3F4F6').rect(tableLeft, y, maxColumnsWidth, headerHeight).fill();
+        doc
+          .fillColor('#F3F4F6')
+          .rect(tableLeft, y, maxColumnsWidth, headerHeight)
+          .fill();
         doc.restore();
 
         headers.forEach((header, index) => {
           const width = columnWidths[index];
-          doc.font('Helvetica-Bold')
+          doc
+            .font('Helvetica-Bold')
             .fontSize(headerFontSize)
             .fillColor('#111827')
             .text(header, x + cellPadding, y + 5, {
@@ -221,24 +245,36 @@ export class ExportReportUseCase {
               align: 'left',
             });
 
-          doc.strokeColor('#E5E7EB').lineWidth(1).rect(x, y, width, headerHeight).stroke();
+          doc
+            .strokeColor('#E5E7EB')
+            .lineWidth(1)
+            .rect(x, y, width, headerHeight)
+            .stroke();
           x += width;
         });
       };
 
-      const renderRow = (row: Array<string | number | null>, y: number, rowIndex: number) => {
+      const renderRow = (
+        row: Array<string | number | null>,
+        y: number,
+        rowIndex: number,
+      ) => {
         let x = tableLeft;
         const backgroundColor = rowIndex % 2 === 0 ? '#FFFFFF' : '#FAFAFA';
 
         doc.save();
-        doc.fillColor(backgroundColor).rect(tableLeft, y, maxColumnsWidth, rowHeight).fill();
+        doc
+          .fillColor(backgroundColor)
+          .rect(tableLeft, y, maxColumnsWidth, rowHeight)
+          .fill();
         doc.restore();
 
         row.forEach((cell, index) => {
           const width = columnWidths[index];
           const text = this.escapePdfCell(cell);
 
-          doc.font('Helvetica')
+          doc
+            .font('Helvetica')
             .fontSize(rowFontSize)
             .fillColor('#111827')
             .text(text, x + cellPadding, y + 5, {
@@ -249,7 +285,11 @@ export class ExportReportUseCase {
               align: 'left',
             });
 
-          doc.strokeColor('#E5E7EB').lineWidth(1).rect(x, y, width, rowHeight).stroke();
+          doc
+            .strokeColor('#E5E7EB')
+            .lineWidth(1)
+            .rect(x, y, width, rowHeight)
+            .stroke();
           x += width;
         });
       };
@@ -291,8 +331,7 @@ export class ExportReportUseCase {
     for (const pngPath of pngCandidates) {
       try {
         return await readFile(pngPath);
-      } catch {
-      }
+      } catch {}
     }
 
     return null;
@@ -319,10 +358,14 @@ export class ExportReportUseCase {
     if (filters.query) lines.push(`Busca: ${filters.query}`);
     if (filters.categoryId) lines.push(`Categoria: ${filters.categoryId}`);
     if (filters.type) lines.push(`Tipo: ${this.formatType(filters.type)}`);
-    if (filters.status) lines.push(`Status: ${this.formatStatus(filters.status)}`);
-    if (filters.month && filters.year) lines.push(`Período: ${filters.month}/${filters.year}`);
+    if (filters.status)
+      lines.push(`Status: ${this.formatStatus(filters.status)}`);
+    if (filters.month && filters.year)
+      lines.push(`Período: ${filters.month}/${filters.year}`);
     if (filters.startDate || filters.endDate) {
-      const start = filters.startDate ? this.formatDate(filters.startDate) : 'início';
+      const start = filters.startDate
+        ? this.formatDate(filters.startDate)
+        : 'início';
       const end = filters.endDate ? this.formatDate(filters.endDate) : 'hoje';
       lines.push(`Período selecionado: ${start} - ${end}`);
     }
@@ -415,18 +458,29 @@ export class ExportReportUseCase {
         userId,
         ...(filters.query
           ? {
-            OR: [
-              { description: { contains: filters.query, mode: 'insensitive' } },
-              { categoryName: { contains: filters.query, mode: 'insensitive' } },
-            ],
-          }
+              OR: [
+                {
+                  description: { contains: filters.query, mode: 'insensitive' },
+                },
+                {
+                  categoryName: {
+                    contains: filters.query,
+                    mode: 'insensitive',
+                  },
+                },
+              ],
+            }
           : {}),
         ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
         ...(filters.type ? { type: filters.type } : {}),
         ...(filters.status ? { status: filters.status } : {}),
         ...dateWhere,
       },
-      orderBy: [{ paymentDate: 'desc' }, { dueDate: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [
+        { paymentDate: 'desc' },
+        { dueDate: 'desc' },
+        { createdAt: 'desc' },
+      ],
       take: limit,
     });
 
@@ -483,7 +537,14 @@ export class ExportReportUseCase {
     ]);
 
     return {
-      headers: ['Descrição', 'Categoria', 'Status', 'Valor', 'Vencimento', 'Pagamento'],
+      headers: [
+        'Descrição',
+        'Categoria',
+        'Status',
+        'Valor',
+        'Vencimento',
+        'Pagamento',
+      ],
       rows,
     };
   }
@@ -559,7 +620,14 @@ export class ExportReportUseCase {
     ]);
 
     return {
-      headers: ['Descrição', 'Categoria', 'Frequência', 'Valor', 'Status', 'Criado em'],
+      headers: [
+        'Descrição',
+        'Categoria',
+        'Frequência',
+        'Valor',
+        'Status',
+        'Criado em',
+      ],
       rows,
     };
   }

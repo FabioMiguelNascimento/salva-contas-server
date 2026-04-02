@@ -13,13 +13,10 @@ async function bootstrap() {
   app.useGlobalFilters(new GlobalExceptionHandler());
 
   app.enableCors({
-      origin: [
-        'http://localhost:3000',
-        process.env.FRONTEND_URL!
-      ],
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-      credentials: true,
-    });
+    origin: ['http://localhost:3000', process.env.FRONTEND_URL!],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
 
   const port = process.env.PORT!;
 

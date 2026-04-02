@@ -2,6 +2,7 @@ export type AiVisualizationType =
   | 'chart_donut'
   | 'chart_line'
   | 'table_summary'
+  | 'transaction_diff'
   | 'transaction';
 
 export type CategoryRel = {
@@ -32,7 +33,13 @@ export type TransactionSplit = {
   id: string;
   transactionId: string;
   amount: string | number;
-  paymentMethod: 'credit_card' | 'debit_card' | 'pix' | 'cash' | 'transfer' | 'other';
+  paymentMethod:
+    | 'credit_card'
+    | 'debit_card'
+    | 'pix'
+    | 'cash'
+    | 'transfer'
+    | 'other';
   creditCardId: string | null;
   debitCardId: string | null;
   createdAt: string;
@@ -43,7 +50,13 @@ export type TransactionSplit = {
 export type TransactionPaymentMethod = {
   id: string;
   amount: number;
-  paymentMethod: 'credit_card' | 'debit_card' | 'pix' | 'cash' | 'transfer' | 'other';
+  paymentMethod:
+    | 'credit_card'
+    | 'debit_card'
+    | 'pix'
+    | 'cash'
+    | 'transfer'
+    | 'other';
   creditCard?: {
     id: string;
     name: string;
@@ -98,7 +111,10 @@ export type AiVisualization = {
   type: AiVisualizationType;
   toolName: string;
   title: string;
-  payload: TransactionDetailsPayload | TableSummaryPayload | Record<string, any>;
+  payload:
+    | TransactionDetailsPayload
+    | TableSummaryPayload
+    | Record<string, any>;
 };
 
 export type ToolExecutionResult = {

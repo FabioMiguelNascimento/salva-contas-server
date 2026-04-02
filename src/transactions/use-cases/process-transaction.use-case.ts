@@ -45,6 +45,7 @@ export default class ProcessTransactionUseCase {
   ) {}
 
   async execute(
+    // @ts-ignore 
     file: Express.Multer.File | null,
     textInput: string | null,
     options?: {

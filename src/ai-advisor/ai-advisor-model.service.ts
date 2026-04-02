@@ -8,7 +8,7 @@ export class AiAdvisorModelService {
   private readonly genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
   private readonly modelName = process.env.AI_ADVISOR_MODEL;
 
-  constructor(private readonly groqProvider: GroqGenAIProvider) {}
+  constructor(private readonly groqProvider: GroqGenAIProvider) { }
 
   async generateContent(contents: any[], tools: any[], modelName?: string) {
     const selectedModel = modelName || this.modelName;
@@ -34,16 +34,27 @@ export class AiAdvisorModelService {
   ) {
     const promptParts: string[] = [];
 
-    // 1. Monta o histórico de conversa
+    promptParts.push('### HISTÓRICO DA CONVERSA:');
     for (const c of contents) {
+      const roleName = c.role === 'model' ? 'Boletinho (Você)' : 'Usuário';
+
       for (const part of c.parts || []) {
-        if (part.text) promptParts.push(part.text);
+        if (part.text) {
+          promptParts.push(`[${roleName}]: ${part.text}`);
+        } else if (part.functionCall) {
+          promptParts.push(
+            `[SISTEMA]: Você chamou a ferramenta '${part.functionCall.name}'.`,
+          );
+        } else if (part.functionResponse) {
+          promptParts.push(
+            `[SISTEMA - RETORNO DA FERRAMENTA '${part.functionResponse.name}']: ${JSON.stringify(part.functionResponse.response)}`,
+          );
+        }
       }
     }
 
     const hasTools = tools && tools.length > 0;
 
-    // 2. Só injeta instruções de ferramenta E de JSON se existirem ferramentas!
     if (hasTools) {
       promptParts.push('### FERRAMENTAS DISPONÍVEIS:');
       for (const tool of tools[0]?.functionDeclarations ?? []) {
@@ -59,16 +70,29 @@ export class AiAdvisorModelService {
       }
 
       promptParts.push(`
-### INSTRUÇÕES ESTRITAS:
-1) Retorne EXCLUSIVAMENTE um JSON válido. Não adicione nenhum texto antes ou depois.
-2) O formato obrigatório é: {"message": "seu texto", "functionCalls": [{"name": "tool", "args": {}}]}
-`);
-    } else {
-      // Se não há ferramentas, pede texto puro!
-      promptParts.push(`
-### INSTRUÇÕES FINAIS:
-Responda de forma natural e amigável em texto puro (formato Markdown permitido). NÃO utilize formato JSON.
-`);
+        ### REGRAS DE SAÍDA (CRÍTICO):
+        1. Você é o motor de um sistema automatizado. É ESTRITAMENTE PROIBIDO gerar tutoriais, exemplos, passo-a-passo, explicações ou qualquer texto fora do JSON.
+        2. A sua única saída permitida é um ÚNICO OBJETO JSON VÁLIDO e nada mais.
+        3. Leia o histórico acima e responda à última interação do usuário preenchendo o formato EXATO abaixo:
+
+        {
+          "message": "Sua resposta falada para o usuário (como assistente Boletinho)",
+          "functionCalls": [
+            {
+              "name": "nome_da_ferramenta",
+              "args": { "chave": "valor" }
+            }
+          ]
+        }
+
+        Se não precisar de ferramentas, envie "functionCalls": [].
+        NUNCA escreva nada antes ou depois das chaves { }.
+        `);
+            } else {
+              promptParts.push(`
+        ### INSTRUÇÕES FINAIS:
+        Responda de forma natural e amigável em texto puro (formato Markdown permitido). NÃO utilize formato JSON.
+        `);
     }
 
     const prompt = promptParts.join('\n\n');
@@ -78,7 +102,6 @@ Responda de forma natural e amigável em texto puro (formato Markdown permitido)
       textInput: '',
     });
 
-    // 3. Se não pedimos ferramentas, a IA respondeu em texto normal. Retorna direto!
     if (!hasTools) {
       return {
         response: {
@@ -87,7 +110,6 @@ Responda de forma natural e amigável em texto puro (formato Markdown permitido)
       };
     }
 
-    // 4. Se pedimos ferramentas, extraímos e validamos o JSON de forma mais inteligente
     let parsed: any;
     try {
       const firstBrace = text.indexOf('{');
@@ -118,11 +140,11 @@ Responda de forma natural e amigável em texto puro (formato Markdown permitido)
                 { text: parsed.message || '' },
                 ...(Array.isArray(parsed.functionCalls)
                   ? parsed.functionCalls.map((fn: any) => ({
-                      functionCall: {
-                        name: fn?.name,
-                        args: fn?.args ?? fn?.arguments ?? {},
-                      },
-                    }))
+                    functionCall: {
+                      name: fn?.name,
+                      args: fn?.args ?? fn?.arguments ?? {},
+                    },
+                  }))
                   : []),
               ],
             },

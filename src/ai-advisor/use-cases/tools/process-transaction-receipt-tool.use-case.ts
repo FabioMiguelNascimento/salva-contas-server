@@ -12,7 +12,7 @@ export class ProcessTransactionReceiptToolUseCase extends BaseAiTool<
 > {
   readonly name = 'process_transaction_receipt';
   readonly description =
-    'Processa um comprovante (imagem) e retorna os dados de transação extraídos.';
+    "Processa um comprovante (imagem/pdf). SÓ USE ESTA FERRAMENTA se a mensagem atual avisar \"[SISTEMA]: O usuário anexou...\". NUNCA use para buscar detalhes do histórico.";
   readonly schema = ToolProcessReceiptArgsSchema;
 
   constructor(
@@ -28,7 +28,9 @@ export class ProcessTransactionReceiptToolUseCase extends BaseAiTool<
     const file = context?.files?.[args.fileIndex];
 
     if (!file) {
-      throw new Error(`Anexo de índice ${args.fileIndex} não encontrado.`);
+      throw new Error(
+        "Nenhum arquivo anexado nesta requisição. PARE de usar 'process_transaction_receipt'. Se precisar buscar detalhes de uma transação já registrada, use a ferramenta 'get_transaction_details'.",
+      );
     }
 
     const transaction = await this.processTransactionUseCase.execute(

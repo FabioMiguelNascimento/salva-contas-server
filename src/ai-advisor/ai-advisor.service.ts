@@ -42,13 +42,15 @@ export class AiAdvisorService {
 
     const contents = this.buildConversationContents(input);
 
+    let finalMessage = input.message || '';
     if (input.files?.length) {
-      return this.toolsService.processAttachmentsAndReturn(input.files);
+      const filesCount = input.files.length;
+      finalMessage += `${finalMessage ? '\n\n' : ''}[SISTEMA]: O usuário anexou ${filesCount} arquivo(s). Chame a ferramenta 'process_transaction_receipt' passando o 'fileIndex' correspondente (de 0 até ${filesCount - 1}) para extrair e registrar os dados.`;
     }
 
     contents.push({
       role: 'user',
-      parts: [{ text: input.message }],
+      parts: [{ text: finalMessage }],
     });
 
     const tools = this.toolsService.buildTools();
@@ -72,7 +74,7 @@ export class AiAdvisorService {
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
 
-    return [
+return [
       {
         role: 'user',
         parts: [
@@ -83,7 +85,8 @@ REGRAS CRÍTICAS DE COMPORTAMENTO:
 1. NUNCA mencione nomes técnicos de ferramentas, funções ou comandos (ex: create_transaction, process_transaction_receipt) para o usuário. O uso de ferramentas deve ser 100% invisível para ele.
 2. Se você acabou de chamar uma ferramenta e recebeu os dados de volta (como o resumo financeiro), USE esses dados para formular sua resposta. Jamais diga que "precisa de mais informações" se os dados já estiverem no histórico.
 3. Se precisar de alguma informação, peça naturalmente, como um humano. Ex: "Você pode me dizer o valor e a data dessa compra?" (NÃO peça para ele usar comandos).
-4. Nunca responda apenas com uma saudação genérica; responda de forma específica ao pedido atual e comente os números que a ferramenta trouxe de forma prestativa.`,
+4. Nunca responda apenas com uma saudação genérica; responda de forma específica ao pedido atual e comente os números que a ferramenta trouxe de forma prestativa.
+5. REFERÊNCIAS A LISTAS: Se o usuário pedir detalhes sobre um item que você acabou de listar (ex: "a primeira", "a segunda", "essa de compras"), procure o ID (UUID) exato desse item no histórico da ferramenta anterior. Use a ferramenta 'get_transaction_details' passando APENAS o 'transactionId' correspondente. NUNCA coloque palavras relativas (como "primeira") no campo 'query'.`,
           },
         ],
       },
@@ -199,7 +202,7 @@ REGRAS CRÍTICAS DE COMPORTAMENTO:
                   functionResponse: {
                     name: functionCall.name,
                     response: {
-                      error: `Erro de validação: ${executed.error}. Por favor, corrija os argumentos conforme o schema esperado.`,
+                      error: `A ferramenta retornou o seguinte erro: ${executed.error}`,
                     },
                   },
                 },

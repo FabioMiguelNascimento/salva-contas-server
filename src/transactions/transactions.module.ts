@@ -14,6 +14,7 @@ import TransactionsRepository from './transactions.repository';
 import { ConfirmTransactionUseCase } from './use-cases/confirm-transaction.use-case';
 import { DeleteTransactionUseCase } from './use-cases/delete-transaction.use-case';
 import { GetInstallmentTransactionsUseCase } from './use-cases/get-installment-transactions.use-case';
+import GetPendingBillsUseCase from './use-cases/get-pending-bills.use-case';
 import GetTransactionsUseCase from './use-cases/get-transactions.use-case';
 import ProcessTransactionUseCase from './use-cases/process-transaction.use-case';
 import { UpdateTransactionUseCase } from './use-cases/update-transaction.use-case';
@@ -25,6 +26,7 @@ import { UpdateTransactionUseCase } from './use-cases/update-transaction.use-cas
     ProcessTransactionUseCase,
     ConfirmTransactionUseCase,
     GetTransactionsUseCase,
+    GetPendingBillsUseCase,
     GetInstallmentTransactionsUseCase,
     UpdateTransactionUseCase,
     DeleteTransactionUseCase,

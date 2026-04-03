@@ -94,6 +94,21 @@ export const GetTransactionsSchema = z.object({
   creditCardId: z.uuid().nullable().optional(),
 });
 
+export const PendingBillsFilterSchema = z.enum([
+  'all',
+  'overdue',
+  'today',
+  'upcoming',
+]);
+
+export const GetPendingBillsSchema = z.object({
+  page: z.coerce.number().min(1).optional().default(1),
+  limit: z.coerce.number().min(1).max(1000).optional().default(15),
+  filter: PendingBillsFilterSchema.optional().default('all'),
+  query: z.string().trim().optional(),
+  categoryId: z.string().uuid().optional(),
+});
+
 export const UpdateTransactionSchema = z
   .object({
     amount: z.number().positive().optional(),
@@ -125,5 +140,7 @@ export const UpdateTransactionSchema = z
 export type AIReceiptData = z.infer<typeof AIReceiptSchema>;
 export type CreateTransactionInput = z.infer<typeof CreateTransactionSchema>;
 export type GetTransactionsInput = z.infer<typeof GetTransactionsSchema>;
+export type PendingBillsFilter = z.infer<typeof PendingBillsFilterSchema>;
+export type GetPendingBillsInput = z.infer<typeof GetPendingBillsSchema>;
 export type UpdateTransactionInput = z.infer<typeof UpdateTransactionSchema>;
 export type SplitInput = z.infer<typeof SplitSchema>;

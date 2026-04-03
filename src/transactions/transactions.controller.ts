@@ -1,16 +1,16 @@
 import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Logger,
-  Param,
-  Patch,
-  Post,
-  Query,
-  UploadedFile,
-  UseGuards,
-  UseInterceptors,
+    Body,
+    Controller,
+    Delete,
+    Get,
+    Logger,
+    Param,
+    Patch,
+    Post,
+    Query,
+    UploadedFile,
+    UseGuards,
+    UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PlanTier } from 'generated/prisma/enums';
@@ -18,17 +18,20 @@ import { AllowedPlans } from 'src/auth/decorators/allowed-plans.decorator';
 import { RequirePlanGuard } from 'src/auth/guards/require-plan.guard';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import {
-  ConfirmTransactionInput,
-  ConfirmTransactionSchema,
-  GetTransactionsInput,
-  GetTransactionsSchema,
-  UpdateTransactionInput,
-  UpdateTransactionSchema,
+    ConfirmTransactionInput,
+    ConfirmTransactionSchema,
+    GetPendingBillsInput,
+    GetPendingBillsSchema,
+    GetTransactionsInput,
+    GetTransactionsSchema,
+    UpdateTransactionInput,
+    UpdateTransactionSchema,
 } from 'src/schemas/transactions.schema';
 import { success, successWithPagination } from 'src/utils/api-response-helper';
 import { ConfirmTransactionUseCase } from './use-cases/confirm-transaction.use-case';
 import { DeleteTransactionUseCase } from './use-cases/delete-transaction.use-case';
 import { GetInstallmentTransactionsUseCase } from './use-cases/get-installment-transactions.use-case';
+import GetPendingBillsUseCase from './use-cases/get-pending-bills.use-case';
 import GetTransactionsUseCase from './use-cases/get-transactions.use-case';
 import ProcessTransactionUseCase from './use-cases/process-transaction.use-case';
 import { UpdateTransactionUseCase } from './use-cases/update-transaction.use-case';
@@ -41,6 +44,7 @@ export class TransactionsController {
     private readonly processTransactionUseCase: ProcessTransactionUseCase,
     private readonly confirmTransactionUseCase: ConfirmTransactionUseCase,
     private readonly getTransactionsUseCase: GetTransactionsUseCase,
+    private readonly getPendingBillsUseCase: GetPendingBillsUseCase,
     private readonly getInstallmentTransactionsUseCase: GetInstallmentTransactionsUseCase,
     private readonly updateTransactionUseCase: UpdateTransactionUseCase,
     private readonly deleteTransactionUseCase: DeleteTransactionUseCase,
@@ -85,6 +89,16 @@ export class TransactionsController {
       await this.getInstallmentTransactionsUseCase.execute(id);
 
     return success(installments, 'Parcelas encontradas');
+  }
+
+  @Get('pending-bills')
+  async getPendingBills(
+    @Query(new ZodValidationPipe(GetPendingBillsSchema))
+    filters: GetPendingBillsInput,
+  ) {
+    const result = await this.getPendingBillsUseCase.execute(filters);
+
+    return success(result, 'Contas a pagar recuperadas com sucesso');
   }
 
   @Get()

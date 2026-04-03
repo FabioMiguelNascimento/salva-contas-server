@@ -4,16 +4,17 @@ import { UserContext } from 'src/auth/user-context.service';
 import { PLAN_LIMITS } from 'src/config/plan-limits.config';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
-    AIReceiptData,
-    GetTransactionsInput,
-    SplitInput,
-    UpdateTransactionInput,
+  AIReceiptData,
+  GetPendingBillsInput,
+  GetTransactionsInput,
+  SplitInput,
+  UpdateTransactionInput,
 } from 'src/schemas/transactions.schema';
 import { parseDateLocal } from 'src/utils/date-utils';
 import {
-    CreateTransactionOptions,
-    TransactionsRepositoryInterface,
-    TransactionWithCount,
+  CreateTransactionOptions,
+  TransactionsRepositoryInterface,
+  TransactionWithCount,
 } from './transactions.interface';
 
 const CARD_RECALC_CONCURRENCY = 4;
@@ -491,6 +492,180 @@ export default class TransactionsRepository extends TransactionsRepositoryInterf
         page,
         limit,
         totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getPendingBills({
+    page,
+    limit,
+    filter,
+    query,
+    categoryId,
+  }: GetPendingBillsInput) {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+    const upcomingEnd = new Date(todayStart);
+    upcomingEnd.setDate(upcomingEnd.getDate() + 4);
+
+    const baseWhere: any = {
+      userId: this.userId,
+      status: 'pending',
+    };
+
+    if (query) {
+      baseWhere.description = {
+        contains: query,
+        mode: 'insensitive',
+      };
+    }
+
+    if (categoryId) {
+      const cat = await this.prisma.category.findUnique({
+        where: { id: categoryId },
+      });
+      if (cat) {
+        if (cat.isGlobal) {
+          baseWhere.OR = [{ categoryId }, { categoryName: cat.name }];
+        } else {
+          baseWhere.categoryId = categoryId;
+        }
+      }
+    }
+
+    const user = await this.userContext.localUser;
+    if (user) {
+      const limits = PLAN_LIMITS[user.planTier];
+      if (Number.isFinite(limits.historyMonths) && limits.historyMonths > 0) {
+        const limitedAt = new Date();
+        limitedAt.setMonth(limitedAt.getMonth() - limits.historyMonths);
+        limitedAt.setHours(0, 0, 0, 0);
+
+        if (!baseWhere.createdAt) {
+          baseWhere.createdAt = { gte: limitedAt };
+        } else {
+          const existingGte = baseWhere.createdAt.gte;
+          if (!existingGte || existingGte < limitedAt) {
+            baseWhere.createdAt.gte = limitedAt;
+          }
+        }
+      }
+    }
+
+    const filteredWhere: any = { ...baseWhere };
+
+    if (filter === 'overdue') {
+      filteredWhere.dueDate = { lt: todayStart };
+    } else if (filter === 'today') {
+      filteredWhere.dueDate = {
+        gte: todayStart,
+        lt: tomorrowStart,
+      };
+    } else if (filter === 'upcoming') {
+      filteredWhere.dueDate = {
+        gte: tomorrowStart,
+        lt: upcomingEnd,
+      };
+    }
+
+    const [
+      total,
+      totalAmountAgg,
+      overdueCount,
+      overdueAmountAgg,
+      todayCount,
+      upcomingCount,
+      data,
+    ] = await Promise.all([
+      this.prisma.transaction.count({ where: filteredWhere }),
+      this.prisma.transaction.aggregate({
+        where: baseWhere,
+        _sum: { amount: true },
+      }),
+      this.prisma.transaction.count({
+        where: {
+          ...baseWhere,
+          dueDate: { lt: todayStart },
+        },
+      }),
+      this.prisma.transaction.aggregate({
+        where: {
+          ...baseWhere,
+          dueDate: { lt: todayStart },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.transaction.count({
+        where: {
+          ...baseWhere,
+          dueDate: {
+            gte: todayStart,
+            lt: tomorrowStart,
+          },
+        },
+      }),
+      this.prisma.transaction.count({
+        where: {
+          ...baseWhere,
+          dueDate: {
+            gte: tomorrowStart,
+            lt: upcomingEnd,
+          },
+        },
+      }),
+      this.prisma.transaction.findMany({
+        where: filteredWhere,
+        include: {
+          categoryRel: true,
+          creditCard: true,
+          debitCard: true,
+          splits: { include: { creditCard: true, debitCard: true } },
+        },
+        orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+
+    const createdByIds = [
+      ...new Set(data.map((tx) => tx.createdById).filter(Boolean) as string[]),
+    ];
+    const users =
+      createdByIds.length > 0
+        ? await this.prisma.user.findMany({
+            where: { id: { in: createdByIds } },
+            select: { id: true, name: true, email: true },
+          })
+        : [];
+    const usersMap = new Map(users.map((userItem) => [userItem.id, userItem]));
+
+    const enrichedData = data.map((tx) => ({
+      ...tx,
+      createdByName: tx.createdById
+        ? usersMap.get(tx.createdById)?.name ||
+          usersMap.get(tx.createdById)?.email ||
+          null
+        : null,
+    }));
+
+    return {
+      data: enrichedData as any,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+      summary: {
+        total: Number(totalAmountAgg._sum.amount || 0),
+        overdueAmount: Number(overdueAmountAgg._sum.amount || 0),
+        overdueCount,
+        todayCount,
+        upcomingCount,
       },
     };
   }

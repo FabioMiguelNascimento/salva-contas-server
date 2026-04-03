@@ -1,8 +1,9 @@
 import { Prisma } from 'generated/prisma/client';
 import {
-  AIReceiptData,
-  GetTransactionsInput,
-  UpdateTransactionInput,
+    AIReceiptData,
+    GetPendingBillsInput,
+    GetTransactionsInput,
+    UpdateTransactionInput,
 } from 'src/schemas/transactions.schema';
 
 export type TransactionWithCount = Prisma.TransactionGetPayload<{
@@ -18,6 +19,20 @@ export type CreateTransactionOptions = {
   skipCardRecalc?: boolean;
 };
 
+export type PendingBillsSummary = {
+  total: number;
+  overdueAmount: number;
+  overdueCount: number;
+  todayCount: number;
+  upcomingCount: number;
+};
+
+export type PendingBillsResponse = {
+  data: TransactionWithCount[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+  summary: PendingBillsSummary;
+};
+
 export abstract class TransactionsRepositoryInterface {
   abstract createTransaction(
     data: AIReceiptData,
@@ -31,6 +46,9 @@ export abstract class TransactionsRepositoryInterface {
     data: TransactionWithCount[];
     meta: { total: number; page: number; limit: number; totalPages: number };
   }>;
+  abstract getPendingBills(
+    filters: GetPendingBillsInput,
+  ): Promise<PendingBillsResponse>;
   abstract updateTransaction(
     id: string,
     data: UpdateTransactionInput,

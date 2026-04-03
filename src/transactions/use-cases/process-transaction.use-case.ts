@@ -1,16 +1,16 @@
 import {
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Injectable,
-  Logger,
+    BadRequestException,
+    ConflictException,
+    Inject,
+    Injectable,
+    Logger,
 } from '@nestjs/common';
 import crypto from 'crypto';
 import { UserContext } from 'src/auth/user-context.service';
 import { CategoriesRepositoryInterface } from 'src/categories/categories.interface';
 import {
-  GEN_AI_SERVICE,
-  GenAIServiceInterface,
+    GEN_AI_SERVICE,
+    GenAIServiceInterface,
 } from 'src/gen-ai/gen-ai.interface';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AIReceiptSchema } from 'src/schemas/transactions.schema';
@@ -92,22 +92,20 @@ export default class ProcessTransactionUseCase {
       attachmentSize?: number | null;
     };
 
-    const uploadAttachmentPromise: Promise<AttachmentData> = dryRun
-      ? Promise.resolve({})
-      : file
-        ? this.storageService
-            .uploadFile(file, 'receipts')
-            .then((fileKey) => ({
-              attachmentKey: fileKey,
-              attachmentOriginalName: file.originalname,
-              attachmentMimeType: file.mimetype,
-              attachmentSize: file.size,
-            }))
-            .catch((error) => {
-              this.logger.warn(`Upload de anexo falhou ${error}`);
-              throw new ConflictException('Falha ao processar anexo');
-            })
-        : Promise.resolve({});
+    const uploadAttachmentPromise: Promise<AttachmentData> = file
+      ? this.storageService
+          .uploadFile(file, 'receipts')
+          .then((fileKey) => ({
+            attachmentKey: fileKey,
+            attachmentOriginalName: file.originalname,
+            attachmentMimeType: file.mimetype,
+            attachmentSize: file.size,
+          }))
+          .catch((error) => {
+            this.logger.warn(`Upload de anexo falhou ${error}`);
+            throw new ConflictException('Falha ao processar anexo');
+          })
+      : Promise.resolve({});
 
     const [creditCards, debitCards, categoriesResult] = await Promise.all([
       includeCreditCardsInPrompt

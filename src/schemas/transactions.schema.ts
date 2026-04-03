@@ -37,6 +37,10 @@ export const AIReceiptSchema = z.object({
   creditCardId: z.string().nullable().optional(),
   debitCardId: z.string().nullable().optional(),
   createdById: z.string().nullable().optional(),
+  attachmentKey: z.string().nullable().optional(),
+  attachmentOriginalName: z.string().nullable().optional(),
+  attachmentMimeType: z.string().nullable().optional(),
+  attachmentSize: z.number().int().nonnegative().nullable().optional(),
   installments: z.number().int().min(1).nullable().optional(),
   // Optional: returned when payment is split across multiple methods
   splits: z.array(AISplitSchema).min(2).optional(),

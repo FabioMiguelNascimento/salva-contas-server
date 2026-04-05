@@ -4,9 +4,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { VaultAiCommandInput } from 'src/schemas/vaults.schema';
+import { extractFirstAmountFromText } from 'src/utils/amount-parser';
 import { VaultsRepositoryInterface } from '../vaults.interface';
 
 type VaultHistoryEventType = 'deposit' | 'withdraw' | 'yield';
+
+type StructuredVaultAiCommandInput = VaultAiCommandInput & {
+  actionType?: VaultHistoryEventType;
+  amount?: number;
+  vaultName?: string;
+};
 
 @Injectable()
 export class ExecuteVaultAiCommandUseCase {
@@ -41,30 +48,17 @@ export class ExecuteVaultAiCommandUseCase {
     return vault;
   }
 
-  async execute(input: VaultAiCommandInput) {
+  async execute(input: StructuredVaultAiCommandInput) {
     const rawText =
       input.text?.trim() ||
       input.command?.trim() ||
       input.message?.trim() ||
       '';
 
-    if (!rawText) {
-      throw new BadRequestException(
-        'Comando de texto de IA não pode estar vazio',
-      );
-    }
-
     const textLower = rawText.toLowerCase();
-    const amountMatch = textLower.match(/(\d+[\.,]?\d*)/);
-
-    if (!amountMatch) {
-      throw new BadRequestException('Valor não encontrado no comando de IA');
-    }
-
-    const amount = Number(amountMatch[1].replace(',', '.'));
-    if (!Number.isFinite(amount) || amount <= 0) {
-      throw new BadRequestException('Valor inválido no comando de IA');
-    }
+    const normalizedText = textLower
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
 
     const depositKeywords = [
       'adicion',
@@ -72,20 +66,54 @@ export class ExecuteVaultAiCommandUseCase {
       'deposit',
       'coloque',
       'poupe',
+      'guardar',
     ];
-    const withdrawKeywords = ['resgate', 'retire', 'sacar', 'retirar'];
-    const yieldKeywords = ['rendimento', 'juros', 'render', 'lucro'];
+    const withdrawKeywords = [
+      'resgate',
+      'resgatar',
+      'retire',
+      'retirar',
+      'sacar',
+      'saca',
+      'saque',
+      'remover',
+      'remove',
+      'remova',
+      'remov',
+      'tirar',
+      'tira',
+      'tire',
+    ];
+    const yieldKeywords = ['rendimento', 'juros', 'render', 'lucro', 'rende'];
 
-    let type: VaultHistoryEventType | null = null;
+    let type: VaultHistoryEventType | null = input.actionType ?? null;
+    let amount: number | null =
+      typeof input.amount === 'number' ? input.amount : null;
+    let vaultName: string | null = input.vaultName?.trim() || null;
 
-    if (depositKeywords.some((keyword) => textLower.includes(keyword))) {
-      type = 'deposit';
-    } else if (
-      withdrawKeywords.some((keyword) => textLower.includes(keyword))
-    ) {
-      type = 'withdraw';
-    } else if (yieldKeywords.some((keyword) => textLower.includes(keyword))) {
-      type = 'yield';
+    if (type === null || amount === null) {
+      if (!rawText) {
+        throw new BadRequestException(
+          'Informe action e amount ou um comando em texto.',
+        );
+      }
+
+      const parsedAmount = extractFirstAmountFromText(textLower);
+      if (parsedAmount === null) {
+        throw new BadRequestException('Valor não encontrado no comando de IA');
+      }
+
+      amount = parsedAmount;
+
+      if (depositKeywords.some((keyword) => normalizedText.includes(keyword))) {
+        type = 'deposit';
+      } else if (
+        withdrawKeywords.some((keyword) => normalizedText.includes(keyword))
+      ) {
+        type = 'withdraw';
+      } else if (yieldKeywords.some((keyword) => normalizedText.includes(keyword))) {
+        type = 'yield';
+      }
     }
 
     if (!type) {
@@ -94,22 +122,27 @@ export class ExecuteVaultAiCommandUseCase {
       );
     }
 
-    let vaultName: string | null = null;
-    const vaultNameMatch = textLower.match(/cofrinho\s+([\w\sçãõéêáóíúàâ]+)$/);
-    if (vaultNameMatch && vaultNameMatch[1]) {
-      vaultName = vaultNameMatch[1].trim();
-    } else {
-      const potentialIndex = textLower.indexOf('cofrinho');
-      if (potentialIndex !== -1) {
-        const after = textLower
-          .slice(potentialIndex + 'cofrinho'.length)
-          .trim();
-        const cleanedAfter = after
-          .replace(/^(no|na|do|da)\s+/, '')
-          .replace(/[\.\,;]*$/, '')
-          .trim();
-        if (cleanedAfter) {
-          vaultName = cleanedAfter;
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('Valor inválido no comando de IA');
+    }
+
+    if (!vaultName && rawText) {
+      const vaultNameMatch = textLower.match(/cofrinho\s+([\w\sçãõéêáóíúàâ]+)$/);
+      if (vaultNameMatch && vaultNameMatch[1]) {
+        vaultName = vaultNameMatch[1].trim();
+      } else {
+        const potentialIndex = textLower.indexOf('cofrinho');
+        if (potentialIndex !== -1) {
+          const after = textLower
+            .slice(potentialIndex + 'cofrinho'.length)
+            .trim();
+          const cleanedAfter = after
+            .replace(/^(no|na|do|da)\s+/, '')
+            .replace(/[\.\,;]*$/, '')
+            .trim();
+          if (cleanedAfter) {
+            vaultName = cleanedAfter;
+          }
         }
       }
     }

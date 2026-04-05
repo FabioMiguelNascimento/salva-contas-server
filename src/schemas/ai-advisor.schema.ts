@@ -1,3 +1,4 @@
+import { parseAmountLike } from 'src/utils/amount-parser';
 import { z } from 'zod';
 
 const parseOptionalString = (value: unknown) => {
@@ -23,14 +24,7 @@ const parseOptionalUuidString = (value: unknown) => {
 };
 
 const parseOptionalNumber = (value: unknown) => {
-  if (value === null || value === undefined || value === '') {
-    return undefined;
-  }
-
-  const parsedValue =
-    typeof value === 'string' ? Number(value.replace(',', '.')) : Number(value);
-
-  return Number.isFinite(parsedValue) ? parsedValue : undefined;
+  return parseAmountLike(value);
 };
 
 const parseOptionalInstallments = (value: unknown) => {
@@ -292,11 +286,25 @@ export const ToolUpdateTransactionArgsSchema = z.object({
 
 export const ToolVaultAiActionArgsSchema = z.object({
   description: z
-    .string()
-    .trim()
-    .min(1)
-    .describe('Comando em linguagem natural (ex: Adicione 500 no cofrinho)'),
-});
+    .preprocess(parseOptionalString, z.string().min(1).optional())
+    .describe('Comando em linguagem natural (fallback). Ex.: Adicione 500 no cofrinho viagem.'),
+  action: z
+    .preprocess(parseOptionalString, z.enum(['deposit', 'withdraw', 'yield']).optional())
+    .describe('Acao estruturada principal da tool.'),
+  amount: z
+    .preprocess(parseOptionalNumber, z.number().positive().optional())
+    .describe('Valor da acao. Aceita 2000, 2k, 2 mil, etc.'),
+  vaultName: z
+    .preprocess(parseOptionalString, z.string().min(1).optional())
+    .describe('Nome do cofrinho alvo (opcional quando houver apenas um cofrinho).'),
+}).refine(
+  (data) => Boolean(data.description) || (Boolean(data.action) && Boolean(data.amount)),
+  {
+    message:
+      'Informe description ou os campos estruturados action e amount.',
+    path: ['description'],
+  },
+);
 
 export type AiAdvisorChatRequestInput = z.infer<
   typeof AiAdvisorChatRequestSchema

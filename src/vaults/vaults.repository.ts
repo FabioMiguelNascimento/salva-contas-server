@@ -5,8 +5,8 @@ import { PLAN_LIMITS } from 'src/config/plan-limits.config';
 import { FinancialBalanceService } from 'src/finance/financial-balance.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
-  GetVaultHistoryInput,
-  VaultAmountInput,
+    GetVaultHistoryInput,
+    VaultAmountInput,
 } from 'src/schemas/vaults.schema';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -215,6 +215,7 @@ export class VaultsRepository {
         userId: this.userId,
         name: VaultsRepository.VAULT_CATEGORY_NAME,
         icon: 'piggy-bank',
+        isGlobal: false,
       },
       select: { id: true },
     });

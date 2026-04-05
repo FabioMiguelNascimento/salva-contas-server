@@ -3,14 +3,14 @@ import {
   CreateVaultInput,
   GetVaultHistoryInput,
   UpdateVaultInput,
-  VaultAiActionInput,
-  VaultAmountInput,
+  VaultAmountInput
 } from 'src/schemas/vaults.schema';
 
 export abstract class VaultsRepositoryInterface {
   abstract findAll(): Promise<Vault[]>;
   abstract getVaultById(id: string): Promise<Vault | null>;
   abstract getVaultByName(name: string): Promise<Vault | null>;
+  abstract getAvailableBalance(): Promise<number>;
   abstract create(data: CreateVaultInput): Promise<Vault>;
   abstract update(id: string, data: UpdateVaultInput): Promise<Vault>;
   abstract delete(id: string): Promise<void>;

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { FinanceModule } from 'src/finance/finance.module';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { AddYieldVaultUseCase } from './use-cases/add-yield-vault.use-case';
 import { CreateVaultUseCase } from './use-cases/create-vault.use-case';
@@ -16,7 +17,7 @@ import { VaultsRepositoryInterface } from './vaults.interface';
 import { VaultsRepository } from './vaults.repository';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, FinanceModule],
   controllers: [VaultsController],
   providers: [
     GetVaultsUseCase,

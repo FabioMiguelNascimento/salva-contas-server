@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { FinanceModule } from '../finance/finance.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { DashboardController } from './dashboard.controller';
 import { DashboardRepositoryInterface } from './dashboard.interface';
@@ -7,7 +8,7 @@ import { GetDashboardMetricsUseCase } from './use-cases/get-dashboard-metrics.us
 import { GetDashboardSnapshotUseCase } from './use-cases/get-dashboard-snapshot.use-case';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, FinanceModule],
   controllers: [DashboardController],
   providers: [
     {

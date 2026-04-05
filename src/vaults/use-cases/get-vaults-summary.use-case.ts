@@ -7,6 +7,7 @@ export class GetVaultsSummaryUseCase {
 
   async execute() {
     const vaults = await this.vaultsRepository.findAll();
+    const availableBalance = await this.vaultsRepository.getAvailableBalance();
     const totalSaved = vaults.reduce(
       (sum, vault) => sum + (vault.currentAmount?.toNumber() ?? 0),
       0,
@@ -18,10 +19,10 @@ export class GetVaultsSummaryUseCase {
 
     const metrics = {
       financials: {
-        income: totalSaved,
+        income: 0,
         expenses: 0,
-        balance: totalSaved,
-        availableBalance: totalSaved,
+        balance: availableBalance,
+        availableBalance,
         savedAmount: totalSaved,
       },
       pendingBills: {

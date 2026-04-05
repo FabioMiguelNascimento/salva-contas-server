@@ -2,6 +2,7 @@ import { Injectable, Scope } from '@nestjs/common';
 import { Prisma } from 'generated/prisma/client';
 import { UserContext } from 'src/auth/user-context.service';
 import { PLAN_LIMITS } from 'src/config/plan-limits.config';
+import { FinancialBalanceService } from 'src/finance/financial-balance.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   GetVaultHistoryInput,
@@ -13,6 +14,7 @@ export class VaultsRepository {
   constructor(
     private readonly prisma: PrismaService,
     private readonly userContext: UserContext,
+    private readonly financialBalanceService: FinancialBalanceService,
   ) {}
 
   private get userId(): string {
@@ -34,6 +36,10 @@ export class VaultsRepository {
     return this.prisma.vault.findFirst({
       where: { name, userId: this.userId },
     });
+  }
+
+  async getAvailableBalance(): Promise<number> {
+    return this.financialBalanceService.getAvailableBalance(this.userId);
   }
 
   create(args: Prisma.VaultCreateArgs) {

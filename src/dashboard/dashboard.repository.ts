@@ -1,5 +1,6 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { UserContext } from '../auth/user-context.service';
+import { FinancialBalanceService } from '../finance/financial-balance.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { DashboardRepositoryInterface } from './dashboard.interface';
@@ -9,6 +10,7 @@ export class DashboardRepository extends DashboardRepositoryInterface {
   constructor(
     private readonly prisma: PrismaService,
     private readonly userContext: UserContext,
+    private readonly financialBalanceService: FinancialBalanceService,
     private readonly storageService: StorageService,
   ) {
     super();
@@ -214,20 +216,9 @@ export class DashboardRepository extends DashboardRepositoryInterface {
       _sum: { currentAmount: true },
     });
 
-    const manualYieldAmount = currentTransactions.reduce((sum, transaction) => {
-      if (
-        transaction.vaultId &&
-        transaction.type === 'income' &&
-        transaction.description.startsWith('Rendimento manual no cofrinho:')
-      ) {
-        return sum + Number(transaction.amount);
-      }
-
-      return sum;
-    }, 0);
+    const availableBalance = await this.financialBalanceService.getAvailableBalance(this.userId);
 
     const savedAmount = Number(savedAmountAgg._sum.currentAmount || 0);
-    const availableBalance = totalIncome - totalExpenses - manualYieldAmount;
 
     return {
       totalIncome,

@@ -7,6 +7,20 @@ export interface BudgetMetrics {
   percentage: number;
 }
 
+export interface BudgetHistoryEntry {
+  id: string;
+  budgetId: string;
+  categoryId: string;
+  budgetAmount: number;
+  spentAmount: number;
+  remainingAmount: number;
+  spentPercentage: number;
+  month: number;
+  year: number;
+  message: string;
+  createdAt: Date;
+}
+
 export abstract class BudgetsRepositoryInterface {
   abstract createBudget(data: {
     categoryId: string;
@@ -29,4 +43,5 @@ export abstract class BudgetsRepositoryInterface {
     }>
   >;
   abstract getMetrics(month: number, year: number): Promise<BudgetMetrics>;
+  abstract getBudgetHistory(id: string, limit?: number): Promise<BudgetHistoryEntry[]>;
 }

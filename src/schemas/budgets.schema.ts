@@ -21,7 +21,12 @@ export const GetBudgetProgressSchema = z.object({
   year: z.coerce.number().min(2000).max(2100),
 });
 
+export const GetBudgetHistorySchema = z.object({
+  limit: z.coerce.number().min(1).max(36).optional(),
+});
+
 export type CreateBudgetInput = z.infer<typeof CreateBudgetSchema>;
 export type UpdateBudgetInput = z.infer<typeof UpdateBudgetSchema>;
 export type GetBudgetsInput = z.infer<typeof GetBudgetsSchema>;
 export type GetBudgetProgressInput = z.infer<typeof GetBudgetProgressSchema>;
+export type GetBudgetHistoryInput = z.infer<typeof GetBudgetHistorySchema>;

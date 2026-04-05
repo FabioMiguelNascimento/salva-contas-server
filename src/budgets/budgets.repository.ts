@@ -2,7 +2,11 @@ import { Injectable, Scope } from '@nestjs/common';
 import { Budget } from 'generated/prisma/client';
 import { UserContext } from '../auth/user-context.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { BudgetMetrics, BudgetsRepositoryInterface } from './budgets.interface';
+import {
+  BudgetHistoryEntry,
+  BudgetMetrics,
+  BudgetsRepositoryInterface,
+} from './budgets.interface';
 
 @Injectable({ scope: Scope.REQUEST })
 export class BudgetsRepository implements BudgetsRepositoryInterface {
@@ -17,6 +21,10 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
 
   private get actorUserId(): string {
     return this.userContext.actorUserId;
+  }
+
+  private formatPeriodLabel(month: number, year: number): string {
+    return `${String(month).padStart(2, '0')}/${year}`;
   }
 
   async getMetrics(month: number, year: number): Promise<BudgetMetrics> {
@@ -88,13 +96,15 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
       throw notFoundError;
     }
 
-    return this.prisma.budget.update({
+    const updated = await this.prisma.budget.update({
       where: { id },
       data,
       include: {
         category: true,
       },
     });
+
+    return updated;
   }
 
   async deleteBudget(id: string): Promise<void> {
@@ -167,5 +177,66 @@ export class BudgetsRepository implements BudgetsRepositoryInterface {
     );
 
     return results;
+  }
+
+  async getBudgetHistory(id: string, limit = 12): Promise<BudgetHistoryEntry[]> {
+    const budget = await this.prisma.budget.findFirst({
+      where: { id, userId: this.userId },
+    });
+
+    if (!budget) {
+      const notFoundError: any = new Error('Budget not found');
+      notFoundError.code = 'P2025';
+      throw notFoundError;
+    }
+
+    const budgetsByPeriod = await this.prisma.budget.findMany({
+      where: {
+        userId: this.userId,
+        categoryId: budget.categoryId,
+      },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }, { updatedAt: 'desc' }],
+      take: limit,
+    });
+
+    const history = await Promise.all(
+      budgetsByPeriod.map(async (entry) => {
+        const spentResult = await this.prisma.transaction.aggregate({
+          where: {
+            userId: this.userId,
+            categoryId: entry.categoryId,
+            type: 'expense',
+            createdAt: {
+              gte: new Date(entry.year, entry.month - 1, 1),
+              lt: new Date(entry.year, entry.month, 1),
+            },
+          },
+          _sum: {
+            amount: true,
+          },
+        });
+
+        const budgetAmount = Number(entry.amount);
+        const spentAmount = Number(spentResult._sum?.amount || 0);
+        const remainingAmount = budgetAmount - spentAmount;
+        const spentPercentage = budgetAmount > 0 ? (spentAmount / budgetAmount) * 100 : 0;
+
+        return {
+          id: `monthly-summary-${entry.id}`,
+          budgetId: entry.id,
+          categoryId: entry.categoryId,
+          budgetAmount,
+          spentAmount,
+          remainingAmount,
+          spentPercentage,
+          month: entry.month,
+          year: entry.year,
+          message: `${this.formatPeriodLabel(entry.month, entry.year)}: gasto ${spentAmount.toFixed(2)} de ${budgetAmount.toFixed(2)}.`,
+          createdAt: entry.updatedAt,
+        };
+      }),
+    );
+
+    return history;
   }
 }

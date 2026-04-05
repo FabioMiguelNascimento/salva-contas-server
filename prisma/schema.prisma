@@ -53,6 +53,11 @@ enum BillingCycle {
   yearly
 }
 
+enum BudgetHistoryAction {
+  created
+  updated
+}
+
 model User {
   id               String   @id
   email            String?  @unique
@@ -119,6 +124,7 @@ model Category {
   transactions      Transaction[]
   subscriptions     Subscription[]
   budgets           Budget[]
+  budgetHistory     BudgetHistory[]
   installmentGroups InstallmentGroup[]
 
   @@unique([userId, name])
@@ -284,11 +290,33 @@ model Budget {
   amount      Decimal  @db.Decimal(10, 2)
   month       Int
   year        Int 
+  history     BudgetHistory[]
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@unique([userId, categoryId, month, year])
   @@map("budgets")
+}
+
+model BudgetHistory {
+  id             String            @id @default(uuid())
+  userId         String            @map("user_id")
+  createdById    String?           @map("created_by_id")
+  budgetId       String            @map("budget_id")
+  budget         Budget            @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  categoryId     String            @map("category_id")
+  category       Category          @relation(fields: [categoryId], references: [id])
+  action         BudgetHistoryAction
+  amount         Decimal           @db.Decimal(10, 2)
+  previousAmount Decimal?          @map("previous_amount") @db.Decimal(10, 2)
+  month          Int
+  year           Int
+  message        String
+  createdAt      DateTime          @default(now()) @map("created_at")
+
+  @@index([userId, categoryId, year, month], map: "idx_budget_history_user_category_period")
+  @@index([budgetId, createdAt], map: "idx_budget_history_budget_created")
+  @@map("budget_history")
 }
 
 enum NotificationType {

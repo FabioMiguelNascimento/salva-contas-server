@@ -1,27 +1,30 @@
 import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
+    Body,
+    Controller,
+    Delete,
+    Get,
+    Param,
+    Patch,
+    Post,
+    Query,
 } from '@nestjs/common';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
-  CreateBudgetInput,
-  CreateBudgetSchema,
-  GetBudgetProgressInput,
-  GetBudgetProgressSchema,
-  GetBudgetsInput,
-  GetBudgetsSchema,
-  UpdateBudgetInput,
-  UpdateBudgetSchema,
+    CreateBudgetInput,
+    CreateBudgetSchema,
+    GetBudgetHistoryInput,
+    GetBudgetHistorySchema,
+    GetBudgetProgressInput,
+    GetBudgetProgressSchema,
+    GetBudgetsInput,
+    GetBudgetsSchema,
+    UpdateBudgetInput,
+    UpdateBudgetSchema,
 } from '../schemas/budgets.schema';
 import { success } from '../utils/api-response-helper';
 import { CreateBudgetUseCase } from './use-cases/create-budget.use-case';
 import { DeleteBudgetUseCase } from './use-cases/delete-budget.use-case';
+import { GetBudgetHistoryUseCase } from './use-cases/get-budget-history.use-case';
 import { GetBudgetMetricsUseCase } from './use-cases/get-budget-metrics.use-case';
 import { GetBudgetProgressUseCase } from './use-cases/get-budget-progress.use-case';
 import { GetBudgetsUseCase } from './use-cases/get-budgets.use-case';
@@ -36,6 +39,7 @@ export class BudgetsController {
     private readonly updateBudgetUseCase: UpdateBudgetUseCase,
     private readonly deleteBudgetUseCase: DeleteBudgetUseCase,
     private readonly getBudgetProgressUseCase: GetBudgetProgressUseCase,
+    private readonly getBudgetHistoryUseCase: GetBudgetHistoryUseCase,
   ) {}
 
   @Get('metrics')
@@ -71,6 +75,15 @@ export class BudgetsController {
   ) {
     const progress = await this.getBudgetProgressUseCase.execute(filters);
     return success(progress, 'Progresso dos orçamentos recuperado com sucesso');
+  }
+
+  @Get(':id/history')
+  async getBudgetHistory(
+    @Param('id') id: string,
+    @Query(new ZodValidationPipe(GetBudgetHistorySchema)) query: GetBudgetHistoryInput,
+  ) {
+    const history = await this.getBudgetHistoryUseCase.execute(id, query.limit);
+    return success(history, 'Histórico de orçamento recuperado com sucesso');
   }
 
   @Patch(':id')

@@ -11,6 +11,8 @@ import { AiAdvisorService } from './ai-advisor.service';
 import { ToolExecutor } from './tools/tool-executor.service';
 import { ToolRegistry } from './tools/tool-registry.service';
 import { CreateTransactionToolUseCase } from './use-cases/tools/create-transaction-tool.use-case';
+import { DeleteTransactionToolUseCase } from './use-cases/tools/delete-transaction-tool.use-case';
+import { TransactionSearchService } from './services/transaction-search.service';
 import { GetExpensesByCategoryToolUseCase } from './use-cases/tools/get-expenses-by-category-tool.use-case';
 import { GetMonthlySummaryToolUseCase } from './use-cases/tools/get-monthly-summary-tool.use-case';
 import { GetSpendingTrendToolUseCase } from './use-cases/tools/get-spending-trend-tool.use-case';
@@ -34,7 +36,9 @@ import { VaultAiActionToolUseCase } from './use-cases/tools/vault-ai-action-tool
     ProcessTransactionReceiptToolUseCase,
     CreateTransactionToolUseCase,
     UpdateTransactionToolUseCase,
+    DeleteTransactionToolUseCase,
     VaultAiActionToolUseCase,
+    TransactionSearchService,
     {
       provide: 'AI_TOOLS_ARRAY',
       useFactory: (
@@ -45,6 +49,7 @@ import { VaultAiActionToolUseCase } from './use-cases/tools/vault-ai-action-tool
         processTransactionReceipt: ProcessTransactionReceiptToolUseCase,
         createTransaction: CreateTransactionToolUseCase,
         updateTransaction: UpdateTransactionToolUseCase,
+        deleteTransaction: DeleteTransactionToolUseCase,
         vaultAiAction: VaultAiActionToolUseCase,
       ) => [
         getMonthlySummary,
@@ -54,6 +59,7 @@ import { VaultAiActionToolUseCase } from './use-cases/tools/vault-ai-action-tool
         processTransactionReceipt,
         createTransaction,
         updateTransaction,
+        deleteTransaction,
         vaultAiAction,
       ],
       inject: [
@@ -64,6 +70,7 @@ import { VaultAiActionToolUseCase } from './use-cases/tools/vault-ai-action-tool
         ProcessTransactionReceiptToolUseCase,
         CreateTransactionToolUseCase,
         UpdateTransactionToolUseCase,
+        DeleteTransactionToolUseCase,
         VaultAiActionToolUseCase,
       ],
     },

@@ -306,6 +306,21 @@ export const ToolVaultAiActionArgsSchema = z.object({
   },
 );
 
+export const ToolDeleteTransactionArgsSchema = z.object({
+  transactionId: z.preprocess(parseOptionalString, z.string().min(1).optional())
+    .describe('ID único da transação a ser deletada'),
+  query: z.preprocess(parseOptionalString, z.string().min(1).optional())
+    .describe('Texto para buscar a transação (ex: nome, descrição)'),
+  confirm: z.preprocess(parseOptionalBoolean, z.boolean().default(false))
+    .describe('Se true, executa a deleção. Se false, gera card de análise'),
+}).refine(
+  (data) => Boolean(data.transactionId) || Boolean(data.query),
+  {
+    message: 'transactionId ou query é obrigatório',
+    path: ['transactionId'],
+  },
+);
+
 export type AiAdvisorChatRequestInput = z.infer<
   typeof AiAdvisorChatRequestSchema
 >;

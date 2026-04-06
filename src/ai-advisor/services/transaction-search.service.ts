@@ -5,6 +5,8 @@ import { PLAN_LIMITS } from 'src/config/plan-limits.config';
 
 
 export interface SmartSearchInput {
+  /** Query direta por ID. Se informado, ignora query text e amount. */
+  transactionId?: string;
   query?: string;
   amount?: number;
   tolerance?: number;
@@ -17,7 +19,7 @@ export interface SmartSearchInput {
 export interface SmartSearchResult {
   data: any[];
   total: number;
-  strategy: 'text' | 'amount' | 'fallback';
+  strategy: 'id' | 'text' | 'amount' | 'fallback';
 }
 
 @Injectable({ scope: Scope.REQUEST })
@@ -28,15 +30,49 @@ export class TransactionSearchService {
   ) {}
 
   /**
+   * Busca transação exata por ID, aplicando o mesmo userId e enrichment.
+   */
+  async findById(id: string): Promise<any | null> {
+    const userId = this.userContext.userId;
+    const include = this.txInclude();
+
+    const tx = await this.prisma.transaction.findFirst({
+      where: { userId, id },
+      include,
+    });
+
+    if (!tx) return null;
+
+    const enriched = await this.enrichWithNames([tx]);
+    return enriched[0];
+  }
+
+  /**
    * Busca transações com estratégia progressiva e segura:
-   *  1. query text → description ILIKE (via Prisma contains)
-   *  2. amount → range scan gte/lte no campo Decimal amount
-   *  3. fallback → retorna as mais recentes por limite/histórico do plano
+   *  1. transactionId → by-id lookup
+   *  2. query text → description ILIKE (via Prisma contains)
+   *  3. amount → range scan gte/lte no campo Decimal amount
+   *  4. fallback → retorna as mais recentes por limite/histórico do plano
    *
    */
   async smartSearch(
     input: SmartSearchInput,
   ): Promise<SmartSearchResult> {
+    const include = this.txInclude();
+    const orderBy = [
+      { paymentDate: 'desc' as const },
+      { dueDate: 'desc' as const },
+      { createdAt: 'desc' as const },
+    ];
+
+    // 1️⃣ Busca por ID
+    if (input.transactionId) {
+      const tx = await this.findById(input.transactionId);
+      if (tx) {
+        return { data: [tx], total: 1, strategy: 'id' };
+      }
+    }
+
     const userId = this.userContext.userId;
     const historyLimit = await this.getHistoryLimitDate();
 
@@ -47,19 +83,6 @@ export class TransactionSearchService {
       }
       return where;
     };
-
-    const include = {
-      categoryRel: true,
-      creditCard: true,
-      debitCard: true,
-      splits: { include: { creditCard: true, debitCard: true } },
-    };
-
-    const orderBy = [
-      { paymentDate: 'desc' as const },
-      { dueDate: 'desc' as const },
-      { createdAt: 'desc' as const },
-    ];
 
     const limit = input.limit ?? 10;
     const tolerance = input.tolerance ?? 0.02;
@@ -114,6 +137,15 @@ export class TransactionSearchService {
     return { data: [], total: 0, strategy: 'text' };
   }
 
+
+  private txInclude() {
+    return {
+      categoryRel: true,
+      creditCard: true,
+      debitCard: true,
+      splits: { include: { creditCard: true, debitCard: true } },
+    };
+  }
 
   private async getHistoryLimitDate(): Promise<Date | null> {
     const user = await this.userContext.localUser;

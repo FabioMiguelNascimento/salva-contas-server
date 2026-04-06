@@ -1,9 +1,10 @@
-import { Inject, Injectable, Scope } from '@nestjs/common';
+import { Injectable, Scope } from '@nestjs/common';
 import { ToolTransactionDetailsArgsSchema } from 'src/schemas/ai-advisor.schema';
-import { TransactionsRepositoryInterface } from 'src/transactions/transactions.interface';
+import { extractFirstAmountFromText } from 'src/utils/amount-parser';
 import { z } from 'zod';
 import { ToolExecutionResult } from '../../ai-advisor.types';
 import { BaseAiTool } from '../../tools/base-ai-tool';
+import { TransactionSearchService } from '../../services/transaction-search.service';
 
 @Injectable({ scope: Scope.REQUEST })
 export class GetTransactionDetailsToolUseCase extends BaseAiTool<
@@ -11,12 +12,11 @@ export class GetTransactionDetailsToolUseCase extends BaseAiTool<
 > {
   readonly name = 'get_transaction_details';
   readonly description =
-    'Retorna detalhes de uma transação. Se houver mais de uma correspondência para o texto, retorna uma lista para escolha.';
+    'Retorna detalhes de uma transação. Se houver mais de uma correspondência, retorna uma lista. Passe transactionId exato OU query (texto ou valor como "131,11").';
   readonly schema = ToolTransactionDetailsArgsSchema;
 
   constructor(
-    @Inject(TransactionsRepositoryInterface)
-    private readonly transactionsRepository: TransactionsRepositoryInterface,
+    private readonly searchService: TransactionSearchService,
   ) {
     super();
   }
@@ -28,106 +28,67 @@ export class GetTransactionDetailsToolUseCase extends BaseAiTool<
     const query = args.query?.trim();
 
     if (transactionId) {
-      const result =
-        await this.transactionsRepository.getTransactionById(transactionId);
-      if (result) {
-        return this.handleSingleResult(result);
-      }
-
-      const fallbackSearch = await this.transactionsRepository.getTransactions({
-        page: 1,
+      const result = await this.searchService.smartSearch({
+        transactionId,
+        query,
         limit: 5,
-        query: transactionId,
       });
-      if (fallbackSearch.data.length > 0) {
-        if (fallbackSearch.data.length === 1) {
-          return this.handleSingleResult(fallbackSearch.data[0]);
-        }
-
-        return {
-          responseForModel: {
-            error:
-              'Múltiplas transações encontradas para esse identificador. Selecione uma das opções abaixo.',
-            matches: fallbackSearch.data.map((t) => ({
-              id: t.id,
-              description: t.description,
-              amount: t.amount,
-              date: t.paymentDate || t.createdAt,
-            })),
-          },
-          visualization: {
-            type: 'table_summary',
-            toolName: this.name,
-            title: `Múltiplas transações para "${transactionId}"`,
-            payload: {
-              items: fallbackSearch.data.map((t) => ({
-                id: t.id,
-                description: t.description,
-                amount: Number(t.amount || 0),
-                date: t.paymentDate || t.createdAt,
-                category: t.categoryName || 'Sem categoria',
-              })),
-              message:
-                'Encontrei mais de uma transação com esse identificador. Qual delas você deseja ver?',
-            },
-          },
-        };
-      }
-
-      return this.handleNotFound();
+      return this.processResult(result, transactionId);
     }
 
     if (query) {
-      const search = await this.transactionsRepository.getTransactions({
-        page: 1,
-        limit: 5,
+      const amount = extractFirstAmountFromText(query) ?? undefined;
+      const result = await this.searchService.smartSearch({
         query,
+        amount,
+        limit: amount ? 15 : 10,
       });
-
-      if (search.data.length === 0) {
-        return this.handleNotFound();
-      }
-
-      if (search.data.length > 1) {
-        return {
-          responseForModel: {
-            error:
-              'Múltiplas transações encontradas. Peça para o usuário ser mais específico ou escolher pelo ID da lista fornecida.',
-            matches: search.data.map((t) => ({
-              id: t.id,
-              description: t.description,
-              amount: t.amount,
-              date: t.paymentDate || t.createdAt,
-            })),
-          },
-          visualization: {
-            type: 'table_summary',
-            toolName: this.name,
-            title: `Múltiplas transações para "${args.query}"`,
-            payload: {
-              items: search.data.map((t) => ({
-                id: t.id,
-                description: t.description,
-                amount: Number(t.amount || 0),
-                date: t.paymentDate || t.createdAt,
-                category: t.categoryName || 'Sem categoria',
-              })),
-              message:
-                'Encontrei mais de uma transação com esse nome. Qual delas você deseja ver?',
-            },
-          },
-        };
-      }
-
-      return this.handleSingleResult(search.data[0]);
+      return this.processResult(result, query);
     }
 
     return this.handleNotFound();
   }
 
-  private handleSingleResult(result: any): ToolExecutionResult {
-    if (!result) return this.handleNotFound();
+  private processResult(result: any, searchLabel: string): ToolExecutionResult {
+    if (result.data.length === 0) {
+      return this.handleNotFound();
+    }
 
+    if (result.data.length === 1) {
+      return this.handleSingleResult(result.data[0]);
+    }
+
+    return {
+      responseForModel: {
+        hint: `Encontrei ${result.data.length} transações que correspondem a "${searchLabel}".`,
+        matches: result.data.map((t: any) => ({
+          id: t.id,
+          description: t.description,
+          amount: Number(t.amount || 0),
+          date: t.paymentDate || t.dueDate || t.createdAt,
+        })),
+        instructionToAi:
+          'Peça para o usuário ser mais específico ou escolher pelo ID da lista.',
+      },
+      visualization: {
+        type: 'table_summary',
+        toolName: this.name,
+        title: `Múltiplas transações para "${searchLabel}"`,
+        payload: {
+          items: result.data.map((t: any) => ({
+            id: t.id,
+            description: t.description,
+            amount: Number(t.amount || 0),
+            date: t.paymentDate || t.dueDate || t.createdAt,
+            category: t.categoryName || 'Sem categoria',
+          })),
+          message: 'Encontrei mais de uma transação. Qual delas?',
+        },
+      },
+    };
+  }
+
+  private handleSingleResult(result: any): ToolExecutionResult {
     const paymentMethods = [] as any[];
     const splits = Array.isArray(result.splits) ? result.splits : [];
 
@@ -156,7 +117,6 @@ export class GetTransactionDetailsToolUseCase extends BaseAiTool<
         })),
       );
     } else {
-      // fallback para cartão direto na transação
       if (result.creditCard) {
         paymentMethods.push({
           amount: Number(result.amount || 0),
@@ -185,23 +145,15 @@ export class GetTransactionDetailsToolUseCase extends BaseAiTool<
 
     return {
       responseForModel: {
-        transaction: {
-          ...result,
-          paymentMethods,
-          splits,
-        },
+        transaction: { ...result, paymentMethods, splits },
         instructionToAi:
-          'Você recebeu os detalhes da transação. Formule uma resposta breve ao usuário resumindo os dados e sugerindo próximo passo (ex: verificar outra transação ou analisar orçamento).',
+          'Você recebeu os detalhes da transação. Formule uma resposta breve ao usuário resumindo os dados.',
       },
       visualization: {
         type: 'transaction',
         toolName: this.name,
         title: `Detalhes: ${result.description}`,
-        payload: {
-          ...result,
-          paymentMethods,
-          splits,
-        },
+        payload: { ...result, paymentMethods, splits },
       },
     };
   }

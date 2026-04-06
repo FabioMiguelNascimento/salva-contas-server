@@ -220,11 +220,15 @@ export const ToolCreateTransactionArgsSchema = z.object({
   creditCardId: z.string().optional().nullable(),
 });
 
-export const ToolUpdateTransactionArgsSchema = z.object({
-  transactionId: z
-    .preprocess(parseOptionalString, z.string().min(1).optional())
-    .describe('ID único da transação a ser alterada'),
-  confirm: z
+export const ToolUpdateTransactionArgsSchema = z
+  .object({
+    transactionId: z
+      .preprocess(parseOptionalString, z.string().min(1).optional())
+      .describe('ID único da transação a ser alterada. Se não souber o ID, use query.'),
+    query: z
+      .preprocess(parseOptionalString, z.string().min(1).optional())
+      .describe('Texto para buscar a transação (descrição, valor como "131,11"). Use quando não tiver o ID.'),
+    confirm: z
     .preprocess(parseOptionalBoolean, z.boolean().default(false))
     .describe('Se true, confirma a alteração. Se false, gera card de análise'),
   amount: z.preprocess(parseOptionalNumber, z.number().optional().nullable()),
@@ -282,7 +286,14 @@ export const ToolUpdateTransactionArgsSchema = z.object({
       .optional()
       .nullable(),
   ),
-});
+  })
+  .refine(
+    (data) => Boolean(data.transactionId) || Boolean(data.query),
+    {
+      message: 'transactionId ou query é obrigatório',
+      path: ['transactionId'],
+    },
+  );
 
 export const ToolVaultAiActionArgsSchema = z.object({
   description: z

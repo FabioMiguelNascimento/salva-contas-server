@@ -32,15 +32,13 @@ export class DeleteTransactionToolUseCase extends BaseAiTool<
 
     let transactionData;
 
-    if (transactionId && this.isValidUuid(transactionId)) {
+    if (transactionId) {
       const result = await this.searchService.smartSearch({
-        query: transactionId,
+        transactionId,
         limit: 1,
       });
       transactionData = result.data[0];
-    }
-
-    if (!transactionData && query) {
+    } else if (query) {
       const amount = extractFirstAmountFromText(query) ?? undefined;
 
       const result = await this.searchService.smartSearch({
@@ -71,11 +69,6 @@ export class DeleteTransactionToolUseCase extends BaseAiTool<
     return this.buildDeleted(transactionData);
   }
 
-
-  private isValidUuid(str: string) {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
-  }
-
   private formatTx(tx: any) {
     return {
       id: tx.id,
@@ -86,12 +79,11 @@ export class DeleteTransactionToolUseCase extends BaseAiTool<
     };
   }
 
-
   private handleNotFound(query?: string): ToolExecutionResult {
     return {
       responseForModel: { error: query ? `Nenhuma transação encontrada para "${query}".` : 'Transação não encontrada.' },
       visualization: {
-        type: 'table_summary', 
+        type: 'table_summary',
         toolName: this.name,
         title: 'Não encontrado',
         payload: { error: 'Nenhuma transação corresponde aos critérios.' },

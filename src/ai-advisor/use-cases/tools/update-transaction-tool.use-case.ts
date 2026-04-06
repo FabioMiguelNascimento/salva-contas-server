@@ -2,9 +2,11 @@ import { Inject, Injectable, Scope } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ToolUpdateTransactionArgsSchema } from 'src/schemas/ai-advisor.schema';
 import { TransactionsRepositoryInterface } from 'src/transactions/transactions.interface';
+import { extractFirstAmountFromText } from 'src/utils/amount-parser';
 import { z } from 'zod';
 import { ToolExecutionResult } from '../../ai-advisor.types';
 import { BaseAiTool } from '../../tools/base-ai-tool';
+import { TransactionSearchService } from '../../services/transaction-search.service';
 
 @Injectable({ scope: Scope.REQUEST })
 export class UpdateTransactionToolUseCase extends BaseAiTool<
@@ -15,7 +17,7 @@ export class UpdateTransactionToolUseCase extends BaseAiTool<
 
   readonly name = 'update_transaction';
   readonly description =
-    'Altera uma transação existente. Primeiro, chama com confirm=false para gerar um card de revisão. Após aprovação do usuário, chama novamente com confirm=true para finalizar.';
+    'Altera uma transação existente. Passe transactionId exato OU use query (texto/descrição). Primeiro, chama com confirm=false para gerar um card de revisão. Após aprovação do usuário, chama novamente com confirm=true para finalizar.';
   readonly schema = ToolUpdateTransactionArgsSchema;
 
   getJsonSchema() {
@@ -25,6 +27,10 @@ export class UpdateTransactionToolUseCase extends BaseAiTool<
         transactionId: {
           type: 'STRING',
           description: 'ID da transação que será alterada.',
+        },
+        query: {
+          type: 'STRING',
+          description: 'Texto para buscar a transação quando não souber o ID (descrição, valor como "131,11").',
         },
         confirm: {
           type: 'BOOLEAN',
@@ -112,6 +118,7 @@ export class UpdateTransactionToolUseCase extends BaseAiTool<
   }
 
   constructor(
+    private readonly searchService: TransactionSearchService,
     @Inject(TransactionsRepositoryInterface)
     private readonly transactionsRepository: TransactionsRepositoryInterface,
     private readonly prisma: PrismaService,
@@ -123,23 +130,10 @@ export class UpdateTransactionToolUseCase extends BaseAiTool<
     args: z.infer<typeof ToolUpdateTransactionArgsSchema>,
   ): Promise<ToolExecutionResult> {
     const transactionId = args.transactionId?.trim();
+    const query = args.query?.trim();
 
-    if (!transactionId) {
-      return {
-        responseForModel: { error: 'transactionId é obrigatório.' },
-        visualization: {
-          type: 'table_summary',
-          toolName: this.name,
-          title: 'Erro',
-          payload: { error: 'transactionId é obrigatório.' },
-        },
-      };
-    }
-
-    // Busca a transação original
-    const original =
-      await this.transactionsRepository.getTransactionById(transactionId);
-
+    // Resolve a transação original usando smart search
+    const original = await this.resolveOriginalTransaction(transactionId, query);
     if (!original) {
       return {
         responseForModel: { error: 'Transação não encontrada.' },
@@ -151,6 +145,27 @@ export class UpdateTransactionToolUseCase extends BaseAiTool<
         },
       };
     }
+
+    if ((original as any)._multiple) {
+      return {
+        responseForModel: {
+          hint: `Encontrei ${original.matches.length} transações. Escolha uma pelo ID.`,
+          matches: original.matches.map(this.formatTxForMultiple),
+          instructionToAi: 'Apresente as transações ao usuário e peça para escolher pelo ID.',
+        },
+        visualization: {
+          type: 'table_summary',
+          toolName: this.name,
+          title: `Múltiplas transações`,
+          payload: {
+            items: original.matches.map(this.formatTxForMultiple),
+            message: 'Encontrei mais de uma transação. Qual deseja alterar?',
+          },
+        },
+      };
+    }
+
+    const actualTransactionId = original.id;
 
     const originalSplits = Array.isArray((original as any).splits)
       ? (original as any).splits
@@ -219,7 +234,7 @@ export class UpdateTransactionToolUseCase extends BaseAiTool<
           toolName: this.name,
           title: `Proposta de alteração: ${original.description}`,
           payload: {
-            transactionId,
+            transactionId: actualTransactionId,
             original: originalEnriched,
             proposed: proposedEnriched,
             requiresConfirmation: true,
@@ -266,7 +281,7 @@ export class UpdateTransactionToolUseCase extends BaseAiTool<
 
       const updatedTransaction =
         await this.transactionsRepository.updateTransaction(
-          transactionId,
+          actualTransactionId,
           updatePayload,
         );
 
@@ -304,6 +319,45 @@ export class UpdateTransactionToolUseCase extends BaseAiTool<
         },
       };
     }
+  }
+
+  private async resolveOriginalTransaction(
+    transactionId: string | undefined,
+    query: string | undefined,
+  ): Promise<any | null> {
+    if (transactionId) {
+      const result = await this.searchService.smartSearch({
+        transactionId,
+        limit: 1,
+      });
+      if (result.data.length > 0) return result.data[0];
+    }
+
+    if (query) {
+      const amount = extractFirstAmountFromText(query) ?? undefined;
+      const result = await this.searchService.smartSearch({
+        query,
+        amount,
+        limit: amount ? 15 : 5,
+      });
+      if (result.data.length === 1) return result.data[0];
+      if (result.data.length > 1) {
+        // If multiple results, try to be more specific
+        return { _multiple: true, matches: result.data };
+      }
+    }
+
+    return null;
+  }
+
+  private formatTxForMultiple(tx: any) {
+    return {
+      id: tx.id,
+      description: tx.description,
+      amount: Number(tx.amount || 0),
+      date: tx.paymentDate || tx.dueDate || tx.createdAt,
+      category: tx.categoryName || 'Sem categoria',
+    };
   }
 
   private async enrichTransactionData(data: any): Promise<any> {

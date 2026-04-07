@@ -7,7 +7,9 @@ import {
     Patch,
     Post,
     Query,
+    UseInterceptors,
 } from '@nestjs/common';
+import { IdempotencyInterceptor } from 'src/idempotency/idempotency.interceptor';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
     CreateBudgetInput,
@@ -53,6 +55,7 @@ export class BudgetsController {
   }
 
   @Post()
+  @UseInterceptors(IdempotencyInterceptor)
   async createBudget(
     @Body(new ZodValidationPipe(CreateBudgetSchema)) data: CreateBudgetInput,
   ) {
@@ -87,6 +90,7 @@ export class BudgetsController {
   }
 
   @Patch(':id')
+  @UseInterceptors(IdempotencyInterceptor)
   async updateBudget(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateBudgetSchema)) data: UpdateBudgetInput,

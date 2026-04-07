@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { IdempotencyModule } from './idempotency/idempotency.module';
 import { AiAdvisorModule } from './ai-advisor/ai-advisor.module';
 import { AuthModule } from './auth/auth.module';
 import { BudgetsModule } from './budgets/budgets.module';
@@ -19,6 +20,7 @@ import { VaultsModule } from './vaults/vaults.module';
 
 @Module({
   imports: [
+    IdempotencyModule,
     UsageModule,
     StorageModule,
     AiAdvisorModule,

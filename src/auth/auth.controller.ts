@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Headers, Post, Put, Req } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Post, Put, Req, UseInterceptors } from '@nestjs/common';
+import { IdempotencyInterceptor } from 'src/idempotency/idempotency.interceptor';
 import { User } from '@supabase/supabase-js';
 import { Request } from 'express';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
@@ -26,6 +27,7 @@ export class AuthController {
 
   @Public()
   @Post('signup')
+  @UseInterceptors(IdempotencyInterceptor)
   async signUp(@Body(new ZodValidationPipe(SignUpSchema)) data: SignUpInput) {
     const result = await this.supabaseService.signUp(data);
     return success(
@@ -36,6 +38,7 @@ export class AuthController {
 
   @Public()
   @Post('login')
+  @UseInterceptors(IdempotencyInterceptor)
   async signIn(@Body(new ZodValidationPipe(SignInSchema)) data: SignInInput) {
     const result = await this.supabaseService.signIn(data);
     return success(result, 'Login realizado com sucesso');
@@ -67,6 +70,7 @@ export class AuthController {
   }
 
   @Put('update-password')
+  @UseInterceptors(IdempotencyInterceptor)
   async updatePassword(
     @Headers('authorization') authorization: string,
     @Body(new ZodValidationPipe(UpdatePasswordSchema))
@@ -81,6 +85,7 @@ export class AuthController {
   }
 
   @Put('update-profile')
+  @UseInterceptors(IdempotencyInterceptor)
   async updateProfile(
     @Headers('authorization') authorization: string,
     @Body(new ZodValidationPipe(UpdateProfileSchema)) data: any,

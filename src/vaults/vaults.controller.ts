@@ -7,7 +7,9 @@ import {
   Patch,
   Post,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
+import { IdempotencyInterceptor } from 'src/idempotency/idempotency.interceptor';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import {
   CreateVaultInput,
@@ -65,6 +67,7 @@ export class VaultsController {
   }
 
   @Post('ai-command')
+  @UseInterceptors(IdempotencyInterceptor)
   async aiCommand(
     @Body(new ZodValidationPipe(VaultAiCommandSchema))
     input: VaultAiCommandInput,
@@ -74,6 +77,7 @@ export class VaultsController {
   }
 
   @Post()
+  @UseInterceptors(IdempotencyInterceptor)
   async create(
     @Body(new ZodValidationPipe(CreateVaultSchema)) data: CreateVaultInput,
   ) {
@@ -82,6 +86,7 @@ export class VaultsController {
   }
 
   @Patch(':id')
+  @UseInterceptors(IdempotencyInterceptor)
   async update(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateVaultSchema)) data: UpdateVaultInput,
@@ -97,6 +102,7 @@ export class VaultsController {
   }
 
   @Post(':id/deposit')
+  @UseInterceptors(IdempotencyInterceptor)
   async deposit(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(VaultAmountSchema)) data: VaultAmountInput,
@@ -106,6 +112,7 @@ export class VaultsController {
   }
 
   @Post(':id/withdraw')
+  @UseInterceptors(IdempotencyInterceptor)
   async withdraw(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(VaultAmountSchema)) data: VaultAmountInput,
@@ -115,6 +122,7 @@ export class VaultsController {
   }
 
   @Post(':id/yield')
+  @UseInterceptors(IdempotencyInterceptor)
   async addYield(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(VaultAmountSchema)) data: VaultAmountInput,

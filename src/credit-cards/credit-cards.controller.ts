@@ -7,7 +7,9 @@ import {
   Post,
   Put,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
+import { IdempotencyInterceptor } from 'src/idempotency/idempotency.interceptor';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
   CreateCreditCardInput,
@@ -46,6 +48,7 @@ export class CreditCardsController {
   }
 
   @Post()
+  @UseInterceptors(IdempotencyInterceptor)
   async createCreditCard(
     @Body(new ZodValidationPipe(CreateCreditCardSchema))
     data: CreateCreditCardInput,
@@ -82,6 +85,7 @@ export class CreditCardsController {
   }
 
   @Put(':id')
+  @UseInterceptors(IdempotencyInterceptor)
   async updateCreditCard(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateCreditCardSchema))

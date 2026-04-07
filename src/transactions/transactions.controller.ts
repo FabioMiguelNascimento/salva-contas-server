@@ -13,6 +13,7 @@ import {
     UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { IdempotencyInterceptor } from 'src/idempotency/idempotency.interceptor';
 import { PlanTier } from 'generated/prisma/enums';
 import { AllowedPlans } from 'src/auth/decorators/allowed-plans.decorator';
 import { RequirePlanGuard } from 'src/auth/guards/require-plan.guard';
@@ -51,6 +52,7 @@ export class TransactionsController {
   ) {}
 
   @Post('confirm')
+  @UseInterceptors(IdempotencyInterceptor)
   async confirmTransactions(
     @Body(new ZodValidationPipe(ConfirmTransactionSchema))
     data: ConfirmTransactionInput,
@@ -62,7 +64,7 @@ export class TransactionsController {
   @Post()
   @UseGuards(RequirePlanGuard)
   @AllowedPlans(PlanTier.PRO, PlanTier.FAMILY)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(IdempotencyInterceptor, FileInterceptor('file'))
   async processTransaction(
     @Body('text') body: string,
     @Body('creditCardId') creditCardId: string | null,
@@ -116,6 +118,7 @@ export class TransactionsController {
   }
 
   @Patch(':id')
+  @UseInterceptors(IdempotencyInterceptor)
   async updateTransaction(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateTransactionSchema))

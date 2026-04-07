@@ -8,7 +8,9 @@ import {
   Post,
   Put,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
+import { IdempotencyInterceptor } from 'src/idempotency/idempotency.interceptor';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
   CreateNotificationInput,
@@ -38,6 +40,7 @@ export class NotificationsController {
   ) {}
 
   @Post()
+  @UseInterceptors(IdempotencyInterceptor)
   async createNotification(
     @Body(new ZodValidationPipe(CreateNotificationSchema))
     data: CreateNotificationInput,
@@ -65,12 +68,14 @@ export class NotificationsController {
   }
 
   @Patch(':id/read')
+  @UseInterceptors(IdempotencyInterceptor)
   async markAsRead(@Param('id') id: string) {
     const notification = await this.markAsReadUseCase.execute(id);
     return success(notification, 'Notificação marcada como lida');
   }
 
   @Put('mark-all-read')
+  @UseInterceptors(IdempotencyInterceptor)
   async markAllAsRead() {
     const result = await this.markAllAsReadUseCase.execute();
     return success(result, 'Todas as notificações foram marcadas como lidas');

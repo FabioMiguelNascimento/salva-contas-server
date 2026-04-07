@@ -7,7 +7,9 @@ import {
   Patch,
   Post,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
+import { IdempotencyInterceptor } from 'src/idempotency/idempotency.interceptor';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import {
   CreateSubscriptionInput,
@@ -42,6 +44,7 @@ export class SubscriptionsController {
   }
 
   @Post()
+  @UseInterceptors(IdempotencyInterceptor)
   async createSubscription(
     @Body(new ZodValidationPipe(CreateSubscriptionSchema))
     data: CreateSubscriptionInput,
@@ -63,6 +66,7 @@ export class SubscriptionsController {
   }
 
   @Patch(':id')
+  @UseInterceptors(IdempotencyInterceptor)
   async updateSubscription(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateSubscriptionSchema))

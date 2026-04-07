@@ -453,3 +453,18 @@ model Attachment {
 
   @@map("attachments")
 }
+
+model IdempotencyKey {
+  id         String   @id @default(uuid())
+  key        String   @unique
+  method     String
+  path       String
+  bodyHash   String?  @map("body_hash")
+  statusCode Int      @map("status_code")
+  response   String
+  createdAt  DateTime @default(now()) @map("created_at")
+  expiresAt  DateTime @map("expires_at")
+
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}

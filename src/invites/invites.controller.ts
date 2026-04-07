@@ -6,7 +6,9 @@ import {
   Param,
   Post,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { IdempotencyInterceptor } from 'src/idempotency/idempotency.interceptor';
 import { PlanTier } from 'generated/prisma/enums';
 import { AllowedPlans } from 'src/auth/decorators/allowed-plans.decorator';
 import { RequirePlanGuard } from 'src/auth/guards/require-plan.guard';
@@ -37,12 +39,14 @@ export class InvitesController {
   ) {}
 
   @Post('generate')
+  @UseInterceptors(IdempotencyInterceptor)
   async generateInvite() {
     const data = await this.generateInviteUseCase.execute();
     return success(data, 'Link de convite gerado com sucesso');
   }
 
   @Post('accept')
+  @UseInterceptors(IdempotencyInterceptor)
   async acceptInvite(
     @Body(new ZodValidationPipe(AcceptInviteSchema)) body: AcceptInviteInput,
   ) {

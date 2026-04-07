@@ -1,4 +1,5 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseInterceptors } from '@nestjs/common';
+import { IdempotencyInterceptor } from 'src/idempotency/idempotency.interceptor';
 import { User } from '@supabase/supabase-js';
 import { CurrentUser } from 'src/auth';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
@@ -14,6 +15,7 @@ export class MercadoPagoController {
   constructor(private readonly mercadoPagoService: MercadoPagoService) {}
 
   @Post('checkout')
+  @UseInterceptors(IdempotencyInterceptor)
   async createCheckout(
     @CurrentUser() user: User,
     @Body(new ZodValidationPipe(MercadoPagoCheckoutSchema))

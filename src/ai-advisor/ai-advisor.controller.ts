@@ -7,6 +7,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { IdempotencyInterceptor } from 'src/idempotency/idempotency.interceptor';
 import { PlanTier } from 'generated/prisma/enums';
 import { AllowedPlans } from 'src/auth/decorators/allowed-plans.decorator';
 import { RequirePlanGuard } from 'src/auth/guards/require-plan.guard';
@@ -25,7 +26,7 @@ export class AiAdvisorController {
   @Post('chat')
   @UseGuards(RequirePlanGuard)
   @AllowedPlans(PlanTier.PRO, PlanTier.FAMILY)
-  @UseInterceptors(FilesInterceptor('files'))
+  @UseInterceptors(IdempotencyInterceptor, FilesInterceptor('files'))
   async chat(
     @Body() body: any,
     @UploadedFiles() files: Express.Multer.File[] = [],

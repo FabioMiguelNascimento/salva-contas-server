@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseInterceptors } from '@nestjs/common';
+import { IdempotencyInterceptor } from 'src/idempotency/idempotency.interceptor';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import {
   CreateCategorySchema,
@@ -23,6 +24,7 @@ export class CategoriesController {
   ) {}
 
   @Post()
+  @UseInterceptors(IdempotencyInterceptor)
   async createCategory(
     @Body(new ZodValidationPipe(CreateCategorySchema))
     data: BaseCategoryCreateInput,
@@ -48,6 +50,7 @@ export class CategoriesController {
   }
 
   @Patch(':id')
+  @UseInterceptors(IdempotencyInterceptor)
   async updateCategory(
     @Body(new ZodValidationPipe(UpdateCategorySchema))
     data: BaseCategoryUpdateInput,

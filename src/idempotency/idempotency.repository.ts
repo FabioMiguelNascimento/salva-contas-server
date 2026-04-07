@@ -16,12 +16,18 @@ export class IdempotencyRepository {
   }
 
   async create(key: string, method: string, path: string, bodyHash: string | null, statusCode: number, response: string, ttlMs: number) {
-    return this.prisma.idempotencyKey.create({
-      data: {
+    return this.prisma.idempotencyKey.upsert({
+      where: { key },
+      create: {
         key,
         method,
         path,
         bodyHash,
+        statusCode,
+        response,
+        expiresAt: new Date(Date.now() + ttlMs),
+      },
+      update: {
         statusCode,
         response,
         expiresAt: new Date(Date.now() + ttlMs),

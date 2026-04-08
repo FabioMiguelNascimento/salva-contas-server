@@ -40,8 +40,19 @@ export const RefreshTokenSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token é obrigatório'),
 });
 
+export const OAuthProviderSchema = z.enum(['google']);
+
+export const OAuthCallbackSchema = z.object({
+  code: z.string().optional(),
+  error: z.string().optional(),
+  error_description: z.string().optional(),
+  next: z.string().optional(),
+});
+
 export type SignUpInput = z.infer<typeof SignUpSchema>;
 export type SignInInput = z.infer<typeof SignInSchema>;
 export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;
 export type UpdatePasswordInput = z.infer<typeof UpdatePasswordSchema>;
 export type RefreshTokenInput = z.infer<typeof RefreshTokenSchema>;
+export type OAuthProviderInput = z.infer<typeof OAuthProviderSchema>;
+export type OAuthCallbackInput = z.infer<typeof OAuthCallbackSchema>;

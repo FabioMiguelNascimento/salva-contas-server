@@ -1,9 +1,13 @@
-import { Body, Controller, Get, Headers, Post, Put, Req, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Headers, InternalServerErrorException, Param, Post, Put, Query, Redirect, Req, UseInterceptors } from '@nestjs/common';
 import { IdempotencyInterceptor } from 'src/idempotency/idempotency.interceptor';
 import { User } from '@supabase/supabase-js';
-import { Request } from 'express';
+import { Request as ExpressRequest } from 'express';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
+  OAuthCallbackInput,
+  OAuthCallbackSchema,
+  OAuthProviderInput,
+  OAuthProviderSchema,
   RefreshTokenInput,
   RefreshTokenSchema,
   ResetPasswordInput,
@@ -19,11 +23,17 @@ import {
 import { success } from '../utils/api-response-helper';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
+import { SocialCallbackUseCase } from './use-cases/social-callback-use-case';
+import { SocialLoginUseCase } from './use-cases/social-login-use-case';
 import { SupabaseService } from './supabase.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly socialLoginUseCase: SocialLoginUseCase,
+    private readonly socialCallbackUseCase: SocialCallbackUseCase,
+    private readonly supabaseService: SupabaseService,
+  ) { }
 
   @Public()
   @Post('signup')
@@ -105,8 +115,69 @@ export class AuthController {
     );
   }
 
+ @Public()
+  @Get('providers/:provider')
+  @Redirect()
+  async socialLoginUrl(
+    @Req() req: ExpressRequest,
+    @Param('provider', new ZodValidationPipe(OAuthProviderSchema)) provider: OAuthProviderInput,
+    @Query('next') next?: string,
+  ) {
+    const frontendUrl = process.env.SUPABASE_REDIRECT_URL || 'http://localhost:3000';
+    const redirectPath = next || 'entrar';
+    
+    const callbackUrl = `${frontendUrl}/${redirectPath}`;
+
+    const client = this.supabaseService.getClient();
+    
+    const { data, error } = await client.auth.signInWithOAuth({
+      provider: provider as any,
+      options: {
+        redirectTo: callbackUrl,
+      },
+    });
+
+    if (error) {
+      throw new InternalServerErrorException(`Falha ao iniciar login com ${provider}`);
+    }
+
+    return { url: data.url };
+  }
+
+  @Public()
+  @Get('callback/:provider')
+  @Redirect()
+  async socialCallback(
+    @Req() req: ExpressRequest,
+    @Param('provider', new ZodValidationPipe(OAuthProviderSchema)) provider: OAuthProviderInput,
+    @Query(new ZodValidationPipe(OAuthCallbackSchema)) query: OAuthCallbackInput,
+  ) {
+    const frontendUrl = process.env.SUPABASE_REDIRECT_URL
+    const redirectPath = query.next || 'entrar';
+
+    if (query.error) {
+      console.error('Erro no OAuth:', query.error, query.error_description);
+      return { url: `${frontendUrl}/${redirectPath}?error=${query.error}` };
+    }
+
+    if (!query.code) {
+      return { url: `${frontendUrl}/${redirectPath}?error=missing_code` };
+    }
+
+    try {
+      const { accessToken, refreshToken, expiresIn } =
+        await this.socialCallbackUseCase.execute(query.code);
+
+      const fragment = `access_token=${accessToken}&refresh_token=${refreshToken}&expires_in=${expiresIn}&type=signup`;
+      return { url: `${frontendUrl}/${redirectPath}#${fragment}` };
+    } catch (error) {
+      console.error('Erro ao processar callback do OAuth:', error);
+      return { url: `${frontendUrl}/${redirectPath}?error=session_exchange_failed` };
+    }
+  }
+
   @Get('me')
-  async getMe(@CurrentUser() user: User, @Req() req: Request) {
+  async getMe(@CurrentUser() user: User, @Req() req: ExpressRequest) {
     const localUser = req['localUser'];
 
     return success(

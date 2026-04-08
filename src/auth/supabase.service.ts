@@ -18,11 +18,18 @@ export class SupabaseService implements OnModuleInit {
       process.env.SUPABASE_ANON_KEY!,
     );
 
-    // admin client (service role) — usado para operações que exigem privilégios administrativos
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
       this.adminClient = createClient(
         process.env.SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+            detectSessionInUrl: false,
+            flowType: 'pkce'
+          },
+        },
       );
     }
   }
@@ -94,11 +101,9 @@ export class SupabaseService implements OnModuleInit {
   }
 
   async signOut(token: string) {
-    // Precisamos setar o token antes de fazer logout
     const { error } = await this.supabase.auth.admin.signOut(token);
 
     if (error) {
-      // Tenta logout normal se admin falhar
       await this.supabase.auth.signOut();
     }
 
@@ -137,7 +142,6 @@ export class SupabaseService implements OnModuleInit {
   }
 
   async updatePassword(token: string, newPassword: string) {
-    // Primeiro validamos o token
     const user = await this.validateToken(token);
 
     if (!user) {
@@ -159,13 +163,11 @@ export class SupabaseService implements OnModuleInit {
     token: string,
     payload: { name?: string; preferences?: any },
   ) {
-    // valida o token primeiro
     const user = await this.validateToken(token);
     if (!user) {
       throw new UnauthorizedException('Token inválido');
     }
 
-    // supabase client permite atualizar user metadata via updateUser({ data })
     const { data, error } = await this.supabase.auth.updateUser({
       data: {
         name: payload.name ?? user.user_metadata?.name,
